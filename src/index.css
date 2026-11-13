@@ -1,0 +1,128 @@
+@import "tailwindcss";
+
+/* Geist Sans / Geist Mono (latin variable). Bundled: no CDN, works offline. */
+@font-face {
+  font-family: "Geist";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("./assets/fonts/geist-latin-wght-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("./assets/fonts/geist-mono-latin-wght-normal.woff2") format("woff2");
+}
+
+@theme {
+  --font-sans: "Geist", ui-sans-serif, -apple-system, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", monospace;
+
+  /* Color roles. Use these, never raw zinc shades, in components. */
+  --color-canvas: #09090b;
+  --color-surface: #111113;
+  --color-raised: #18181b;
+  --color-line: #27272a;
+  --color-line-strong: #3f3f46;
+  --color-fg: #fafafa;
+  --color-fg-muted: #a1a1aa;
+  --color-fg-body: #d4d4d8;
+  --color-fg-faint: #71717a;
+
+  /* One chrome accent; danger is semantic only (failures, deletions). */
+  --color-accent: #4ade80;
+  --color-danger: #f87171;
+
+  /* Diff tints: low enough that code stays readable. */
+  --color-diff-add-line: #0e1a14;
+  --color-diff-add-word: #163422;
+  --color-diff-del-line: #1c1113;
+  --color-diff-del-word: #391e1f;
+
+  /* Syntax tiers: dimmed hues over neutral identifiers. Code may carry hue;
+     chrome stays neutral. */
+  --color-syn-keyword: #d99a93;
+  --color-syn-string: #8fb8d3;
+  --color-syn-number: #d4b483;
+  --color-syn-comment: #71717a;
+  --color-syn-type: #8fc4cf;
+  --color-syn-func: #bda9d6;
+  --color-syn-tag: #94cfa9;
+
+  /* Type scale: five UI sizes plus code. Nothing else. */
+  --text-micro: 10px;
+  --text-micro--line-height: 14px;
+  --text-meta: 12px;
+  --text-meta--line-height: 16px;
+  --text-ui: 13px;
+  --text-ui--line-height: 18px;
+  --text-prose: 14px;
+  --text-prose--line-height: 22px;
+  --text-lead: 16px;
+  --text-lead--line-height: 24px;
+  --text-title: 20px;
+  --text-title--line-height: 26px;
+  --text-code: 12px;
+  --text-code--line-height: 20px;
+
+  /* Detail sits next to the list only when it has room. */
+  --breakpoint-cockpit: 1180px;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-ui text-fg antialiased;
+    /* macOS overlay titlebar: no rubber-banding behind the chrome. */
+    overscroll-behavior: none;
+  }
+
+  /* Numeric data (counts, times, stats) aligns in every panel. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Mono is identity data and diff code: ligatures shift glyphs across the
+     span boundaries syntax highlighting creates, so turn them off. */
+  .font-mono {
+    font-variant-ligatures: none;
+  }
+
+  :focus-visible {
+    outline: 1px solid color-mix(in oklab, var(--color-accent) 45%, transparent);
+    outline-offset: -1px;
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--color-accent) 35%, transparent);
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-strong) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background-clip: content-box;
+    background-color: var(--color-line-strong);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-fg-faint);
+  }
+}
