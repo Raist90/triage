@@ -15,6 +15,29 @@ const listFields = `        number
         commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
 `
 
+// prNodeIDQuery resolves the GraphQL node ID a draft mutation needs. REST has
+// no endpoint for changing draft state.
+const prNodeIDQuery = `query PRNodeID($owner: String!, $name: String!, $number: Int!) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) { id }
+  }
+}
+`
+
+const markReadyMutation = `mutation MarkReady($id: ID!) {
+  markPullRequestReadyForReview(input: { pullRequestId: $id }) {
+    pullRequest { isDraft }
+  }
+}
+`
+
+const convertToDraftMutation = `mutation ConvertToDraft($id: ID!) {
+  convertPullRequestToDraft(input: { pullRequestId: $id }) {
+    pullRequest { isDraft }
+  }
+}
+`
+
 // detailQuery fetches everything the detail header needs. Diffs come from REST.
 const detailQuery = `query PRDetail($owner: String!, $name: String!, $number: Int!) {
   viewer { login }
