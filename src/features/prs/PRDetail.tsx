@@ -9,7 +9,13 @@ import {
 import { useEffect, useState } from "react";
 import { StatusIcon } from "../../components/StatusBadge";
 import { Button, IconButton, Kbd, MicroLabel } from "../../components/ui";
-import { describeError, getConfig, getPR, getPRDiff } from "../../lib/api";
+import {
+  describeError,
+  getConfig,
+  getPR,
+  getPRDiff,
+  getPROmnidiff,
+} from "../../lib/api";
 import { cx } from "../../lib/cx";
 import { openExternal } from "../../lib/open";
 import { formatRelative } from "../../lib/time";
@@ -18,6 +24,7 @@ import { useUIStore } from "../../stores/ui";
 import { ClaudeActionButton, ClaudeActionPanel } from "./ClaudeActionPanel";
 import { Conversation } from "./Conversation";
 import { DiffView } from "./DiffView";
+import { OmnidiffView } from "./OmnidiffView";
 import { ReviewHeaderActions } from "./ReviewHeaderActions";
 import { ReviewPanel } from "./ReviewPanel";
 import { useClaudeAction } from "./useClaudeAction";
@@ -29,7 +36,7 @@ type PRDetailProps = {
   number: number;
 };
 
-type DetailTab = "conversation" | "diff" | "explain";
+type DetailTab = "conversation" | "diff" | "omnidiff" | "explain";
 
 type TabDef = {
   id: DetailTab;
@@ -60,6 +67,13 @@ export function PRDetail({ repo, number }: PRDetailProps) {
   });
 
   const configQuery = useQuery({ queryKey: ["config"], queryFn: getConfig });
+  // Only fetch when the tab is open: rendering every file is expensive.
+  const omnidiffQuery = useQuery({
+    queryKey: ["pr-omnidiff", repo, number],
+    queryFn: () => getPROmnidiff({ repo, number }),
+    enabled:
+      tab === "omnidiff" && configQuery.data?.omnidiff.available === true,
+  });
   const configuredRepo = configQuery.data?.repos.find(
     (item) => `${item.owner}/${item.name}`.toLowerCase() === repo.toLowerCase(),
   );
@@ -97,13 +111,20 @@ export function PRDetail({ repo, number }: PRDetailProps) {
   const pr = detailQuery.data?.pr;
   const comments = pr?.comments ?? [];
   const explainAvailable = claudeAction.enabled && claudeAction.action !== null;
+  const omnidiffAvailable = configQuery.data?.omnidiff.available === true;
   const activeTab: DetailTab =
-    tab === "explain" && !explainAvailable ? "conversation" : tab;
+    (tab === "explain" && !explainAvailable) ||
+    (tab === "omnidiff" && !omnidiffAvailable)
+      ? "conversation"
+      : tab;
 
   const tabs: TabDef[] = [
     { id: "conversation", label: "Conversation", count: comments.length },
     { id: "diff", label: "Diff", count: pr?.changedFiles },
   ];
+  if (omnidiffAvailable) {
+    tabs.push({ id: "omnidiff", label: "Omnidiff" });
+  }
   if (claudeAction.action) {
     tabs.push({ id: "explain", label: claudeAction.action.label });
   }
@@ -262,7 +283,7 @@ export function PRDetail({ repo, number }: PRDetailProps) {
                 aria-labelledby={`detail-tab-${activeTab}`}
                 tabIndex={0}
                 className={
-                  activeTab === "diff"
+                  activeTab === "diff" || activeTab === "omnidiff"
                     ? "flex min-h-0 flex-1 flex-col outline-none"
                     : "min-h-0 flex-1 overflow-y-auto px-4 py-4 outline-none"
                 }
@@ -333,6 +354,19 @@ export function PRDetail({ repo, number }: PRDetailProps) {
                   </section>
                 ) : null}
 
+                {activeTab === "omnidiff" ? (
+                  <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                    <OmnidiffView
+                      data={omnidiffQuery.data}
+                      isPending={omnidiffQuery.isPending}
+                      isError={omnidiffQuery.isError}
+                      isFetching={omnidiffQuery.isFetching}
+                      error={omnidiffQuery.error}
+                      onRetry={() => void omnidiffQuery.refetch()}
+                    />
+                  </section>
+                ) : null}
+
                 {activeTab === "explain" ? (
                   <section className="max-w-[68ch]">
                     <div className="mb-3 flex justify-end">
@@ -354,7 +388,9 @@ export function PRDetail({ repo, number }: PRDetailProps) {
           ) : null}
         </div>
 
-        {pr && activeTab !== "diff" ? <ContextRail pr={pr} /> : null}
+        {pr && activeTab !== "diff" && activeTab !== "omnidiff" ? (
+          <ContextRail pr={pr} />
+        ) : null}
       </div>
     </div>
   );

@@ -122,6 +122,22 @@ export function SettingsDialog({ open, config, onClose }: SettingsDialogProps) {
           </section>
 
           <section className="mt-6">
+            <MicroLabel>Omnidiff</MicroLabel>
+            <p className="mt-2 text-meta text-fg-muted">
+              {config?.omnidiff.available ? (
+                <span className="text-accent">
+                  omnidiff CLI found. The comparison tab is available.
+                </span>
+              ) : (
+                <span>
+                  {config?.omnidiff.reason ?? "omnidiff CLI not found."} Install
+                  it with brew install ivankovic/omnidiff/omnidiff.
+                </span>
+              )}
+            </p>
+          </section>
+
+          <section className="mt-6">
             <MicroLabel>Repositories</MicroLabel>
             <div className="mt-2 rounded-[4px] border border-line">
               {(config?.repos ?? []).map((repo) => (

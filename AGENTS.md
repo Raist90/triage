@@ -147,11 +147,11 @@ stay side by side; reviewing is the only flow that matters.
 - **No card soup.** Prose, comments and metadata use one surface plus 1px
   `border-line` rules. Only the diff and dialogs get a box.
 - **PR detail:** compact header, 44px bar, tabs for Conversation (default), Diff,
-  Explain (when available). Conversation is one chronological timeline: the PR
-  body first, then comments, review verdicts and inline review comments. The
-  272px context rail shows checks, review, change stats, branches, commit and
-  author; it is hidden below 1400px and while the Diff tab is active (the diff
-  needs the width).
+  Omnidiff (experimental, when the CLI is installed), Explain (when available).
+  Conversation is one chronological timeline: the PR body first, then comments,
+  review verdicts and inline review comments. The 272px context rail shows
+  checks, review, change stats, branches, commit and author; it is hidden below
+  1400px and while the Diff or Omnidiff tab is active (they need the width).
 - **Diffs:** per file, collapsible, full width, 208px file rail. Semantic diff
   via `sem` when available; fall back to a plain unified diff. Never fail a
   review flow because `sem` is absent. Semantic changes live in a 40px map on
@@ -325,6 +325,33 @@ answer back over SSE. No checkout, no local clone, no worktree.
 - **Config.** Action model, budget and prompt live in `internal/config` and never
   reach the webview. Adding an action is a config entry, not a new route or
   component.
+
+## Omnidiff (experimental)
+
+An optional comparison tab that renders the same PR with
+[OmniDiff](https://github.com/ivankovic/omnidiff) instead of the built-in diff.
+It exists to judge whether byte-level painting beats `sem`, not as a product
+feature yet. Delete it in one commit if it does not earn its keep.
+
+- **External CLI only.** The Go sidecar runs the CLI in headless mode with
+  color forced; the binary is never bundled. Gated on `exec.LookPath` at startup
+  through `GET /config.omnidiff`, so the tab is absent when the CLI is missing.
+  OmniDiff is AGPL-3.0; keeping it a user-installed external tool keeps the
+  license boundary at arm's length.
+- **Full files, not patches.** `internal/github` lists each commit's tree once,
+  then fetches raw blobs by SHA. Blobs are immutable, so they cache for 30 days.
+  `internal/api` writes an `os.MkdirTemp` pair per file, preserving the
+  extension so tree-sitter picks the language, and removes the tree after.
+- **Bounded.** Files over 2 MiB, binaries, and files past the 60-file budget are
+  named in the response, never silently dropped. Four CLI processes at a time,
+  10s per file, 90s per request.
+- **Rendered output is data.** The ANSI sequences never reach the webview.
+  `internal/omnidiff` maps the basic palette onto six span kinds (`plain`, `add`,
+  `del`, `change`, `dim`, `strong`); `OmnidiffView` maps those onto cockpit
+  tokens. Unknown sequences keep their text and lose only their paint.
+- **Cache.** Rendered files are keyed by the two blob SHAs, both file
+  extensions and the CLI version, then cached for 7 days. Reopening a PR issues
+  no GitHub calls and no subprocesses.
 
 ## MVP scope
 

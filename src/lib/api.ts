@@ -11,6 +11,7 @@ import type {
   PRDetailResponse,
   PRDiffResponse,
   PRListResponse,
+  PROmnidiffResponse,
   ReviewEvent,
 } from "./types";
 
@@ -87,6 +88,14 @@ export function getPRDiff({
   number,
 }: PROptions): Promise<PRDiffResponse> {
   return request<PRDiffResponse>(`${prPath(repo, number)}/diff`);
+}
+
+/** Renders every changed file with the optional omnidiff CLI. */
+export function getPROmnidiff({
+  repo,
+  number,
+}: PROptions): Promise<PROmnidiffResponse> {
+  return request<PROmnidiffResponse>(`${prPath(repo, number)}/omnidiff`);
 }
 
 type SubmitReviewOptions = PROptions & {

@@ -9,6 +9,7 @@ import (
 	"github.com/Raist90/triage/backend/internal/actions"
 	"github.com/Raist90/triage/backend/internal/config"
 	"github.com/Raist90/triage/backend/internal/github"
+	"github.com/Raist90/triage/backend/internal/omnidiff"
 )
 
 // configView derives what the webview may know: no models, no prompts.
@@ -30,6 +31,13 @@ func (s *Server) configView() configResponse {
 		}
 	} else {
 		view.ActionsReason = "Claude Code CLI not found"
+	}
+
+	// Omnidiff is an optional external CLI, gated the same way as actions.
+	if omnidiff.Available() {
+		view.Omnidiff = omnidiffView{Available: true}
+	} else {
+		view.Omnidiff = omnidiffView{Reason: "omnidiff CLI not found"}
 	}
 
 	// Diff-only actions need nothing but a tracked repo and the CLI.

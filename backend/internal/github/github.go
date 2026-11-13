@@ -41,12 +41,15 @@ type Viewer struct {
 // PR is the list/detail shape shared by every route. Enums are normalized to
 // lowercase so the webview never has to know GitHub's spelling.
 type PR struct {
-	Number      int    `json:"number"`
-	Title       string `json:"title"`
-	URL         string `json:"url"`
-	Author      string `json:"author"`
-	Repo        string `json:"repo"`
-	HeadSHA     string `json:"headSHA"`
+	Number  int    `json:"number"`
+	Title   string `json:"title"`
+	URL     string `json:"url"`
+	Author  string `json:"author"`
+	Repo    string `json:"repo"`
+	HeadSHA string `json:"headSHA"`
+	// BaseSHA is the base commit diffed against. Detail responses only; the
+	// Omnidiff tab uses it to fetch both sides of every changed file.
+	BaseSHA     string `json:"baseSHA,omitempty"`
 	Branch      string `json:"branch"`
 	BaseBranch  string `json:"baseBranch"`
 	CheckStatus string `json:"checkStatus"`
@@ -226,6 +229,7 @@ type prNode struct {
 	HeadRefName        string `json:"headRefName"`
 	HeadRefOid         string `json:"headRefOid"`
 	BaseRefName        string `json:"baseRefName"`
+	BaseRefOid         string `json:"baseRefOid"`
 	ReviewDecision     string `json:"reviewDecision"`
 	ViewerLatestReview struct {
 		State string `json:"state"`
@@ -333,6 +337,7 @@ func (n prNode) toPR() PR {
 		Author:       n.Author.Login,
 		Repo:         n.Repository.NameWithOwner,
 		HeadSHA:      n.HeadRefOid,
+		BaseSHA:      n.BaseRefOid,
 		Branch:       n.HeadRefName,
 		BaseBranch:   n.BaseRefName,
 		CheckStatus:  check,

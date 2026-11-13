@@ -44,10 +44,13 @@ type LinearConfig struct {
 	TeamKeys []string `json:"teamKeys"`
 }
 
-// CacheTTL holds the freshness budget per provider kind.
+// CacheTTL holds the freshness budget per provider kind. Blobs and rendered
+// Omnidiff output are keyed by immutable SHAs, so their TTLs are long.
 type CacheTTL struct {
-	GraphQL time.Duration
-	REST    time.Duration
+	GraphQL  time.Duration
+	REST     time.Duration
+	Blob     time.Duration
+	Omnidiff time.Duration
 }
 
 // Config is the whole app configuration. Cache and Actions are server-side only
@@ -103,8 +106,10 @@ func Default() Config {
 		},
 		Linear: LinearConfig{TeamKeys: []string{}},
 		Cache: CacheTTL{
-			GraphQL: 15 * time.Minute,
-			REST:    5 * time.Minute,
+			GraphQL:  15 * time.Minute,
+			REST:     5 * time.Minute,
+			Blob:     30 * 24 * time.Hour,
+			Omnidiff: 7 * 24 * time.Hour,
 		},
 		Actions: ActionsConfig{
 			Items: []Action{{

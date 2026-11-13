@@ -73,8 +73,15 @@ type configResponse struct {
 	Linear        config.LinearConfig `json:"linear"`
 	Actions       []actionView        `json:"actions"`
 	ActionsReason string              `json:"actionsReason,omitempty"`
+	Omnidiff      omnidiffView        `json:"omnidiff"`
 	ConfigPath    string              `json:"configPath"`
 	ConfigError   string              `json:"configError,omitempty"`
+}
+
+// omnidiffView is the one gate the webview needs: the CLI was found at startup.
+type omnidiffView struct {
+	Available bool   `json:"available"`
+	Reason    string `json:"reason,omitempty"`
 }
 
 type actionResponse struct {

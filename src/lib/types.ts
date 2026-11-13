@@ -40,6 +40,12 @@ export type ActionView = {
   label: string;
 };
 
+/** Optional external CLI, gated at startup like the actions list. */
+export type OmnidiffConfig = {
+  available: boolean;
+  reason?: string;
+};
+
 export type Config = {
   user: User;
   repos: RepoView[];
@@ -48,6 +54,7 @@ export type Config = {
   actions: ActionView[];
   /** Why the actions list is empty, e.g. the CLI is missing. */
   actionsReason?: string;
+  omnidiff: OmnidiffConfig;
   /** Absolute path of the config file the server read. */
   configPath: string;
   /** Set when that file could not be read or parsed; defaults are in use. */
@@ -126,6 +133,8 @@ export type PR = {
   author: string;
   repo: string;
   headSHA: string;
+  /** Detail responses only: the base commit the Omnidiff tab diffs against. */
+  baseSHA?: string;
   branch: string;
   baseBranch: string;
   checkStatus: CheckState;
@@ -156,6 +165,50 @@ export type PRListResponse = {
 
 export type PRDetailResponse = {
   pr: PR;
+};
+
+/** The paint omnidiff asked for, mapped to our tokens by the view. */
+export type OmnidiffSpanKind =
+  "plain" | "add" | "del" | "change" | "dim" | "strong";
+
+export type OmnidiffSpan = {
+  text: string;
+  kind: OmnidiffSpanKind;
+};
+
+export type OmnidiffLineKind =
+  "context" | "add" | "del" | "change" | "meta" | "summary";
+
+export type OmnidiffLine = {
+  kind: OmnidiffLineKind;
+  spans: OmnidiffSpan[];
+};
+
+export type OmnidiffSection = {
+  side: "before" | "after";
+  path: string;
+  lines: OmnidiffLine[];
+};
+
+/** One changed file rendered by the omnidiff CLI. */
+export type OmnidiffFile = {
+  path: string;
+  status: "added" | "removed" | "modified" | "renamed";
+  additions: number;
+  deletions: number;
+  summary?: OmnidiffLine[];
+  sections?: OmnidiffSection[];
+  /** Why this file was not rendered. */
+  skipped?: string;
+  /** A render failure for this file only. */
+  error?: string;
+};
+
+export type PROmnidiffResponse = {
+  available: boolean;
+  reason?: string;
+  files: OmnidiffFile[];
+  truncated?: boolean;
 };
 
 export type SemanticChange = {

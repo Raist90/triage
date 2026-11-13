@@ -81,8 +81,8 @@ func (s *Server) handlePRs(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
-// handlePR serves /pr/{owner}/{repo}/{number} plus its /diff, /review,
-// /comments and /actions/{id}[/stream|/cancel] routes.
+// handlePR serves /pr/{owner}/{repo}/{number} plus its /diff, /omnidiff,
+// /review, /comments and /actions/{id}[/stream|/cancel] routes.
 func (s *Server) handlePR(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/pr/"), "/")
 	switch {
@@ -104,6 +104,8 @@ func (s *Server) handlePR(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.handlePRDiff(w, r, parts[0], parts[1], parts[2])
+	case len(parts) == 4 && parts[3] == "omnidiff":
+		s.handlePROmnidiff(w, r, parts[0], parts[1], parts[2])
 	case len(parts) == 5 && parts[3] == "actions":
 		s.handleAction(w, r, parts[0], parts[1], parts[2], parts[4])
 	case len(parts) == 6 && parts[3] == "actions" && parts[5] == "stream":
@@ -126,23 +128,26 @@ func (s *Server) handlePRDetail(w http.ResponseWriter, r *http.Request, owner, r
 		return
 	}
 
-	vars := prVars{Owner: owner, Repo: repo, Number: number}
-
 	var pr github.PR
-	// v4 adds the viewer's login, latest review and whether approval is allowed.
-	err = s.loadCached("pr-detail-v4", vars, s.cfg.Cache.GraphQL, isRefresh(r), &pr, func() error {
-		fetched, err := s.github.GetPR(r.Context(), owner, repo, number)
-		if err != nil {
-			return err
-		}
-		pr = fetched
-		return nil
-	})
-	if err != nil {
+	if err := s.loadPRDetail(r.Context(), owner, repo, number, isRefresh(r), &pr); err != nil {
 		s.writeProviderError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, prDetailResponse{PR: pr})
+}
+
+// loadPRDetail caches the detail query. v5 adds the base commit SHA that the
+// Omnidiff tab needs to fetch both sides of every changed file.
+func (s *Server) loadPRDetail(ctx context.Context, owner, repo string, number int, refresh bool, out *github.PR) error {
+	vars := prVars{Owner: owner, Repo: repo, Number: number}
+	return s.loadCached("pr-detail-v5", vars, s.cfg.Cache.GraphQL, refresh, out, func() error {
+		fetched, err := s.github.GetPR(ctx, owner, repo, number)
+		if err != nil {
+			return err
+		}
+		*out = fetched
+		return nil
+	})
 }
 
 func (s *Server) handlePRDiff(w http.ResponseWriter, r *http.Request, owner, repo, rawNumber string) {

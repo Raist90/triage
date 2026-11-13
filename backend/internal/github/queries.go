@@ -29,6 +29,7 @@ const detailQuery = `query PRDetail($owner: String!, $name: String!, $number: In
       headRefName
       headRefOid
       baseRefName
+      baseRefOid
       reviewDecision
       viewerLatestReview { state }
       createdAt
