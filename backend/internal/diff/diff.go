@@ -42,6 +42,12 @@ type SemanticChange struct {
 	OldFilePath   string `json:"oldFilePath,omitempty"`
 	Cosmetic      bool   `json:"cosmetic,omitempty"`
 
+	// A modified function or method whose declaration line changed. Only the
+	// first line of each body ships, capped, so the webview can show an
+	// interface change without receiving the whole entity.
+	OldSignature string `json:"oldSignature,omitempty"`
+	NewSignature string `json:"newSignature,omitempty"`
+
 	// Kept for rewrite detection only; sem's entity bodies are far too large
 	// to ship to the webview for every change.
 	before string
@@ -246,6 +252,14 @@ func parseSemanticReport(output []byte) (Report, error) {
 		if change.OldFilePath != nil {
 			item.OldFilePath = *change.OldFilePath
 		}
+		if change.ChangeType == "modified" && hasSignature(change.EntityType) {
+			before := signatureOf(change.BeforeContent)
+			after := signatureOf(change.AfterContent)
+			if before != "" && after != "" && before != after {
+				item.OldSignature = before
+				item.NewSignature = after
+			}
+		}
 		if canRetainContent(change.ChangeType, change.BeforeContent, change.AfterContent, retainedContent) {
 			item.before = change.BeforeContent
 			item.after = change.AfterContent
@@ -259,7 +273,29 @@ func parseSemanticReport(output []byte) (Report, error) {
 const (
 	maxSemanticEntityBytes = 8 << 10
 	maxSemanticContent     = 2 << 20
+	maxSignatureRunes      = 160
 )
+
+// hasSignature limits declaration-line comparison to entities where the first
+// line is the declaration. A struct or class body's first line rarely carries
+// meaning on its own, and a module-level body has no declaration at all.
+func hasSignature(entityType string) bool {
+	return entityType == "function" || entityType == "method"
+}
+
+// signatureOf returns the declaration line of an entity body. Trailing opening
+// braces are dropped so the two sides read as signatures, not code blocks.
+func signatureOf(body string) string {
+	line, _, _ := strings.Cut(body, "\n")
+	line = strings.TrimSpace(line)
+	line = strings.TrimSuffix(line, "{")
+	line = strings.TrimSpace(line)
+	runes := []rune(line)
+	if len(runes) > maxSignatureRunes {
+		line = string(runes[:maxSignatureRunes]) + "..."
+	}
+	return line
+}
 
 // canRetainContent bounds the entity bodies kept in memory for rewrite
 // detection. Added and deleted entities have no pair to compare, and a

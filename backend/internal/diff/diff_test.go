@@ -128,3 +128,38 @@ func TestParseSemanticReport(t *testing.T) {
 		t.Error("added/moved entity without prior content marked cosmetic")
 	}
 }
+
+func TestParseSemanticReportSignatures(t *testing.T) {
+	output := []byte(`{
+	  "changes": [
+	    {"filePath":"a.go","entityType":"function","entityName":"Add","changeType":"modified",
+	     "beforeContent":"func Add(a, b int) int {\n\treturn a + b\n}",
+	     "afterContent":"func Add(a, b int, c int) int {\n\treturn a + b + c\n}","structuralChange":true},
+	    {"filePath":"a.go","entityType":"method","entityName":"Label","changeType":"modified",
+	     "beforeContent":"func (c Config) Label() string {\n\treturn c.Name\n}",
+	     "afterContent":"func (c Config) Label() string {\n\treturn c.Name + \"!\"\n}","structuralChange":true},
+	    {"filePath":"a.go","entityType":"type","entityName":"Config","changeType":"modified",
+	     "beforeContent":"type Config struct {\n\tName string\n}",
+	     "afterContent":"type Config struct {\n\tName string\n\tSize int\n}","structuralChange":true}
+	  ]
+	}`)
+
+	report, err := parseSemanticReport(output)
+	if err != nil {
+		t.Fatalf("parseSemanticReport: %v", err)
+	}
+	changes := report.Changes["a.go"]
+	if len(changes) != 3 {
+		t.Fatalf("changes = %d, want 3", len(changes))
+	}
+
+	if changes[0].OldSignature != "func Add(a, b int) int" || changes[0].NewSignature != "func Add(a, b int, c int) int" {
+		t.Errorf("signature = %q -> %q", changes[0].OldSignature, changes[0].NewSignature)
+	}
+	if changes[1].OldSignature != "" || changes[1].NewSignature != "" {
+		t.Errorf("body-only edit reported a signature change: %+v", changes[1])
+	}
+	if changes[2].OldSignature != "" || changes[2].NewSignature != "" {
+		t.Errorf("type body reported a signature change: %+v", changes[2])
+	}
+}

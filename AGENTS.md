@@ -149,9 +149,11 @@ stay side by side; reviewing is the only flow that matters.
 - **PR detail:** compact header, 44px bar, tabs for Conversation (default), Diff,
   Explain (when available). Conversation is one chronological timeline: the PR
   body first, then comments, review verdicts and inline review comments. The
-  272px context rail shows checks, review, change stats, branches, commit and
-  author; it is hidden below 1400px and while the Diff tab is active (the diff
-  needs the width).
+  description carries the semantic digest: focus-ordered files, PR-level flags,
+  and a collapsible entity list with signature changes, each row jumping into
+  the Diff tab at its file or hunk. The 272px context rail shows checks, review,
+  change stats, branches, commit and author; it is hidden below 1400px and while
+  the Diff tab is active (the diff needs the width).
 - **Diffs:** per file, collapsible, full width, 208px file rail. Semantic diff
   via `sem` when available; fall back to a plain unified diff. Never fail a
   review flow because `sem` is absent. Semantic changes live in a 40px map on

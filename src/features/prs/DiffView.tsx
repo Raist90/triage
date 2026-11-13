@@ -50,6 +50,10 @@ type DiffViewProps = {
   headSHA: string;
   canComment: boolean;
   viewerLogin?: string;
+  /** File picked outside the diff, e.g. from the conversation digest. */
+  openPath?: string;
+  /** Hunk within that file, when the pick came from one semantic change. */
+  openHunk?: number;
 };
 
 /** One commentable diff line: GitHub needs path + side + line + head commit. */
@@ -98,20 +102,37 @@ export function DiffView({
   headSHA,
   canComment,
   viewerLogin,
+  openPath,
+  openHunk,
 }: DiffViewProps) {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  // A digest pick selects its file during the first render instead of in an
+  // effect, so the file is open and the hunk jump runs on mount.
+  const openIndex = openPath
+    ? files.findIndex((file) => file.path === openPath)
+    : -1;
+  const openKey = openIndex >= 0 ? fileKey(files[openIndex], openIndex) : null;
+
+  const [expanded, setExpanded] = useState<Set<string>>(() =>
+    openKey ? new Set([openKey]) : new Set(),
+  );
   const [draft, setDraft] = useState<string | null>(null);
   const [hideCosmetic, setHideCosmetic] = useState(true);
   const [focusMode, setFocusMode] = useState(true);
-  const [activeKey, setActiveKey] = useState<string | null>(null);
+  const [activeKey, setActiveKey] = useState<string | null>(openKey);
   const [filter, setFilter] = useState("");
   const [jump, setJump] = useState<{
     key: string;
     hunkIndex?: number;
     token: number;
-  } | null>(null);
-  const [flash, setFlash] = useState<string | null>(null);
-  const initialized = useRef(false);
+  } | null>(() =>
+    openKey && openHunk !== undefined
+      ? { key: openKey, hunkIndex: openHunk, token: 0 }
+      : null,
+  );
+  const [flash, setFlash] = useState<string | null>(() =>
+    openKey && openHunk !== undefined ? `${openKey}:${openHunk}` : null,
+  );
+  const initialized = useRef(openKey !== null);
 
   const hiddenKinds = useUIStore((state) => state.hiddenFileKinds);
   const toggleFileKind = useUIStore((state) => state.toggleFileKind);
@@ -128,8 +149,9 @@ export function DiffView({
   const sectionRefs = useRef(new Map<string, HTMLElement>());
   const scrollFrame = useRef<number | null>(null);
   // Set while a click-driven jump owns the selection. Scroll inference must not
-  // overwrite it; it only clears when the user scrolls for real.
-  const programmaticScroll = useRef(false);
+  // overwrite it; it only clears when the user scrolls for real. A digest jump
+  // owns the selection from the first frame.
+  const programmaticScroll = useRef(openKey !== null && openHunk !== undefined);
 
   const kindCounts = DIFF_FILE_KINDS.reduce(
     (counts, kind) => {
@@ -151,12 +173,16 @@ export function DiffView({
   const cosmeticFiles = kindFiltered.filter(isCosmeticFile).length;
   const hasReview = files.some((file) => file.review !== undefined);
   const highCount = files.filter((file) => focusBand(file) === "high").length;
+  // A file picked outside the diff must stay reachable even when its kind or
+  // focus band is filtered out; otherwise the jump silently does nothing.
+  const forcedIndex = openIndex;
   const baseVisible = files
     .map((file, index) => ({ file, index, key: fileKey(file, index) }))
     .filter(
-      ({ file }) =>
-        !fileKinds(file).some((kind) => hiddenKinds.includes(kind)) &&
-        !(hideCosmetic && isCosmeticFile(file)),
+      ({ file, index }) =>
+        index === forcedIndex ||
+        (!fileKinds(file).some((kind) => hiddenKinds.includes(kind)) &&
+          !(hideCosmetic && isCosmeticFile(file))),
     );
   const lowCount = baseVisible.filter(
     ({ file }) => file.review?.band === "low",
@@ -166,7 +192,11 @@ export function DiffView({
     (hideCosmetic ? cosmeticFiles : 0) +
     (hideLowPriority ? lowCount : 0);
   const visible = baseVisible
-    .filter(({ file }) => !(hideLowPriority && file.review?.band === "low"))
+    .filter(
+      ({ file, index }) =>
+        index === forcedIndex ||
+        !(hideLowPriority && file.review?.band === "low"),
+    )
     .sort((a, b) =>
       diffSort === "priority"
         ? compareByFocus(a.file, b.file) || a.index - b.index
@@ -202,7 +232,8 @@ export function DiffView({
   });
 
   // Open the first file so the diff is visible without a click, but leave the
-  // rest collapsed for large pull requests.
+  // rest collapsed for large pull requests. A digest pick is already expanded
+  // by the state initializers above.
   useEffect(() => {
     if (initialized.current || !firstVisibleKey) return;
     initialized.current = true;
