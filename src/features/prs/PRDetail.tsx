@@ -7,16 +7,16 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Markdown } from "../../components/Markdown";
 import { StatusIcon } from "../../components/StatusBadge";
 import { Button, IconButton, Kbd, MicroLabel } from "../../components/ui";
 import { describeError, getConfig, getPR, getPRDiff } from "../../lib/api";
 import { cx } from "../../lib/cx";
 import { openExternal } from "../../lib/open";
 import { formatRelative } from "../../lib/time";
-import type { PR, Comment } from "../../lib/types";
+import type { PR } from "../../lib/types";
 import { useUIStore } from "../../stores/ui";
 import { ClaudeActionButton, ClaudeActionPanel } from "./ClaudeActionPanel";
+import { Conversation } from "./Conversation";
 import { DiffView } from "./DiffView";
 import { ReviewHeaderActions } from "./ReviewHeaderActions";
 import { ReviewPanel } from "./ReviewPanel";
@@ -29,7 +29,7 @@ type PRDetailProps = {
   number: number;
 };
 
-type DetailTab = "description" | "diff" | "explain" | "comments";
+type DetailTab = "conversation" | "diff" | "explain";
 
 type TabDef = {
   id: DetailTab;
@@ -45,8 +45,8 @@ export function PRDetail({ repo, number }: PRDetailProps) {
   const [tabState, setTabState] = useState<{
     key: string;
     tab: DetailTab;
-  }>({ key: prKey, tab: "description" });
-  const tab: DetailTab = tabState.key === prKey ? tabState.tab : "description";
+  }>({ key: prKey, tab: "conversation" });
+  const tab: DetailTab = tabState.key === prKey ? tabState.tab : "conversation";
   const setTab = (next: DetailTab) => setTabState({ key: prKey, tab: next });
 
   const detailQuery = useQuery({
@@ -98,16 +98,15 @@ export function PRDetail({ repo, number }: PRDetailProps) {
   const comments = pr?.comments ?? [];
   const explainAvailable = claudeAction.enabled && claudeAction.action !== null;
   const activeTab: DetailTab =
-    tab === "explain" && !explainAvailable ? "description" : tab;
+    tab === "explain" && !explainAvailable ? "conversation" : tab;
 
   const tabs: TabDef[] = [
-    { id: "description", label: "Description" },
+    { id: "conversation", label: "Conversation", count: comments.length },
     { id: "diff", label: "Diff", count: pr?.changedFiles },
   ];
   if (claudeAction.action) {
     tabs.push({ id: "explain", label: claudeAction.action.label });
   }
-  tabs.push({ id: "comments", label: "Comments", count: comments.length });
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -268,16 +267,8 @@ export function PRDetail({ repo, number }: PRDetailProps) {
                     : "min-h-0 flex-1 overflow-y-auto px-4 py-4 outline-none"
                 }
               >
-                {activeTab === "description" ? (
-                  <div className="max-w-3xl">
-                    {pr.description.trim() ? (
-                      <Markdown>{pr.description}</Markdown>
-                    ) : (
-                      <p className="text-prose text-fg-faint">
-                        No description.
-                      </p>
-                    )}
-                  </div>
+                {activeTab === "conversation" ? (
+                  <Conversation pr={pr} comments={comments} />
                 ) : null}
 
                 {activeTab === "diff" ? (
@@ -343,7 +334,7 @@ export function PRDetail({ repo, number }: PRDetailProps) {
                 ) : null}
 
                 {activeTab === "explain" ? (
-                  <section className="max-w-3xl">
+                  <section className="max-w-[68ch]">
                     <div className="mb-3 flex justify-end">
                       <ClaudeActionButton controller={claudeAction} />
                     </div>
@@ -357,25 +348,6 @@ export function PRDetail({ repo, number }: PRDetailProps) {
                       <ClaudeActionPanel controller={claudeAction} />
                     )}
                   </section>
-                ) : null}
-
-                {activeTab === "comments" ? (
-                  <div className="max-w-3xl">
-                    {comments.length === 0 ? (
-                      <p className="text-prose text-fg-faint">
-                        No comments yet.
-                      </p>
-                    ) : (
-                      <div>
-                        {comments.map((comment, index) => (
-                          <CommentRow
-                            key={`${comment.createdAt}:${comment.author}:${index}`}
-                            comment={comment}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
                 ) : null}
               </div>
             </>
@@ -451,27 +423,6 @@ function ContextRail({ pr }: { pr: PR }) {
         </Button>
       </section>
     </aside>
-  );
-}
-
-function CommentRow({ comment }: { comment: Comment }) {
-  return (
-    <article className="border-b border-line py-3 first:pt-0 last:border-b-0">
-      <div className="flex items-center gap-2 text-meta">
-        <span className="font-medium text-fg">{comment.author}</span>
-        {comment.kind === "review" ? (
-          <span className="rounded-[3px] border border-line px-1 text-micro tracking-[0.06em] text-fg-faint uppercase">
-            Review
-          </span>
-        ) : null}
-        <span className="tabular text-fg-faint">
-          {formatRelative(comment.createdAt)}
-        </span>
-      </div>
-      <div className="mt-2">
-        <Markdown>{comment.body}</Markdown>
-      </div>
-    </article>
   );
 }
 

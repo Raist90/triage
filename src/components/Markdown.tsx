@@ -30,42 +30,42 @@ function MarkdownLink({ href, children }: ComponentProps<"a">) {
 
 const components: Components = {
   a: MarkdownLink,
-  p: ({ children }) => <p className="my-2 first:mt-0 last:mb-0">{children}</p>,
+  p: ({ children }) => <p className="my-3 first:mt-0 last:mb-0">{children}</p>,
   h1: ({ children }) => (
-    <h1 className="mt-4 mb-2 text-lead font-medium text-fg first:mt-0">
+    <h1 className="mt-6 mb-2 text-lead font-medium text-fg first:mt-0">
       {children}
     </h1>
   ),
   h2: ({ children }) => (
-    <h2 className="mt-4 mb-2 text-prose font-medium text-fg first:mt-0">
+    <h2 className="mt-6 mb-2 text-prose font-medium text-fg first:mt-0">
       {children}
     </h2>
   ),
   h3: ({ children }) => (
-    <h3 className="mt-3 mb-2 text-prose font-medium text-fg first:mt-0">
+    <h3 className="mt-6 mb-2 text-prose font-medium text-fg first:mt-0">
       {children}
     </h3>
   ),
   h4: ({ children }) => (
-    <h4 className="mt-3 mb-2 text-ui font-medium text-fg first:mt-0">
+    <h4 className="mt-4 mb-2 text-ui font-medium text-fg first:mt-0">
       {children}
     </h4>
   ),
   h5: ({ children }) => (
-    <h5 className="mt-3 mb-1 text-ui font-medium text-fg first:mt-0">
+    <h5 className="mt-4 mb-1 text-ui font-medium text-fg first:mt-0">
       {children}
     </h5>
   ),
   h6: ({ children }) => (
-    <h6 className="mt-3 mb-1 text-meta font-medium text-fg first:mt-0">
+    <h6 className="mt-4 mb-1 text-meta font-medium text-fg first:mt-0">
       {children}
     </h6>
   ),
   ul: ({ children }) => (
-    <ul className="my-2 list-disc space-y-1 pl-6">{children}</ul>
+    <ul className="my-3 list-disc space-y-1 pl-6">{children}</ul>
   ),
   ol: ({ children }) => (
-    <ol className="my-2 list-decimal space-y-1 pl-6">{children}</ol>
+    <ol className="my-3 list-decimal space-y-1 pl-6">{children}</ol>
   ),
   li: ({ children }) => (
     <li className="pl-1 [&:has(>input[type=checkbox])]:list-none">
@@ -73,11 +73,11 @@ const components: Components = {
     </li>
   ),
   blockquote: ({ children }) => (
-    <blockquote className="my-3 border-l-2 border-line pl-3 text-fg-faint">
+    <blockquote className="my-4 border-l-2 border-line pl-3 text-fg-faint">
       {children}
     </blockquote>
   ),
-  hr: () => <hr className="my-4 border-line" />,
+  hr: () => <hr className="my-6 border-line" />,
   strong: ({ children }) => (
     <strong className="font-medium text-fg">{children}</strong>
   ),
@@ -87,12 +87,12 @@ const components: Components = {
     </code>
   ),
   pre: ({ children }) => (
-    <pre className="my-3 overflow-x-auto rounded-[6px] border border-line bg-surface p-3 font-mono text-code whitespace-pre text-fg-body [&>code]:border-0 [&>code]:bg-transparent [&>code]:p-0 [&>code]:text-code">
+    <pre className="my-4 overflow-x-auto rounded-[6px] border border-line bg-surface p-3 font-mono text-code whitespace-pre text-fg-body [&>code]:border-0 [&>code]:bg-transparent [&>code]:p-0 [&>code]:text-code">
       {children}
     </pre>
   ),
   table: ({ children }) => (
-    <div className="my-3 overflow-x-auto rounded-[6px] border border-line">
+    <div className="my-4 overflow-x-auto rounded-[6px] border border-line">
       <table className="w-full border-collapse text-meta [&_tr:last-child>*]:border-b-0">
         {children}
       </table>

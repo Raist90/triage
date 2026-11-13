@@ -65,17 +65,23 @@ type PR struct {
 	Additions        int       `json:"additions"`
 	Deletions        int       `json:"deletions"`
 	ChangedFiles     int       `json:"changedFiles"`
+	CreatedAt        string    `json:"createdAt,omitempty"`
 	UpdatedAt        string    `json:"updatedAt"`
 	IsDraft          bool      `json:"isDraft"`
 	Comments         []Comment `json:"comments,omitempty"`
 }
 
-// Comment is one conversation or review-thread comment on a PR.
+// Comment is one entry in a PR's conversation: an issue comment, a review
+// verdict, or an inline review-thread comment. State is set on verdicts and
+// Path/Line are set on inline comments.
 type Comment struct {
 	Author    string `json:"author"`
 	Body      string `json:"body"`
 	CreatedAt string `json:"createdAt"`
 	Kind      string `json:"kind"`
+	State     string `json:"state,omitempty"`
+	Path      string `json:"path,omitempty"`
+	Line      int    `json:"line,omitempty"`
 }
 
 // ListResult is one tab scoped to either all tracked repos or a single repo.
@@ -224,6 +230,7 @@ type prNode struct {
 	ViewerLatestReview struct {
 		State string `json:"state"`
 	} `json:"viewerLatestReview"`
+	CreatedAt    string `json:"createdAt"`
 	UpdatedAt    string `json:"updatedAt"`
 	Additions    int    `json:"additions"`
 	Deletions    int    `json:"deletions"`
@@ -246,8 +253,13 @@ type prNode struct {
 	Comments struct {
 		Nodes []commentNode `json:"nodes"`
 	} `json:"comments"`
+	Reviews struct {
+		Nodes []reviewNode `json:"nodes"`
+	} `json:"reviews"`
 	ReviewThreads struct {
 		Nodes []struct {
+			Path     string `json:"path"`
+			Line     int    `json:"line"`
 			Comments struct {
 				Nodes []commentNode `json:"nodes"`
 			} `json:"comments"`
@@ -257,6 +269,15 @@ type prNode struct {
 
 type commentNode struct {
 	Body      string `json:"body"`
+	CreatedAt string `json:"createdAt"`
+	Author    struct {
+		Login string `json:"login"`
+	} `json:"author"`
+}
+
+type reviewNode struct {
+	Body      string `json:"body"`
+	State     string `json:"state"`
 	CreatedAt string `json:"createdAt"`
 	Author    struct {
 		Login string `json:"login"`
@@ -281,9 +302,27 @@ func (n prNode) toPR() PR {
 	for _, comment := range n.Comments.Nodes {
 		comments = append(comments, comment.toComment("comment"))
 	}
+	for _, review := range n.Reviews.Nodes {
+		state := strings.ToLower(review.State)
+		// Pending reviews are private drafts; empty COMMENTED reviews are just
+		// the batch that carries inline comments, which arrive on their own.
+		if review.State == "PENDING" || (review.State == "COMMENTED" && review.Body == "") {
+			continue
+		}
+		comments = append(comments, Comment{
+			Author:    review.Author.Login,
+			Body:      review.Body,
+			CreatedAt: review.CreatedAt,
+			Kind:      "verdict",
+			State:     state,
+		})
+	}
 	for _, thread := range n.ReviewThreads.Nodes {
 		for _, comment := range thread.Comments.Nodes {
-			comments = append(comments, comment.toComment("review"))
+			item := comment.toComment("review")
+			item.Path = thread.Path
+			item.Line = thread.Line
+			comments = append(comments, item)
 		}
 	}
 
@@ -303,6 +342,7 @@ func (n prNode) toPR() PR {
 		Additions:    n.Additions,
 		Deletions:    n.Deletions,
 		ChangedFiles: n.ChangedFiles,
+		CreatedAt:    n.CreatedAt,
 		UpdatedAt:    n.UpdatedAt,
 		IsDraft:      n.IsDraft,
 		Comments:     comments,
