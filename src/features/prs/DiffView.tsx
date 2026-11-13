@@ -348,6 +348,10 @@ export function DiffView({
     if (next) {
       const keep = activeKey ?? firstVisibleKey;
       setExpanded(keep ? new Set([keep]) : new Set());
+    } else {
+      // Leaving focus mode opens every visible file. The user collapses the
+      // ones they do not want to read.
+      setExpanded(new Set(visible.map(({ key }) => key)));
     }
   }
 
