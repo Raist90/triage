@@ -51,6 +51,20 @@ export function PRDetail({ repo, number }: PRDetailProps) {
   const tab: DetailTab = tabState.key === prKey ? tabState.tab : "conversation";
   const setTab = (next: DetailTab) => setTabState({ key: prKey, tab: next });
 
+  // A file picked from the semantic digest. Keyed by pull request so a target
+  // from the previous detail never opens the wrong file.
+  const [diffTarget, setDiffTarget] = useState<{
+    key: string;
+    path: string;
+    hunkIndex?: number;
+  } | null>(null);
+  const activeTarget = diffTarget?.key === prKey ? diffTarget : null;
+
+  function openInDiff(path: string, hunkIndex?: number) {
+    setDiffTarget({ key: prKey, path, hunkIndex });
+    setTab("diff");
+  }
+
   const mergePolls = useRef(0);
   const detailQuery = useQuery({
     queryKey: ["pr", repo, number],
@@ -310,7 +324,13 @@ export function PRDetail({ repo, number }: PRDetailProps) {
                 }
               >
                 {activeTab === "conversation" ? (
-                  <Conversation pr={pr} comments={comments} />
+                  <Conversation
+                    pr={pr}
+                    comments={comments}
+                    diff={diffQuery.data}
+                    onOpenChange={openInDiff}
+                    onOpenDiff={() => setTab("diff")}
+                  />
                 ) : null}
 
                 {activeTab === "diff" ? (
@@ -365,6 +385,8 @@ export function PRDetail({ repo, number }: PRDetailProps) {
                           headSHA={pr.headSHA}
                           canComment={pr.state === "open" && pr.headSHA !== ""}
                           viewerLogin={pr.viewerLogin}
+                          openPath={activeTarget?.path}
+                          openHunk={activeTarget?.hunkIndex}
                         />
                       </div>
                     ) : (

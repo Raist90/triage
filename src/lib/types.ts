@@ -176,6 +176,9 @@ export type SemanticChange = {
   oldFilePath?: string;
   /** True when sem saw only formatting, whitespace, or comment edits. */
   cosmetic?: boolean;
+  /** Modified function or method: the declaration line before and after. */
+  oldSignature?: string;
+  newSignature?: string;
 };
 
 export type SemanticSummary = {

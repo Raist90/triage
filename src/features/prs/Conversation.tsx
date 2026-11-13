@@ -1,11 +1,16 @@
 import { Markdown } from "../../components/Markdown";
 import { cx } from "../../lib/cx";
 import { formatAgo } from "../../lib/time";
-import type { Comment, PR } from "../../lib/types";
+import type { Comment, PR, PRDiffResponse } from "../../lib/types";
+import { SemanticDigest } from "./SemanticDigest";
 
 type ConversationProps = {
   pr: PR;
   comments: Comment[];
+  /** Semantic data from the PR diff; absent until the diff query resolves. */
+  diff?: PRDiffResponse;
+  onOpenChange: (path: string, hunkIndex?: number) => void;
+  onOpenDiff: () => void;
 };
 
 type Entry = {
@@ -89,7 +94,13 @@ function buildEntries(pr: PR, comments: Comment[]): Entry[] {
   });
 }
 
-export function Conversation({ pr, comments }: ConversationProps) {
+export function Conversation({
+  pr,
+  comments,
+  diff,
+  onOpenChange,
+  onOpenDiff,
+}: ConversationProps) {
   const entries = buildEntries(pr, comments);
 
   return (
@@ -132,6 +143,13 @@ export function Conversation({ pr, comments }: ConversationProps) {
               <p className="mt-2 text-prose text-fg-faint">
                 No description added.
               </p>
+            ) : null}
+            {entry.kind === "description" && diff?.semanticAvailable ? (
+              <SemanticDigest
+                files={diff.files}
+                onOpenChange={onOpenChange}
+                onOpenDiff={onOpenDiff}
+              />
             ) : null}
           </li>
         );
