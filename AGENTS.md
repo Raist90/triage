@@ -152,9 +152,12 @@ stay side by side; reviewing is the only flow that matters.
   and while the Diff tab is active (the diff needs the width).
 - **Diffs:** per file, collapsible, full width, 208px file rail. Semantic diff
   via `sem` when available; fall back to a plain unified diff. Never fail a
-  review flow because `sem` is absent. Code is syntax-highlighted by the Go
-  sidecar (Chroma): colored, but only desaturated `syn-*` tokens from
-  `index.css`, never raw hues in components. Chrome stays hue-free.
+  review flow because `sem` is absent. Semantic changes live in a 40px map on
+  the right edge of the diff pane (toolbar toggle) plus a per-hunk chip that
+  opens the entity rows on demand; never as always-on rows above the code.
+  Code is syntax-highlighted by the Go sidecar (Chroma): colored, but only
+  desaturated `syn-*` tokens from `index.css`, never raw hues in components.
+  Chrome stays hue-free.
 - **Icons:** `lucide-react`, 14–16px. Reuse `Button`, `IconButton`, `MicroLabel`,
   `Kbd` from `src/components/ui.tsx`; do not paste new button class strings.
 - **Components:** no styling frameworks, no shadcn/Radix, no CSS-in-JS, no CSS
