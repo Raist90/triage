@@ -77,7 +77,7 @@ func (s *Server) writeReviewError(w http.ResponseWriter, err error) {
 // invalidatePR drops the cached detail and every list tab that could show this
 // PR. The diff and artifacts are keyed by commit, so they stay.
 func (s *Server) invalidatePR(owner, repo string, number int) {
-	if key, err := cache.Key("github", "pr-detail-v4", prVars{Owner: owner, Repo: repo, Number: number}); err == nil {
+	if key, err := cache.Key("github", prDetailRoute, prVars{Owner: owner, Repo: repo, Number: number}); err == nil {
 		s.invalidateKey(key)
 	}
 

@@ -28,6 +28,10 @@ type prVars struct {
 	Number int    `json:"number"`
 }
 
+// prDetailRoute is the stable cache route for one PR's detail. Bump it when the
+// detail response shape changes so old cache entries are not decoded into it.
+const prDetailRoute = "pr-detail-v5"
+
 // listVars is the cache-key shape for one tab request.
 type listVars struct {
 	Tab   string   `json:"tab"`
@@ -96,6 +100,10 @@ func (s *Server) handlePR(w http.ResponseWriter, r *http.Request) {
 		s.handleReview(w, r, parts[0], parts[1], parts[2])
 	case len(parts) == 4 && parts[3] == "comments":
 		s.handleComments(w, r, parts[0], parts[1], parts[2])
+	case len(parts) == 4 && parts[3] == "draft":
+		s.handlePRDraft(w, r, parts[0], parts[1], parts[2])
+	case len(parts) == 4 && parts[3] == "merge":
+		s.handlePRMerge(w, r, parts[0], parts[1], parts[2])
 	case len(parts) == 5 && parts[3] == "comments":
 		s.handleCommentDelete(w, r, parts[0], parts[1], parts[2], parts[4])
 	case len(parts) == 4 && parts[3] == "diff":
@@ -129,8 +137,8 @@ func (s *Server) handlePRDetail(w http.ResponseWriter, r *http.Request, owner, r
 	vars := prVars{Owner: owner, Repo: repo, Number: number}
 
 	var pr github.PR
-	// v4 adds the viewer's login, latest review and whether approval is allowed.
-	err = s.loadCached("pr-detail-v4", vars, s.cfg.Cache.GraphQL, isRefresh(r), &pr, func() error {
+	// v5 adds mergeability and whether squash merge is allowed.
+	err = s.loadCached(prDetailRoute, vars, s.cfg.Cache.GraphQL, isRefresh(r), &pr, func() error {
 		fetched, err := s.github.GetPR(r.Context(), owner, repo, number)
 		if err != nil {
 			return err

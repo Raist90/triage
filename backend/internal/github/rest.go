@@ -126,6 +126,46 @@ func restErrorMessage(body io.Reader, status int) string {
 	return message
 }
 
+// SetDraft converts a pull request to a draft or marks it ready for review.
+// GitHub only allows the author to change draft state.
+func (c *Client) SetDraft(ctx context.Context, owner, repo string, number int, draft bool) error {
+	action := "ready_for_review"
+	if draft {
+		action = "convert_to_draft"
+	}
+	path := fmt.Sprintf("/repos/%s/%s/pulls/%d/%s",
+		url.PathEscape(owner), url.PathEscape(repo), number, action)
+	return c.doJSON(ctx, http.MethodPost, path, nil, nil)
+}
+
+// MergeSquash squash-merges a pull request. A non-empty sha pins the merge to
+// the head the user reviewed; GitHub rejects the request if the branch moved.
+func (c *Client) MergeSquash(ctx context.Context, owner, repo string, number int, sha string) error {
+	payload := struct {
+		MergeMethod string `json:"merge_method"`
+		SHA         string `json:"sha,omitempty"`
+	}{MergeMethod: "squash", SHA: sha}
+
+	path := fmt.Sprintf("/repos/%s/%s/pulls/%d/merge",
+		url.PathEscape(owner), url.PathEscape(repo), number)
+
+	var result struct {
+		Merged  bool   `json:"merged"`
+		Message string `json:"message"`
+	}
+	if err := c.doJSON(ctx, http.MethodPut, path, payload, &result); err != nil {
+		return err
+	}
+	if !result.Merged {
+		message := strings.TrimSpace(result.Message)
+		if message == "" {
+			message = "merge did not complete"
+		}
+		return &gql.APIError{Status: http.StatusUnprocessableEntity, Message: message}
+	}
+	return nil
+}
+
 // Diff fetches a PR diff. When etag is non-empty it is sent as If-None-Match.
 func (c *Client) Diff(ctx context.Context, owner, repo string, number int, etag string) (DiffResult, error) {
 	if !c.Configured() {

@@ -59,16 +59,22 @@ type PR struct {
 	ViewerLogin string `json:"viewerLogin,omitempty"`
 	// ViewerCanApprove is false for the author's own PR, where GitHub rejects
 	// an approval. Detail responses only.
-	ViewerCanApprove bool      `json:"viewerCanApprove,omitempty"`
-	State            string    `json:"state"`
-	Description      string    `json:"description"`
-	Additions        int       `json:"additions"`
-	Deletions        int       `json:"deletions"`
-	ChangedFiles     int       `json:"changedFiles"`
-	CreatedAt        string    `json:"createdAt,omitempty"`
-	UpdatedAt        string    `json:"updatedAt"`
-	IsDraft          bool      `json:"isDraft"`
-	Comments         []Comment `json:"comments,omitempty"`
+	ViewerCanApprove bool   `json:"viewerCanApprove,omitempty"`
+	State            string `json:"state"`
+	Description      string `json:"description"`
+	Additions        int    `json:"additions"`
+	Deletions        int    `json:"deletions"`
+	ChangedFiles     int    `json:"changedFiles"`
+	CreatedAt        string `json:"createdAt,omitempty"`
+	UpdatedAt        string `json:"updatedAt"`
+	IsDraft          bool   `json:"isDraft"`
+	// Mergeable and MergeStateStatus are detail responses only. GitHub computes
+	// mergeability asynchronously, so Mergeable can be "unknown" for a moment
+	// after the head or draft state changes.
+	Mergeable          string    `json:"mergeable,omitempty"`
+	MergeStateStatus   string    `json:"mergeStateStatus,omitempty"`
+	SquashMergeAllowed bool      `json:"squashMergeAllowed"`
+	Comments           []Comment `json:"comments,omitempty"`
 }
 
 // Comment is one entry in a PR's conversation: an issue comment, a review
@@ -223,6 +229,8 @@ type prNode struct {
 	Body               string `json:"body"`
 	State              string `json:"state"`
 	IsDraft            bool   `json:"isDraft"`
+	Mergeable          string `json:"mergeable"`
+	MergeStateStatus   string `json:"mergeStateStatus"`
 	HeadRefName        string `json:"headRefName"`
 	HeadRefOid         string `json:"headRefOid"`
 	BaseRefName        string `json:"baseRefName"`
@@ -239,7 +247,8 @@ type prNode struct {
 		Login string `json:"login"`
 	} `json:"author"`
 	Repository struct {
-		NameWithOwner string `json:"nameWithOwner"`
+		NameWithOwner      string `json:"nameWithOwner"`
+		SquashMergeAllowed bool   `json:"squashMergeAllowed"`
 	} `json:"repository"`
 	Commits struct {
 		Nodes []struct {
@@ -327,25 +336,28 @@ func (n prNode) toPR() PR {
 	}
 
 	return PR{
-		Number:       n.Number,
-		Title:        n.Title,
-		URL:          n.URL,
-		Author:       n.Author.Login,
-		Repo:         n.Repository.NameWithOwner,
-		HeadSHA:      n.HeadRefOid,
-		Branch:       n.HeadRefName,
-		BaseBranch:   n.BaseRefName,
-		CheckStatus:  check,
-		ReviewState:  review,
-		State:        strings.ToLower(n.State),
-		Description:  n.Body,
-		Additions:    n.Additions,
-		Deletions:    n.Deletions,
-		ChangedFiles: n.ChangedFiles,
-		CreatedAt:    n.CreatedAt,
-		UpdatedAt:    n.UpdatedAt,
-		IsDraft:      n.IsDraft,
-		Comments:     comments,
+		Number:             n.Number,
+		Title:              n.Title,
+		URL:                n.URL,
+		Author:             n.Author.Login,
+		Repo:               n.Repository.NameWithOwner,
+		HeadSHA:            n.HeadRefOid,
+		Branch:             n.HeadRefName,
+		BaseBranch:         n.BaseRefName,
+		CheckStatus:        check,
+		ReviewState:        review,
+		State:              strings.ToLower(n.State),
+		Description:        n.Body,
+		Additions:          n.Additions,
+		Deletions:          n.Deletions,
+		ChangedFiles:       n.ChangedFiles,
+		CreatedAt:          n.CreatedAt,
+		UpdatedAt:          n.UpdatedAt,
+		IsDraft:            n.IsDraft,
+		Mergeable:          strings.ToLower(n.Mergeable),
+		MergeStateStatus:   strings.ToLower(n.MergeStateStatus),
+		SquashMergeAllowed: n.Repository.SquashMergeAllowed,
+		Comments:           comments,
 	}
 }
 

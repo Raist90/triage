@@ -336,6 +336,9 @@ In:
 - PR detail: metadata, description, per-file diff (`sem` where possible), comments
   behind a global toggle
 - Post a review: approve, request changes, comment
+- Toggle your own PRs between draft and ready for review; squash merge your own
+  PRs once GitHub reports them mergeable, then refresh the list after a short
+  delay
 - Inline diff comments on any open PR, including your own; comments anchor to
   the current head commit, and you can delete your own
 - Linear link + issue metadata panel (read-only)
@@ -347,7 +350,7 @@ Out (do not build yet):
 - Notifications, multi-account, GitHub OAuth/device flow
 - Real-time updates/webhooks, polling UI beyond manual refresh
 - Comment thread replies, resolve, suggestion commits
-- Merge, close, checkout locally
+- Close or reopen, merge methods other than squash, auto-merge, checkout locally
 - Side-by-side diff, diff modes beyond per-file unified
 - External/first-party plugin loading, a plugin marketplace
 - Command palette, themes, light mode
