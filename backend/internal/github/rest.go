@@ -96,7 +96,7 @@ func (c *Client) doJSON(ctx context.Context, method, path string, payload, out a
 // restErrorMessage extracts GitHub's error message without echoing the body.
 func restErrorMessage(body io.Reader, status int) string {
 	switch {
-	case status == http.StatusUnauthorized || status == http.StatusForbidden:
+	case status == http.StatusUnauthorized:
 		return "provider rejected credentials"
 	case status == http.StatusTooManyRequests:
 		return "provider rate limit exceeded"
@@ -117,6 +117,10 @@ func restErrorMessage(body io.Reader, status int) string {
 		message = strings.TrimSpace(payload.Errors[0].Message)
 	}
 	if message == "" {
+		// A 403 with no message still means the credentials were rejected.
+		if status == http.StatusForbidden {
+			return "provider rejected credentials"
+		}
 		return "provider request failed (status " + strconv.Itoa(status) + ")"
 	}
 	message = strings.Join(strings.Fields(message), " ")
