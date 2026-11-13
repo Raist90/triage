@@ -394,7 +394,7 @@ export function DiffView({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex h-9 shrink-0 items-center justify-between gap-2 border-b border-line pr-1 pl-3">
+      <div className="flex h-9 shrink-0 items-center justify-between gap-2 border-b border-line bg-canvas pr-1 pl-3">
         <p className="tabular min-w-0 truncate text-meta text-fg-faint">
           {showSummary ? summaryText(semanticSummary!) : null}
           {highCount > 0 ? (
@@ -544,7 +544,7 @@ export function DiffView({
                   type="button"
                   onClick={() => toggleFile(key)}
                   aria-expanded={open}
-                  className="sticky top-0 z-10 flex h-9 w-full items-center gap-2 border-b border-line bg-canvas px-2 text-left transition-colors hover:bg-surface/60"
+                  className="sticky top-0 z-10 flex h-9 w-full items-center gap-2 border-b border-line bg-canvas px-2 text-left transition-colors hover:bg-surface"
                 >
                   {open ? (
                     <ChevronDown
