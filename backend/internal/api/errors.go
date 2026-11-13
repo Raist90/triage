@@ -20,6 +20,7 @@ const (
 	codeCache            = "cache_error"
 	codeGitHub           = "github_error"
 	codeBadRequest       = "bad_request"
+	codeConflict         = "conflict"
 	codeInternal         = "internal_error"
 )
 

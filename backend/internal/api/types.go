@@ -37,6 +37,22 @@ type reviewResponse struct {
 	OK bool `json:"ok"`
 }
 
+// draftRequest toggles a PR between draft and ready for review.
+type draftRequest struct {
+	Draft *bool `json:"draft"`
+}
+
+// mergeRequest supports squash merge only. SHA pins the merge to the head the
+// user reviewed; GitHub rejects the request when the branch moved.
+type mergeRequest struct {
+	Method string `json:"method"`
+	SHA    string `json:"sha"`
+}
+
+type prStateResponse struct {
+	OK bool `json:"ok"`
+}
+
 // commentRequest is the POST body for one inline diff comment.
 type commentRequest struct {
 	Body     string `json:"body"`

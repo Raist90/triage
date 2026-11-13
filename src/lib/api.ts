@@ -78,8 +78,13 @@ type PROptions = {
   number: number;
 };
 
-export function getPR({ repo, number }: PROptions): Promise<PRDetailResponse> {
-  return request<PRDetailResponse>(prPath(repo, number));
+export function getPR({
+  repo,
+  number,
+  refresh = false,
+}: PROptions & { refresh?: boolean }): Promise<PRDetailResponse> {
+  const params = refresh ? "?refresh=1" : "";
+  return request<PRDetailResponse>(`${prPath(repo, number)}${params}`);
 }
 
 export function getPRDiff({
@@ -104,6 +109,39 @@ export function submitReview({
   return request<{ ok: boolean }>(`${prPath(repo, number)}/review`, {
     method: "POST",
     body: { event, body: body ?? "" },
+  });
+}
+
+type SetPRDraftOptions = PROptions & {
+  draft: boolean;
+};
+
+/** Toggle a PR between draft and ready for review. Author only. */
+export function setPRDraft({
+  repo,
+  number,
+  draft,
+}: SetPRDraftOptions): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>(`${prPath(repo, number)}/draft`, {
+    method: "POST",
+    body: { draft },
+  });
+}
+
+type MergePROptions = PROptions & {
+  /** Head SHA the user reviewed; GitHub rejects the merge if it moved. */
+  sha: string;
+};
+
+/** Squash merge an open PR. GitHub enforces merge permissions and checks. */
+export function mergePR({
+  repo,
+  number,
+  sha,
+}: MergePROptions): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>(`${prPath(repo, number)}/merge`, {
+    method: "POST",
+    body: { method: "squash", sha },
   });
 }
 

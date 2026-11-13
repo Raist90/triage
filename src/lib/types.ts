@@ -145,6 +145,12 @@ export type PR = {
   createdAt?: string;
   updatedAt: string;
   isDraft: boolean;
+  /** Detail responses only: mergeable, conflicting or unknown. */
+  mergeable?: "mergeable" | "conflicting" | "unknown";
+  /** Detail responses only: clean, blocked, dirty, draft, unstable, unknown. */
+  mergeStateStatus?: string;
+  /** Detail responses only: false when the repo disables squash merges. */
+  squashMergeAllowed?: boolean;
   /** Detail responses only. */
   comments?: Comment[];
 };

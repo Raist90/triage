@@ -26,6 +26,8 @@ const detailQuery = `query PRDetail($owner: String!, $name: String!, $number: In
       body
       state
       isDraft
+      mergeable
+      mergeStateStatus
       headRefName
       headRefOid
       baseRefName
@@ -37,7 +39,7 @@ const detailQuery = `query PRDetail($owner: String!, $name: String!, $number: In
       deletions
       changedFiles
       author { login }
-      repository { nameWithOwner }
+      repository { nameWithOwner squashMergeAllowed }
       commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
       comments(first: 100) {
         nodes { author { login } body createdAt }

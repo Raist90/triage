@@ -6,7 +6,7 @@ import {
   Minimize2,
   RefreshCw,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { StatusIcon } from "../../components/StatusBadge";
 import { Button, IconButton, Kbd, MicroLabel } from "../../components/ui";
 import { describeError, getConfig, getPR, getPRDiff } from "../../lib/api";
@@ -18,10 +18,12 @@ import { useUIStore } from "../../stores/ui";
 import { ClaudeActionButton, ClaudeActionPanel } from "./ClaudeActionPanel";
 import { Conversation } from "./Conversation";
 import { DiffView } from "./DiffView";
+import { PRStateActions, PRStatePanel } from "./PRStateActions";
 import { ReviewHeaderActions } from "./ReviewHeaderActions";
 import { ReviewPanel } from "./ReviewPanel";
 import { useClaudeAction } from "./useClaudeAction";
 import { useDiffComments } from "./useDiffComments";
+import { usePRMutations } from "./usePRMutations";
 import { useReview } from "./useReview";
 
 type PRDetailProps = {
@@ -49,9 +51,12 @@ export function PRDetail({ repo, number }: PRDetailProps) {
   const tab: DetailTab = tabState.key === prKey ? tabState.tab : "conversation";
   const setTab = (next: DetailTab) => setTabState({ key: prKey, tab: next });
 
+  const mergePolls = useRef(0);
   const detailQuery = useQuery({
     queryKey: ["pr", repo, number],
-    queryFn: () => getPR({ repo, number }),
+    // A poll must bypass the server cache, which may have stored "unknown"
+    // right after a draft toggle.
+    queryFn: () => getPR({ repo, number, refresh: mergePolls.current > 0 }),
   });
 
   const diffQuery = useQuery({
@@ -69,6 +74,7 @@ export function PRDetail({ repo, number }: PRDetailProps) {
       : null;
   const claudeAction = useClaudeAction(repo, number, action, action !== null);
   const review = useReview(repo, number);
+  const mutations = usePRMutations(repo, number);
   const diffComments = useDiffComments(repo, number, tab === "diff");
   const reviewOpen = review.open;
   const closeReview = review.closePanel;
@@ -79,7 +85,12 @@ export function PRDetail({ repo, number }: PRDetailProps) {
       // A line-comment composer closes itself and marks the event handled.
       if (event.defaultPrevented) return;
       event.preventDefault();
-      // The review form closes first, then fullscreen, then the detail itself.
+      // The merge confirmation and review form close first, then fullscreen,
+      // then the detail itself.
+      if (mutations.confirmOpen) {
+        mutations.closeConfirm();
+        return;
+      }
       if (reviewOpen) {
         closeReview();
         return;
@@ -92,9 +103,36 @@ export function PRDetail({ repo, number }: PRDetailProps) {
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [closeDetail, reviewOpen, closeReview, fullscreen, toggleFullscreen]);
+  }, [
+    closeDetail,
+    mutations,
+    reviewOpen,
+    closeReview,
+    fullscreen,
+    toggleFullscreen,
+  ]);
 
   const pr = detailQuery.data?.pr;
+  const refetchDetail = detailQuery.refetch;
+
+  // GitHub computes mergeability asynchronously after a draft toggle. Poll a
+  // few times, bypassing the cache, so the merge control becomes accurate.
+  useEffect(() => {
+    if (
+      !pr ||
+      pr.state !== "open" ||
+      (pr.mergeable !== "unknown" && pr.mergeable !== undefined)
+    ) {
+      mergePolls.current = 0;
+      return;
+    }
+    if (mergePolls.current >= 5) return;
+    const timer = window.setTimeout(() => {
+      mergePolls.current += 1;
+      void refetchDetail();
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [pr, refetchDetail]);
   const comments = pr?.comments ?? [];
   const explainAvailable = claudeAction.enabled && claudeAction.action !== null;
   const activeTab: DetailTab =
@@ -131,6 +169,7 @@ export function PRDetail({ repo, number }: PRDetailProps) {
           <span className="text-fg-muted">{number}</span>
         </span>
         {pr ? <ReviewHeaderActions pr={pr} review={review} /> : null}
+        {pr ? <PRStateActions pr={pr} mutations={mutations} /> : null}
         <div className="ml-auto flex shrink-0 items-center gap-1">
           <IconButton
             label={
@@ -162,6 +201,7 @@ export function PRDetail({ repo, number }: PRDetailProps) {
       </div>
 
       <ReviewPanel review={review} />
+      {pr ? <PRStatePanel pr={pr} mutations={mutations} /> : null}
 
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">
@@ -190,10 +230,12 @@ export function PRDetail({ repo, number }: PRDetailProps) {
               <header className="shrink-0 px-4 pt-4 pb-3">
                 <h1 className="flex min-w-0 items-baseline gap-2 text-title font-medium tracking-[-0.01em] text-fg">
                   <span className="min-w-0">{pr.title}</span>
-                  {pr.isDraft ? (
-                    <span className="shrink-0 rounded-[3px] border border-line px-1 align-middle text-micro font-normal tracking-[0.06em] text-fg-faint uppercase">
-                      Draft
-                    </span>
+                  {pr.state === "merged" ? (
+                    <StateTag label="Merged" merged />
+                  ) : pr.state === "closed" ? (
+                    <StateTag label="Closed" />
+                  ) : pr.isDraft ? (
+                    <StateTag label="Draft" />
                   ) : null}
                 </h1>
 
@@ -423,6 +465,19 @@ function ContextRail({ pr }: { pr: PR }) {
         </Button>
       </section>
     </aside>
+  );
+}
+
+function StateTag({ label, merged }: { label: string; merged?: boolean }) {
+  return (
+    <span
+      className={cx(
+        "shrink-0 rounded-[3px] border border-line px-1 align-middle text-micro font-normal tracking-[0.06em] uppercase",
+        merged ? "text-accent" : "text-fg-faint",
+      )}
+    >
+      {label}
+    </span>
   );
 }
 

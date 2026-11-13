@@ -350,7 +350,7 @@ func (s *Server) prMetadata(r *http.Request, owner, repo string, number int, ref
 	vars := prVars{Owner: owner, Repo: repo, Number: number}
 
 	var pr github.PR
-	err := s.loadCached("pr-detail-v4", vars, s.cfg.Cache.GraphQL, refresh, &pr, func() error {
+	err := s.loadCached(prDetailRoute, vars, s.cfg.Cache.GraphQL, refresh, &pr, func() error {
 		fetched, err := s.github.GetPR(r.Context(), owner, repo, number)
 		if err != nil {
 			return err
