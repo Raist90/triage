@@ -292,7 +292,11 @@ func writeDiff(w http.ResponseWriter, r *http.Request, body []byte) {
 		}
 	}
 	diff.Prioritize(files)
-	response := diff.Response{Files: files, SemanticAvailable: available}
+	response := diff.Response{
+		Files:             files,
+		SemanticAvailable: available,
+		Complexity:        diff.ComplexityFor(files),
+	}
 	if available {
 		summary := report.Summary
 		response.SemanticSummary = &summary

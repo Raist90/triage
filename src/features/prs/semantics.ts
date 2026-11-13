@@ -1,4 +1,4 @@
-import type { SemanticChange } from "../../lib/types";
+import type { Complexity, SemanticChange } from "../../lib/types";
 
 export type ChangeMark = {
   /** Single-character badge, matches the file status marks. */
@@ -136,4 +136,29 @@ function lineRange(change: SemanticChange): string {
   return end > change.startLine
     ? `:${change.startLine}-${end}`
     : `:${change.startLine}`;
+}
+
+/**
+ * Rail copy for the PR-level complexity: one summary line, then at most two
+ * drivers so the section cannot grow past three lines.
+ */
+export function complexityLines(complexity: Complexity): string[] {
+  const lines = [
+    `${count(complexity.sourceFiles, "source file")} · ${count(
+      complexity.changes,
+      "change",
+    )}`,
+  ];
+  const drivers: string[] = [];
+  if (complexity.deletes) drivers.push(count(complexity.deletes, "delete"));
+  if (complexity.rewrites) drivers.push(count(complexity.rewrites, "rewrite"));
+  if (complexity.ripples) {
+    drivers.push(`ripples into ${count(complexity.ripples, "file")}`);
+  }
+  if (drivers.length > 0) lines.push(drivers.slice(0, 2).join(" · "));
+  return lines;
+}
+
+function count(value: number, noun: string): string {
+  return `${value} ${noun}${value === 1 ? "" : "s"}`;
 }

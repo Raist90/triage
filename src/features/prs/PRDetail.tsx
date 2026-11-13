@@ -13,7 +13,7 @@ import { describeError, getConfig, getPR, getPRDiff } from "../../lib/api";
 import { cx } from "../../lib/cx";
 import { openExternal } from "../../lib/open";
 import { formatRelative } from "../../lib/time";
-import type { PR } from "../../lib/types";
+import type { Complexity, PR, PRDiffResponse } from "../../lib/types";
 import { useUIStore } from "../../stores/ui";
 import { ClaudeActionButton, ClaudeActionPanel } from "./ClaudeActionPanel";
 import { Conversation } from "./Conversation";
@@ -21,6 +21,7 @@ import { DiffView } from "./DiffView";
 import { PRStateActions, PRStatePanel } from "./PRStateActions";
 import { ReviewHeaderActions } from "./ReviewHeaderActions";
 import { ReviewPanel } from "./ReviewPanel";
+import { complexityLines } from "./semantics";
 import { useClaudeAction } from "./useClaudeAction";
 import { useDiffComments } from "./useDiffComments";
 import { usePRMutations } from "./usePRMutations";
@@ -396,13 +397,15 @@ export function PRDetail({ repo, number }: PRDetailProps) {
           ) : null}
         </div>
 
-        {pr && activeTab !== "diff" ? <ContextRail pr={pr} /> : null}
+        {pr && activeTab !== "diff" ? (
+          <ContextRail pr={pr} diff={diffQuery.data} />
+        ) : null}
       </div>
     </div>
   );
 }
 
-function ContextRail({ pr }: { pr: PR }) {
+function ContextRail({ pr, diff }: { pr: PR; diff?: PRDiffResponse }) {
   return (
     <aside
       aria-label="Pull request context"
@@ -432,6 +435,13 @@ function ContextRail({ pr }: { pr: PR }) {
           {pr.changedFiles} files
         </p>
       </section>
+
+      {diff?.complexity ? (
+        <section>
+          <MicroLabel>Complexity</MicroLabel>
+          <ComplexityMeter complexity={diff.complexity} />
+        </section>
+      ) : null}
 
       <section>
         <MicroLabel>Branches</MicroLabel>
@@ -465,6 +475,59 @@ function ContextRail({ pr }: { pr: PR }) {
         </Button>
       </section>
     </aside>
+  );
+}
+
+const COMPLEXITY_TICKS: Record<Complexity["band"], string> = {
+  high: "bg-accent",
+  medium: "bg-fg-muted",
+  low: "bg-fg-faint",
+};
+
+const COMPLEXITY_FILL: Record<Complexity["band"], number> = {
+  high: 5,
+  medium: 3,
+  low: 1,
+};
+
+function ComplexityMeter({ complexity }: { complexity: Complexity }) {
+  const lines = complexityLines(complexity);
+  return (
+    <div
+      className="mt-2"
+      role="img"
+      aria-label={`Complexity ${complexity.band}, score ${complexity.score} out of 100. ${lines.join(". ")}`}
+    >
+      <div className="flex items-center gap-2">
+        <span aria-hidden="true" className="flex gap-1">
+          {Array.from({ length: 5 }, (_, index) => (
+            <span
+              key={index}
+              className={cx(
+                "h-1 w-4 rounded-full",
+                index < COMPLEXITY_FILL[complexity.band]
+                  ? COMPLEXITY_TICKS[complexity.band]
+                  : "bg-line",
+              )}
+            />
+          ))}
+        </span>
+        <span aria-hidden="true" className="text-meta text-fg-muted">
+          {complexity.band}
+          <span className="px-1 text-line-strong">·</span>
+          <span className="tabular font-mono">{complexity.score}</span>
+        </span>
+      </div>
+      {lines.map((line) => (
+        <p
+          key={line}
+          aria-hidden="true"
+          className="mt-1 text-micro text-fg-faint"
+        >
+          {line}
+        </p>
+      ))}
+    </div>
   );
 }
 
