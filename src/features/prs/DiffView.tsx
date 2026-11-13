@@ -4,6 +4,7 @@ import {
   EyeOff,
   Focus,
   MessageSquarePlus,
+  PanelRight,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type {
@@ -20,6 +21,7 @@ import { Button, IconButton } from "../../components/ui";
 import { formatRelative } from "../../lib/time";
 import { useUIStore } from "../../stores/ui";
 import { DiffSidebar } from "./DiffSidebar";
+import { SemanticRail } from "./SemanticRail";
 import type { DiffCommentsController } from "./useDiffComments";
 import {
   anchorSemanticChanges,
@@ -33,6 +35,12 @@ import {
   splitPath,
   type DiffFileKind,
 } from "./diffFile";
+import {
+  badgeClassName,
+  changeMark,
+  tallyChanges,
+  tallyText,
+} from "./semantics";
 
 type DiffViewProps = {
   files: DiffFile[];
@@ -82,15 +90,6 @@ const STATUS_LABEL: Record<DiffFile["status"], string> = {
   renamed: "Renamed",
 };
 
-const CHANGE_MARK: Record<string, { mark: string; className: string }> = {
-  added: { mark: "A", className: "border-accent/40 text-accent" },
-  deleted: { mark: "D", className: "border-danger/40 text-danger" },
-  modified: { mark: "M", className: "border-line-strong text-fg-muted" },
-  renamed: { mark: "R", className: "border-line-strong text-fg-muted" },
-  moved: { mark: "R", className: "border-line-strong text-fg-muted" },
-  reordered: { mark: "O", className: "border-line-strong text-fg-muted" },
-};
-
 export function DiffView({
   files,
   semanticAvailable,
@@ -106,7 +105,12 @@ export function DiffView({
   const [focusMode, setFocusMode] = useState(true);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
-  const [jump, setJump] = useState<{ key: string; token: number } | null>(null);
+  const [jump, setJump] = useState<{
+    key: string;
+    hunkIndex?: number;
+    token: number;
+  } | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
   const initialized = useRef(false);
 
   const hiddenKinds = useUIStore((state) => state.hiddenFileKinds);
@@ -116,6 +120,8 @@ export function DiffView({
   const setDiffSort = useUIStore((state) => state.setDiffSort);
   const hideLowPriority = useUIStore((state) => state.hideLowPriority);
   const toggleLowPriority = useUIStore((state) => state.toggleLowPriority);
+  const showSemanticRail = useUIStore((state) => state.showSemanticRail);
+  const toggleSemanticRail = useUIStore((state) => state.toggleSemanticRail);
 
   const paneRef = useRef<HTMLDivElement | null>(null);
   const filterInputRef = useRef<HTMLInputElement | null>(null);
@@ -168,6 +174,16 @@ export function DiffView({
     );
   const firstVisibleKey = visible[0]?.key ?? null;
   const visibleSignature = visible.map(({ key }) => key).join("\u0000");
+  const railLayoutKey = visible
+    .map(
+      ({ key, file }) =>
+        `${key}:${expanded.has(key) ? "open" : "closed"}:${file.semantic?.length ?? 0}`,
+    )
+    .join("\u0000");
+  const hasSemantic =
+    semanticAvailable && files.some((file) => (file.semantic?.length ?? 0) > 0);
+  const visibleSemantic =
+    hasSemantic && visible.some(({ file }) => (file.semantic?.length ?? 0) > 0);
 
   // Keep the latest values reachable from the stable window key handler.
   const visibleRef = useRef(visible);
@@ -209,10 +225,26 @@ export function DiffView({
   // synchronous scrollIntoView would land on the wrong file.
   useEffect(() => {
     if (!jump) return;
-    const element = sectionRefs.current.get(jump.key);
+    const pane = paneRef.current;
+    const section = sectionRefs.current.get(jump.key);
+    let element: HTMLElement | undefined = section;
+    let id: string | null = null;
+    if (jump.hunkIndex !== undefined && pane) {
+      id = `${jump.key}:${jump.hunkIndex}`;
+      const hunk = Array.from(
+        pane.querySelectorAll<HTMLElement>("[data-diff-hunk]"),
+      ).find((candidate) => candidate.dataset.diffHunk === id);
+      element = hunk ?? section;
+    }
     if (!element) return;
     element.scrollIntoView({ block: "start" });
   }, [jump]);
+
+  useEffect(() => {
+    if (!flash) return;
+    const timer = window.setTimeout(() => setFlash(null), 1200);
+    return () => window.clearTimeout(timer);
+  }, [flash]);
 
   useEffect(() => {
     return () => {
@@ -262,9 +294,13 @@ export function DiffView({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  function requestJump(key: string) {
+  function requestJump(key: string, hunkIndex?: number) {
     programmaticScroll.current = true;
-    setJump((current) => ({ key, token: (current?.token ?? 0) + 1 }));
+    setJump((current) => ({
+      key,
+      hunkIndex,
+      token: (current?.token ?? 0) + 1,
+    }));
   }
 
   function selectFile(key: string) {
@@ -275,6 +311,19 @@ export function DiffView({
       return next;
     });
     requestJump(key);
+  }
+
+  // A semantic tick owns its own hunk target: expand the file, then land on the
+  // hunk header instead of the top of the file.
+  function selectHunk(key: string, hunkIndex: number) {
+    setActiveKey(key);
+    setExpanded((current) => {
+      const next = focusModeRef.current ? new Set<string>() : new Set(current);
+      next.add(key);
+      return next;
+    });
+    setFlash(`${key}:${hunkIndex}`);
+    requestJump(key, hunkIndex);
   }
 
   function toggleFile(key: string) {
@@ -400,6 +449,19 @@ export function DiffView({
               <EyeOff className="size-4" aria-hidden />
             </IconButton>
           ) : null}
+          {hasSemantic ? (
+            <IconButton
+              label={
+                showSemanticRail
+                  ? "Hide semantic change map"
+                  : "Show semantic change map"
+              }
+              active={showSemanticRail}
+              onClick={toggleSemanticRail}
+            >
+              <PanelRight className="size-4" aria-hidden />
+            </IconButton>
+          ) : null}
         </div>
       </div>
 
@@ -471,6 +533,7 @@ export function DiffView({
             return (
               <section
                 key={key}
+                data-diff-file={key}
                 ref={(element) => {
                   if (element) sectionRefs.current.set(key, element);
                   else sectionRefs.current.delete(key);
@@ -537,18 +600,31 @@ export function DiffView({
                 {open ? (
                   <FilePatch
                     file={file}
+                    fileKey={key}
                     comments={comments}
                     headSHA={headSHA}
                     canComment={canComment}
                     draft={draft}
                     onDraftChange={setDraft}
                     viewerLogin={viewerLogin}
+                    flash={flash}
                   />
                 ) : null}
               </section>
             );
           })}
         </div>
+
+        {visibleSemantic && showSemanticRail ? (
+          <SemanticRail
+            paneRef={paneRef}
+            files={visible}
+            expanded={expanded}
+            singleFile={focusMode}
+            layoutKey={railLayoutKey}
+            onJump={selectHunk}
+          />
+        ) : null}
       </div>
     </div>
   );
@@ -611,23 +687,30 @@ function parsePatch(patch: string): RawHunk[] {
 
 type FilePatchProps = {
   file: DiffFile;
+  fileKey: string;
   comments: DiffCommentsController;
   headSHA: string;
   canComment: boolean;
   draft: string | null;
   onDraftChange: (key: string | null) => void;
   viewerLogin?: string;
+  /** `${fileKey}:${hunkIndex}` of a rail jump, highlighted briefly. */
+  flash: string | null;
 };
 
 function FilePatch({
   file,
+  fileKey,
   comments,
   headSHA,
   canComment,
   draft,
   onDraftChange,
   viewerLogin,
+  flash,
 }: FilePatchProps) {
+  const [showUnanchored, setShowUnanchored] = useState(false);
+
   if (file.binary) {
     return (
       <p className="border-t border-line bg-canvas px-3 py-2 text-meta text-fg-faint">
@@ -676,32 +759,46 @@ function FilePatch({
     <div className="overflow-x-auto border-t border-line bg-canvas">
       <div className="min-w-max font-mono text-code">
         {unanchored.length > 0 ? (
-          <div className="border-b border-line pb-1">
-            {unanchored.map((change, index) => (
-              <ChangeAnnotation
-                key={`${change.entityType}:${change.entityName}:${index}`}
-                change={change}
-                file={file}
+          <div className="border-b border-line">
+            <button
+              type="button"
+              onClick={() => setShowUnanchored((current) => !current)}
+              aria-expanded={showUnanchored}
+              className="flex h-7 w-full items-center gap-2 px-3 font-sans text-meta text-fg-faint transition-colors hover:bg-surface/60 hover:text-fg-muted"
+            >
+              <span className="rounded-[3px] border border-line-strong px-1 font-mono text-micro text-fg-muted">
+                {unanchored.length}
+              </span>
+              unanchored semantic{" "}
+              {unanchored.length === 1 ? "change" : "changes"}
+              <ChevronDown
+                className={`ml-auto size-3.5 transition-transform ${
+                  showUnanchored ? "" : "-rotate-90"
+                }`}
+                aria-hidden
               />
-            ))}
+            </button>
+            {showUnanchored ? (
+              <div className="pb-1">
+                {unanchored.map((change, index) => (
+                  <ChangeAnnotation
+                    key={`${change.entityType}:${change.entityName}:${index}`}
+                    change={change}
+                    filePath={file.path}
+                  />
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : null}
 
         {hunks.map((hunk, index) => (
           <div key={`${hunk.header}:${index}`}>
-            {byHunk[index].length > 0 ? (
-              <div className="border-b border-line pb-1">
-                {byHunk[index].map((change, changeIndex) => (
-                  <ChangeAnnotation
-                    key={`${change.entityType}:${change.entityName}:${changeIndex}`}
-                    change={change}
-                    file={file}
-                  />
-                ))}
-              </div>
-            ) : null}
             <HunkRows
               hunk={hunk}
+              hunkKey={`${fileKey}:${index}`}
+              changes={byHunk[index] ?? []}
+              flash={flash === `${fileKey}:${index}`}
               path={file.path}
               comments={comments}
               headSHA={headSHA}
@@ -722,6 +819,10 @@ const ROW_GRID = "grid grid-cols-[1.5rem_2.75rem_2.75rem_auto]";
 
 type HunkRowsProps = {
   hunk: DiffHunk;
+  hunkKey: string;
+  /** Semantic changes anchored to this hunk; rendered only on demand. */
+  changes: SemanticChange[];
+  flash: boolean;
   path: string;
   comments: DiffCommentsController;
   headSHA: string;
@@ -734,6 +835,9 @@ type HunkRowsProps = {
 
 function HunkRows({
   hunk,
+  hunkKey,
+  changes,
+  flash,
   path,
   comments,
   headSHA,
@@ -743,19 +847,63 @@ function HunkRows({
   onDraftChange,
   viewerLogin,
 }: HunkRowsProps) {
+  const [open, setOpen] = useState(false);
+  const tally = changes.length > 0 ? tallyChanges(changes) : null;
+  const dominant = tally?.dominant;
+
   return (
     <>
-      <div className={`${ROW_GRID} bg-surface`}>
+      <div
+        data-diff-hunk={hunkKey}
+        className={`${ROW_GRID} scroll-mt-[36px] bg-surface ${
+          flash ? "outline outline-1 -outline-offset-1 outline-accent/50" : ""
+        }`}
+      >
         <span className="border-r border-line select-none" />
         <span className="border-r border-line select-none" />
         <span className="border-r border-line select-none" />
-        <span className="px-3 py-1 text-fg-faint select-none">
-          {hunk.header}
-          {hunk.section ? (
-            <span className="pl-2 text-fg-muted">{hunk.section}</span>
+        <span className="flex min-w-0 items-center gap-2 px-3 py-1 text-fg-faint select-none">
+          <span className="min-w-0 truncate">
+            {hunk.header}
+            {hunk.section ? (
+              <span className="pl-2 text-fg-muted">{hunk.section}</span>
+            ) : null}
+          </span>
+          {dominant ? (
+            <button
+              type="button"
+              onClick={() => setOpen((current) => !current)}
+              aria-expanded={open}
+              aria-label={`${tallyText(tally)} in this hunk`}
+              title={`${tallyText(tally)} · ${
+                changes.length
+              } semantic ${changes.length === 1 ? "change" : "changes"}`}
+              className={`inline-flex h-5 shrink-0 items-center gap-1 rounded-[3px] border bg-canvas px-1.5 font-sans text-micro transition-colors hover:bg-surface ${badgeClassName(
+                dominant,
+              )}`}
+            >
+              {changeMark(dominant).mark} {changes.length}
+              <ChevronDown
+                className={`size-3 transition-transform ${
+                  open ? "" : "-rotate-90"
+                }`}
+                aria-hidden
+              />
+            </button>
           ) : null}
         </span>
       </div>
+      {open && changes.length > 0 ? (
+        <div className="border-b border-line pb-1">
+          {changes.map((change, index) => (
+            <ChangeAnnotation
+              key={`${change.entityType}:${change.entityName}:${index}`}
+              change={change}
+              filePath={path}
+            />
+          ))}
+        </div>
+      ) : null}
       {hunk.lines.map((line, index) => {
         const anchor = lineAnchor(path, line);
         const anchorComments = lineAnchors(path, line)
@@ -1109,33 +1257,34 @@ function RawPatch({ patch }: { patch: string }) {
 
 function ChangeAnnotation({
   change,
-  file,
+  filePath,
 }: {
   change: SemanticChange;
-  file: DiffFile;
+  filePath: string;
 }) {
-  const marker = CHANGE_MARK[change.changeType] ?? {
-    mark: change.changeType.slice(0, 1).toUpperCase() || "•",
-    className: "border-line-strong text-fg-muted",
-  };
   const moved =
     change.changeType === "moved" || change.changeType === "renamed";
   const source =
-    change.oldFilePath && change.oldFilePath !== file.path
+    change.oldFilePath && change.oldFilePath !== filePath
       ? change.oldFilePath
       : null;
+  const mark = changeMark(change);
 
   return (
     <div className="flex items-center gap-2 px-3 py-1 font-sans text-meta">
       <span
-        className={`w-4 shrink-0 rounded-[3px] border text-center text-micro leading-4 ${marker.className}`}
+        className={`w-4 shrink-0 rounded-[3px] border text-center text-micro leading-4 ${badgeClassName(
+          change,
+        )}`}
         title={change.changeType}
       >
-        {marker.mark}
+        {mark.mark}
       </span>
       <span className="shrink-0 text-fg-faint">{change.entityType}</span>
       <span
-        className={`truncate ${change.cosmetic ? "text-fg-faint" : "text-fg-body"}`}
+        className={`truncate ${
+          change.cosmetic ? "text-fg-faint" : "text-fg-body"
+        }`}
       >
         {change.entityName}
       </span>

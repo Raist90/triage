@@ -52,6 +52,8 @@ type UIState = {
   diffSort: DiffSort;
   /** Whether low-focus files are hidden from the diff file list. */
   hideLowPriority: boolean;
+  /** Whether the diff shows the semantic change map on its right edge. */
+  showSemanticRail: boolean;
   /** PR list facets and search, session-wide. */
   prFilters: PRFilters;
   selectRepo: (repo: string | null) => void;
@@ -64,6 +66,7 @@ type UIState = {
   clearFileKinds: () => void;
   setDiffSort: (sort: DiffSort) => void;
   toggleLowPriority: () => void;
+  toggleSemanticRail: () => void;
   setFilterQuery: (query: string) => void;
   toggleFilterFacet: (section: PRFilterSection, value: string) => void;
   setFilterFacet: (section: PRFilterSection, values: string[]) => void;
@@ -87,6 +90,7 @@ export const useUIStore = create<UIState>((set) => ({
   hiddenFileKinds: [],
   diffSort: "priority",
   hideLowPriority: false,
+  showSemanticRail: true,
   prFilters: EMPTY_PR_FILTERS,
   selectRepo: (repo) =>
     set((state) => ({
@@ -121,6 +125,8 @@ export const useUIStore = create<UIState>((set) => ({
   setDiffSort: (sort) => set({ diffSort: sort }),
   toggleLowPriority: () =>
     set((state) => ({ hideLowPriority: !state.hideLowPriority })),
+  toggleSemanticRail: () =>
+    set((state) => ({ showSemanticRail: !state.showSemanticRail })),
   setFilterQuery: (query) =>
     set((state) => ({ prFilters: { ...state.prFilters, query } })),
   toggleFilterFacet: (section, value) =>
