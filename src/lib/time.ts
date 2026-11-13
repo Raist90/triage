@@ -19,3 +19,12 @@ export function formatRelative(iso: string): string {
 
   return date.toLocaleDateString("en", { month: "short", day: "numeric" });
 }
+
+/** Relative time for a conversation entry: "3m ago", "on Sep 3". */
+export function formatAgo(iso: string): string {
+  if (!iso) return "";
+  const relative = formatRelative(iso);
+  if (!relative) return "";
+  if (relative === "now") return "just now";
+  return /^\d/.test(relative) ? `${relative} ago` : `on ${relative}`;
+}

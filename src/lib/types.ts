@@ -111,7 +111,12 @@ export type Comment = {
   author: string;
   body: string;
   createdAt: string;
-  kind: "comment" | "review";
+  kind: "comment" | "review" | "verdict";
+  /** Verdict only: approved, changes_requested, commented, dismissed. */
+  state?: string;
+  /** Inline review comment anchor. */
+  path?: string;
+  line?: number;
 };
 
 export type PR = {
@@ -136,6 +141,8 @@ export type PR = {
   additions: number;
   deletions: number;
   changedFiles: number;
+  /** Detail responses only. */
+  createdAt?: string;
   updatedAt: string;
   isDraft: boolean;
   /** Detail responses only. */

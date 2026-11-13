@@ -31,6 +31,7 @@ const detailQuery = `query PRDetail($owner: String!, $name: String!, $number: In
       baseRefName
       reviewDecision
       viewerLatestReview { state }
+      createdAt
       updatedAt
       additions
       deletions
@@ -41,8 +42,18 @@ const detailQuery = `query PRDetail($owner: String!, $name: String!, $number: In
       comments(first: 100) {
         nodes { author { login } body createdAt }
       }
+      reviews(first: 50) {
+        nodes {
+          author { login }
+          state
+          body
+          createdAt
+        }
+      }
       reviewThreads(first: 50) {
         nodes {
+          path
+          line
           comments(first: 20) {
             nodes { author { login } body createdAt }
           }

@@ -146,10 +146,12 @@ stay side by side; reviewing is the only flow that matters.
   rail keeps its normal rules and the main pane gets the full width.
 - **No card soup.** Prose, comments and metadata use one surface plus 1px
   `border-line` rules. Only the diff and dialogs get a box.
-- **PR detail:** compact header, 44px bar, tabs for Description (default), Diff,
-  Explain (when available), Comments. The 272px context rail shows checks,
-  review, change stats, branches, commit and author; it is hidden below 1400px
-  and while the Diff tab is active (the diff needs the width).
+- **PR detail:** compact header, 44px bar, tabs for Conversation (default), Diff,
+  Explain (when available). Conversation is one chronological timeline: the PR
+  body first, then comments, review verdicts and inline review comments. The
+  272px context rail shows checks, review, change stats, branches, commit and
+  author; it is hidden below 1400px and while the Diff tab is active (the diff
+  needs the width).
 - **Diffs:** per file, collapsible, full width, 208px file rail. Semantic diff
   via `sem` when available; fall back to a plain unified diff. Never fail a
   review flow because `sem` is absent. Code is syntax-highlighted by the Go
