@@ -19,6 +19,8 @@ type SemanticRailProps = {
   /** Visible files in rendered order, after every filter. */
   files: RailFile[];
   expanded: Set<string>;
+  /** Focus mode renders one file, so collapsed files must not be clickable. */
+  singleFile: boolean;
   /** Re-measure whenever files, expansion or semantic data change. */
   layoutKey: string;
   onJump: (fileKey: string, hunkIndex: number) => void;
@@ -56,6 +58,7 @@ export function SemanticRail({
   paneRef,
   files,
   expanded,
+  singleFile,
   layoutKey,
   onJump,
 }: SemanticRailProps) {
@@ -116,8 +119,14 @@ export function SemanticRail({
       const changes = file.semantic ?? [];
       if (changes.length === 0) continue;
 
+      const open = expandedRef.current.has(key);
+      // Focus mode shows a single file: collapsed sections are only 36px
+      // headers, so their aggregate ticks would stack into a few pixels at the
+      // bottom of the rail and swallow clicks meant for the open file's hunks.
+      if (singleFile && !open) continue;
+
       const fileHunks = file.hunks ?? [];
-      if (expandedRef.current.has(key) && fileHunks.length > 0) {
+      if (open && fileHunks.length > 0) {
         const { byHunk } = anchorSemanticChanges(file.path, fileHunks, changes);
         byHunk.forEach((group, hunkIndex) => {
           if (group.length === 0) return;
@@ -145,7 +154,7 @@ export function SemanticRail({
     setBands((current) =>
       sameBands(current, nextBands) ? current : nextBands,
     );
-  }, [paneRef, layoutKey, measureVersion]);
+  }, [paneRef, singleFile, layoutKey, measureVersion]);
 
   // Section heights move when comments or composers open, without any state
   // the rail knows about. Observe them instead of polling.

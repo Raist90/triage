@@ -620,6 +620,7 @@ export function DiffView({
             paneRef={paneRef}
             files={visible}
             expanded={expanded}
+            singleFile={focusMode}
             layoutKey={railLayoutKey}
             onJump={selectHunk}
           />
