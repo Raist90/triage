@@ -189,6 +189,7 @@ export function DiffView({
   const visibleRef = useRef(visible);
   const activeKeyRef = useRef(activeKey);
   const focusModeRef = useRef(focusMode);
+  const expandedRef = useRef(expanded);
   const selectRef = useRef<(key: string) => void>(() => {});
 
   // Refs are synced in effects, never during render, so the stable window key
@@ -197,6 +198,7 @@ export function DiffView({
     visibleRef.current = visible;
     activeKeyRef.current = activeKey;
     focusModeRef.current = focusMode;
+    expandedRef.current = expanded;
   });
 
   // Open the first file so the diff is visible without a click, but leave the
@@ -370,7 +372,14 @@ export function DiffView({
       // wrong file right after a sidebar click.
       if (programmaticScroll.current) return;
       const threshold = pane.getBoundingClientRect().top + 1;
-      const entries = visibleRef.current;
+      // Only rendered file bodies can own the scroll selection. A collapsed
+      // file is a 36px header and scroll clamping can leave it under the top
+      // edge after a jump to a short last file, so letting it win would steal
+      // the highlight from the file the user just opened.
+      const entries = visibleRef.current.filter(({ key }) =>
+        expandedRef.current.has(key),
+      );
+      if (entries.length === 0) return;
       let current: string | null = null;
       let firstBelow: string | null = null;
       for (const { key } of entries) {
