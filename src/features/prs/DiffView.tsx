@@ -105,12 +105,7 @@ export function DiffView({
   const [focusMode, setFocusMode] = useState(true);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
-  const [jump, setJump] = useState<{
-    key: string;
-    hunkIndex?: number;
-    token: number;
-  } | null>(null);
-  const [flash, setFlash] = useState<string | null>(null);
+  const [jump, setJump] = useState<{ key: string; token: number } | null>(null);
   const initialized = useRef(false);
 
   const hiddenKinds = useUIStore((state) => state.hiddenFileKinds);
@@ -225,26 +220,10 @@ export function DiffView({
   // synchronous scrollIntoView would land on the wrong file.
   useEffect(() => {
     if (!jump) return;
-    const pane = paneRef.current;
-    const section = sectionRefs.current.get(jump.key);
-    let element: HTMLElement | undefined = section;
-    let id: string | null = null;
-    if (jump.hunkIndex !== undefined && pane) {
-      id = `${jump.key}:${jump.hunkIndex}`;
-      const hunk = Array.from(
-        pane.querySelectorAll<HTMLElement>("[data-diff-hunk]"),
-      ).find((candidate) => candidate.dataset.diffHunk === id);
-      element = hunk ?? section;
-    }
+    const element = sectionRefs.current.get(jump.key);
     if (!element) return;
     element.scrollIntoView({ block: "start" });
   }, [jump]);
-
-  useEffect(() => {
-    if (!flash) return;
-    const timer = window.setTimeout(() => setFlash(null), 1200);
-    return () => window.clearTimeout(timer);
-  }, [flash]);
 
   useEffect(() => {
     return () => {
@@ -294,13 +273,9 @@ export function DiffView({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  function requestJump(key: string, hunkIndex?: number) {
+  function requestJump(key: string) {
     programmaticScroll.current = true;
-    setJump((current) => ({
-      key,
-      hunkIndex,
-      token: (current?.token ?? 0) + 1,
-    }));
+    setJump((current) => ({ key, token: (current?.token ?? 0) + 1 }));
   }
 
   function selectFile(key: string) {
@@ -311,19 +286,6 @@ export function DiffView({
       return next;
     });
     requestJump(key);
-  }
-
-  // A semantic tick owns its own hunk target: expand the file, then land on the
-  // hunk header instead of the top of the file.
-  function selectHunk(key: string, hunkIndex: number) {
-    setActiveKey(key);
-    setExpanded((current) => {
-      const next = focusModeRef.current ? new Set<string>() : new Set(current);
-      next.add(key);
-      return next;
-    });
-    setFlash(`${key}:${hunkIndex}`);
-    requestJump(key, hunkIndex);
   }
 
   function toggleFile(key: string) {
@@ -611,7 +573,6 @@ export function DiffView({
                     draft={draft}
                     onDraftChange={setDraft}
                     viewerLogin={viewerLogin}
-                    flash={flash}
                   />
                 ) : null}
               </section>
@@ -626,7 +587,6 @@ export function DiffView({
             expanded={expanded}
             singleFile={focusMode}
             layoutKey={railLayoutKey}
-            onJump={selectHunk}
           />
         ) : null}
       </div>
@@ -698,8 +658,6 @@ type FilePatchProps = {
   draft: string | null;
   onDraftChange: (key: string | null) => void;
   viewerLogin?: string;
-  /** `${fileKey}:${hunkIndex}` of a rail jump, highlighted briefly. */
-  flash: string | null;
 };
 
 function FilePatch({
@@ -711,7 +669,6 @@ function FilePatch({
   draft,
   onDraftChange,
   viewerLogin,
-  flash,
 }: FilePatchProps) {
   const [showUnanchored, setShowUnanchored] = useState(false);
 
@@ -802,7 +759,6 @@ function FilePatch({
               hunk={hunk}
               hunkKey={`${fileKey}:${index}`}
               changes={byHunk[index] ?? []}
-              flash={flash === `${fileKey}:${index}`}
               path={file.path}
               comments={comments}
               headSHA={headSHA}
@@ -826,7 +782,6 @@ type HunkRowsProps = {
   hunkKey: string;
   /** Semantic changes anchored to this hunk; rendered only on demand. */
   changes: SemanticChange[];
-  flash: boolean;
   path: string;
   comments: DiffCommentsController;
   headSHA: string;
@@ -841,7 +796,6 @@ function HunkRows({
   hunk,
   hunkKey,
   changes,
-  flash,
   path,
   comments,
   headSHA,
@@ -857,12 +811,7 @@ function HunkRows({
 
   return (
     <>
-      <div
-        data-diff-hunk={hunkKey}
-        className={`${ROW_GRID} scroll-mt-[36px] bg-surface ${
-          flash ? "outline outline-1 -outline-offset-1 outline-accent/50" : ""
-        }`}
-      >
+      <div data-diff-hunk={hunkKey} className={`${ROW_GRID} bg-surface`}>
         <span className="border-r border-line select-none" />
         <span className="border-r border-line select-none" />
         <span className="border-r border-line select-none" />

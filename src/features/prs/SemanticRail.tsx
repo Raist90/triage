@@ -2,12 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 import type { DiffFile, SemanticChange } from "../../lib/types";
 import { anchorSemanticChanges } from "./diffFile";
-import {
-  changeTitle,
-  tallyChanges,
-  tallyText,
-  tickClassName,
-} from "./semantics";
+import { tallyChanges, tickClassName } from "./semantics";
 
 type RailFile = {
   key: string;
@@ -19,24 +14,19 @@ type SemanticRailProps = {
   /** Visible files in rendered order, after every filter. */
   files: RailFile[];
   expanded: Set<string>;
-  /** Focus mode renders one file, so collapsed files must not be clickable. */
+  /** Focus mode renders one file, so collapsed sections are 36px headers. */
   singleFile: boolean;
   /** Re-measure whenever files, expansion or semantic data change. */
   layoutKey: string;
-  onJump: (fileKey: string, hunkIndex: number) => void;
 };
 
 type RailTick = {
   id: string;
-  fileKey: string;
-  hunkIndex: number;
   /** Distance from the top of the rail, in pixels. */
   top: number;
   /** Height of the mark itself, in pixels. */
   height: number;
   className: string;
-  title: string;
-  label: string;
 };
 
 type RailBand = {
@@ -50,9 +40,9 @@ type RailViewport = {
 };
 
 /**
- * Compressed map of the whole rendered diff. One tick per changed hunk, or one
- * aggregate tick per collapsed file. Positions come from measured DOM offsets,
- * so comment rows, open composers and collapsing never desync it.
+ * Compressed, read-only map of the whole rendered diff. One tick per changed
+ * hunk, or one aggregate tick per collapsed file. Positions come from measured
+ * DOM offsets, so comment rows, open composers and collapsing never desync it.
  */
 export function SemanticRail({
   paneRef,
@@ -60,7 +50,6 @@ export function SemanticRail({
   expanded,
   singleFile,
   layoutKey,
-  onJump,
 }: SemanticRailProps) {
   const railRef = useRef<HTMLDivElement | null>(null);
   const [ticks, setTicks] = useState<RailTick[]>([]);
@@ -122,7 +111,7 @@ export function SemanticRail({
       const open = expandedRef.current.has(key);
       // Focus mode shows a single file: collapsed sections are only 36px
       // headers, so their aggregate ticks would stack into a few pixels at the
-      // bottom of the rail and swallow clicks meant for the open file's hunks.
+      // bottom of the rail.
       if (singleFile && !open) continue;
 
       const fileHunks = file.hunks ?? [];
@@ -134,18 +123,14 @@ export function SemanticRail({
           if (!element) return;
           const top =
             (element.getBoundingClientRect().top - contentTop) * scale;
-          nextTicks.push(
-            buildTick(key, hunkIndex, top, group, file.path, false),
-          );
+          nextTicks.push(buildTick(`${key}:${hunkIndex}`, top, group));
         });
         continue;
       }
 
-      // Collapsed or unstructured file: one tick, jumping expands the file.
+      // Collapsed or unstructured file: one aggregate tick at its header.
       const firstHunk = firstChangedHunk(file, changes);
-      nextTicks.push(
-        buildTick(key, firstHunk, sectionTop + 2, changes, file.path, true),
-      );
+      nextTicks.push(buildTick(`${key}:${firstHunk}`, sectionTop + 2, changes));
     }
 
     setTicks((current) =>
@@ -212,43 +197,37 @@ export function SemanticRail({
   }, [paneRef, layoutKey, measureVersion]);
 
   return (
-    <nav
+    <div
       ref={railRef}
-      aria-label="Semantic change map"
+      aria-hidden
       className="relative w-10 shrink-0 border-l border-line bg-canvas"
     >
       {bands.map((band) => (
         <span
           key={band.key}
-          aria-hidden
           className="absolute inset-x-0 h-px bg-line"
           style={{ top: band.top }}
         />
       ))}
 
       {ticks.map((tick) => (
-        <button
+        <span
           key={tick.id}
-          type="button"
-          onClick={() => onJump(tick.fileKey, tick.hunkIndex)}
-          title={tick.title}
-          aria-label={tick.label}
-          className="group absolute inset-x-0 z-10 flex items-center justify-center focus:outline-none"
+          className="absolute inset-x-0 z-10 flex items-center justify-center"
           style={{
             top: Math.max(0, tick.top - 6),
             height: Math.max(12, tick.height + 6),
           }}
         >
           <span
-            className={`w-1.5 rounded-full opacity-70 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 ${tick.className}`}
+            className={`w-1.5 rounded-full opacity-70 ${tick.className}`}
             style={{ height: Math.max(2, tick.height) }}
           />
-        </button>
+        </span>
       ))}
 
       {viewport.height > 0 ? (
         <span
-          aria-hidden
           className="pointer-events-none absolute inset-x-1 z-20 rounded-[2px] border border-fg-faint/50"
           style={{
             top: viewport.top,
@@ -256,31 +235,22 @@ export function SemanticRail({
           }}
         />
       ) : null}
-    </nav>
+    </div>
   );
 }
 
 function buildTick(
-  fileKey: string,
-  hunkIndex: number,
+  id: string,
   top: number,
   changes: SemanticChange[],
-  filePath: string,
-  aggregate: boolean,
 ): RailTick {
   const tally = tallyChanges(changes);
   const count = changes.length;
   return {
-    id: `${fileKey}:${hunkIndex}`,
-    fileKey,
-    hunkIndex,
+    id,
     top,
     height: Math.min(10, 1 + count * 1.5),
     className: tickClassName(tally.dominant),
-    title: changes.map((change) => changeTitle(change, filePath)).join("\n"),
-    label: aggregate
-      ? `${count} semantic ${count === 1 ? "change" : "changes"} in ${filePath}. Expand the file and jump.`
-      : `${tallyText(tally)} in ${filePath}. Jump to hunk.`,
   };
 }
 
@@ -300,8 +270,7 @@ function sameTicks(a: RailTick[], b: RailTick[]): boolean {
       next !== undefined &&
       tick.id === next.id &&
       tick.top === next.top &&
-      tick.height === next.height &&
-      tick.title === next.title
+      tick.height === next.height
     );
   });
 }
