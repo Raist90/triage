@@ -10,7 +10,10 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/Raist90/triage/backend/internal/review"
 )
 
 var actionIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
@@ -28,20 +31,30 @@ type Usage struct {
 }
 
 // Artifact is one finished answer for a specific SHA, model and prompt version.
+// An explain artifact carries Markdown and a nil Review; a review artifact
+// carries Review and the worktree its patches apply to.
 type Artifact struct {
-	ActionID      string    `json:"action"`
-	Model         string    `json:"model"`
-	SHA           string    `json:"sha"`
-	PromptVersion string    `json:"promptVersion"`
-	CreatedAt     time.Time `json:"createdAt"`
-	Markdown      string    `json:"markdown"`
-	Usage         Usage     `json:"usage"`
+	ActionID      string         `json:"action"`
+	Model         string         `json:"model"`
+	SHA           string         `json:"sha"`
+	PromptVersion string         `json:"promptVersion"`
+	CreatedAt     time.Time      `json:"createdAt"`
+	Markdown      string         `json:"markdown"`
+	Usage         Usage          `json:"usage"`
+	Review        *review.Review `json:"review,omitempty"`
+	Worktree      string         `json:"worktree,omitempty"`
 }
 
 // Store is a directory of artifact files.
 type Store struct {
+	// mu serialises Update against Put so a read, mutate, write sequence can
+	// never interleave with a runner finishing a job.
+	mu   sync.Mutex
 	root string
 }
+
+// ErrNotFound is returned by Update when the artifact file is missing.
+var ErrNotFound = errors.New("actions: artifact not found")
 
 // DefaultDir is ~/.triage/artifacts.
 func DefaultDir() (string, error) {
@@ -64,6 +77,10 @@ func (s *Store) Dir() string {
 
 // Get reads the artifact for exactly this SHA and action.
 func (s *Store) Get(owner, repo string, number int, sha, actionID string) (*Artifact, bool) {
+	return s.read(owner, repo, number, sha, actionID)
+}
+
+func (s *Store) read(owner, repo string, number int, sha, actionID string) (*Artifact, bool) {
 	if !ValidActionID(actionID) || sha == "" {
 		return nil, false
 	}
@@ -108,6 +125,38 @@ func (s *Store) Latest(owner, repo string, number int, actionID string) (*Artifa
 
 // Put writes an artifact atomically.
 func (s *Store) Put(owner, repo string, number int, artifact Artifact) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.write(owner, repo, number, artifact)
+}
+
+// Update reads one artifact, applies mutate and writes it back under the store
+// lock. It never calls Put while holding the lock. ErrNotFound means the
+// artifact disappeared between the caller's check and this call.
+func (s *Store) Update(
+	owner, repo string,
+	number int,
+	sha, actionID string,
+	mutate func(*Artifact) error,
+) (*Artifact, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	artifact, ok := s.read(owner, repo, number, sha, actionID)
+	if !ok {
+		return nil, ErrNotFound
+	}
+	if err := mutate(artifact); err != nil {
+		return nil, err
+	}
+	if err := s.write(owner, repo, number, *artifact); err != nil {
+		return nil, err
+	}
+	return artifact, nil
+}
+
+// write is the lock-free half of Put, shared with Update.
+func (s *Store) write(owner, repo string, number int, artifact Artifact) error {
 	if !ValidActionID(artifact.ActionID) || artifact.SHA == "" {
 		return errors.New("actions: invalid artifact identity")
 	}

@@ -23,6 +23,13 @@ export type Repo = {
 /** `/config` repo entry. */
 export type RepoView = Repo & {
   actions: boolean;
+  review: RepoReview;
+};
+
+export type RepoReview = {
+  available: boolean;
+  /** Why review cannot run, e.g. no local path configured. */
+  reason?: string;
 };
 
 /** Tab IDs are runtime data from `/config`; never hardcode them. */
@@ -35,9 +42,12 @@ export type LinearConfig = {
   teamKeys: string[];
 };
 
+export type ActionKind = "explain" | "review";
+
 export type ActionView = {
   id: string;
   label: string;
+  kind: ActionKind;
 };
 
 export type Config = {
@@ -55,7 +65,13 @@ export type Config = {
 };
 
 export type ActionStatus =
-  "queued" | "running" | "done" | "failed" | "canceled";
+  | "queued"
+  | "preparing"
+  | "running"
+  | "validating"
+  | "done"
+  | "failed"
+  | "canceled";
 
 export type ActionJob = {
   action: string;
@@ -79,6 +95,51 @@ export type ActionArtifact = {
   createdAt: string;
   markdown: string;
   usage: ActionUsage;
+  /** Automatic review only: the structured document. */
+  review?: ReviewDocument;
+  /** Automatic review only: the worktree the run used. */
+  worktree?: string;
+};
+
+export type ReviewSeverity = "blocking" | "warning" | "nitpick" | "praise";
+
+/** Page order for severity groups and verdict counts. */
+export const REVIEW_SEVERITY_ORDER: ReviewSeverity[] = [
+  "blocking",
+  "warning",
+  "nitpick",
+  "praise",
+];
+
+export type ReviewCategory =
+  "risk" | "design" | "architecture" | "conventions" | "tests";
+
+export type ReviewVerdict = {
+  safeToMerge: boolean;
+  summary: string;
+  overridden?: boolean;
+};
+
+export type ReviewFinding = {
+  id: string;
+  severity: ReviewSeverity;
+  category: ReviewCategory;
+  title: string;
+  claim: string;
+  suggestion?: string;
+  file: string;
+  line: number;
+  endLine?: number;
+  entity?: string;
+  patch?: string;
+  anchored: boolean;
+  appliedAt?: string;
+};
+
+export type ReviewDocument = {
+  verdict: ReviewVerdict;
+  findings: ReviewFinding[];
+  omitted?: number;
 };
 
 export type ActionResponse = {

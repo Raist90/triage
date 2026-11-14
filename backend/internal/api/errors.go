@@ -22,6 +22,10 @@ const (
 	codeBadRequest       = "bad_request"
 	codeConflict         = "conflict"
 	codeInternal         = "internal_error"
+	// Review patch apply failures. The webview maps these to readable copy.
+	codeReviewStale     = "review_stale"
+	codeWorktreeMissing = "worktree_missing"
+	codePatchConflict   = "patch_conflict"
 )
 
 func writeError(w http.ResponseWriter, status int, code, message string) {

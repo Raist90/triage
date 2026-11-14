@@ -11,6 +11,7 @@ import (
 	"github.com/Raist90/triage/backend/internal/cache"
 	"github.com/Raist90/triage/backend/internal/config"
 	"github.com/Raist90/triage/backend/internal/github"
+	"github.com/Raist90/triage/backend/internal/worktree"
 )
 
 // allowedOrigins are the only origins the webview can use: the Vite dev server
@@ -28,13 +29,14 @@ type Server struct {
 	github    *github.Client
 	runner    *actions.Runner
 	artifacts *actions.Store
+	worktrees *worktree.Manager
 	token     [sha256.Size]byte
 	logger    *slog.Logger
 }
 
 // NewServer builds the API server. token is the per-process bearer token; only
 // its hash is retained.
-func NewServer(cfg config.Config, c *cache.Cache, gh *github.Client, runner *actions.Runner, artifacts *actions.Store, token string, logger *slog.Logger) *Server {
+func NewServer(cfg config.Config, c *cache.Cache, gh *github.Client, runner *actions.Runner, artifacts *actions.Store, worktrees *worktree.Manager, token string, logger *slog.Logger) *Server {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -44,6 +46,7 @@ func NewServer(cfg config.Config, c *cache.Cache, gh *github.Client, runner *act
 		github:    gh,
 		runner:    runner,
 		artifacts: artifacts,
+		worktrees: worktrees,
 		token:     sha256.Sum256([]byte(token)),
 		logger:    logger,
 	}
@@ -57,6 +60,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/config", s.handleConfig)
 	mux.HandleFunc("/cache/invalidate", s.handleCacheInvalidate)
 	mux.HandleFunc("/artifacts/clear", s.handleArtifactsClear)
+	mux.HandleFunc("/worktrees/clear", s.handleWorktreesClear)
 	mux.HandleFunc("/prs", s.handlePRs)
 	mux.HandleFunc("/pr/", s.handlePR)
 	mux.HandleFunc("/", s.handleNotFound)
@@ -76,7 +80,7 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusMethodNotAllowed, codeMethodNotAllowed, "only GET is allowed")
 		return
 	}
-	writeJSON(w, http.StatusOK, s.configView())
+	writeJSON(w, http.StatusOK, s.configView(r.Context()))
 }
 
 func (s *Server) handleArtifactsClear(w http.ResponseWriter, r *http.Request) {
@@ -95,6 +99,24 @@ func (s *Server) handleArtifactsClear(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, artifactsClearResponse{Cleared: cleared})
+}
+
+func (s *Server) handleWorktreesClear(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, codeMethodNotAllowed, "only POST is allowed")
+		return
+	}
+	if s.worktrees == nil {
+		writeError(w, http.StatusServiceUnavailable, codeInternal, "worktrees are not configured")
+		return
+	}
+	cleared, err := s.worktrees.Clear(r.Context(), s.cfg.Repos)
+	if err != nil {
+		s.logger.Error("worktree clear failed", "err", err)
+		writeError(w, http.StatusInternalServerError, codeInternal, "failed to clear worktrees")
+		return
+	}
+	writeJSON(w, http.StatusOK, worktreesClearResponse{Cleared: cleared})
 }
 
 func (s *Server) handleCacheInvalidate(w http.ResponseWriter, r *http.Request) {

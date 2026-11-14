@@ -161,6 +161,57 @@ export const FILE_STATUS_MARK: Record<
   renamed: { mark: "R", className: "border-line-strong text-fg-muted" },
 };
 
+/**
+ * Index of the hunk a line belongs to. Shared by the review snippet and the
+ * diff jump so both land on the same hunk. Containing hunk first, then the
+ * nearest one with no distance cap.
+ */
+export function findHunkIndex(
+  file: DiffFile,
+  line: number | undefined,
+): number | undefined {
+  const hunks = file.hunks ?? [];
+  if (hunks.length === 0 || line === undefined || line < 1) return undefined;
+
+  const containing = hunks.findIndex((hunk) =>
+    hunk.lines.some(
+      (candidate) =>
+        candidate.newNumber === line || candidate.oldNumber === line,
+    ),
+  );
+  if (containing >= 0) return containing;
+
+  let best: number | undefined;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  hunks.forEach((hunk, index) => {
+    const distance = hunkDistance(hunk, line);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = index;
+    }
+  });
+  return best;
+}
+
+/** Lines between `line` and the nearest edge of either side of a hunk. */
+function hunkDistance(hunk: DiffHunk, line: number): number {
+  const newEnd = hunk.newStart + Math.max(hunk.newCount - 1, 0);
+  const oldEnd = hunk.oldStart + Math.max(hunk.oldCount - 1, 0);
+  const newDistance =
+    hunk.newCount > 0
+      ? line < hunk.newStart
+        ? hunk.newStart - line
+        : Math.max(line - newEnd, 0)
+      : Number.POSITIVE_INFINITY;
+  const oldDistance =
+    hunk.oldCount > 0
+      ? line < hunk.oldStart
+        ? hunk.oldStart - line
+        : Math.max(line - oldEnd, 0)
+      : Number.POSITIVE_INFINITY;
+  return Math.min(newDistance, oldDistance);
+}
+
 export function splitPath(path: string): { dir: string; name: string } {
   const slash = path.lastIndexOf("/");
   if (slash === -1) return { dir: "", name: path };
