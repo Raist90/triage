@@ -64,11 +64,17 @@ backend/                 Go module (github.com/Raist90/triage/backend)
   internal/linear/       Linear queries, issue linking
   internal/plugin/       Plugin interface + registry
   internal/actions/      Claude runner, diff prompt builder, stream parser, artifact store
+  internal/review/       review types, JSON schema, sem, guidelines, prompt, parse, patch
+  internal/worktree/     disposable git worktrees under ~/.triage/worktrees
   internal/cache/        on-disk cache, TTL, invalidation
   internal/config/       the single source of truth for app settings
 src-tauri/               Tauri shell (Rust)
 .env                     GITHUB_TOKEN, LINEAR_API_KEY — gitignored, never committed
 .env.example             committed, keys only, no values
+~/.triage/config.json    user settings: repos, repoPaths, Linear teams
+~/.triage/cache          provider responses
+~/.triage/artifacts      Explain and Review answers, one file per SHA + action
+~/.triage/worktrees      disposable checkouts used by automatic review
 ```
 
 ## Commands
@@ -147,7 +153,8 @@ stay side by side; reviewing is the only flow that matters.
 - **No card soup.** Prose, comments and metadata use one surface plus 1px
   `border-line` rules. Only the diff and dialogs get a box.
 - **PR detail:** compact header, 44px bar, tabs for Conversation (default), Diff,
-  Explain (when available). Conversation is one chronological timeline: the PR
+  Review (when available), Explain (when available). Conversation is one
+  chronological timeline: the PR
   body first, then comments, review verdicts and inline review comments. The
   272px context rail shows checks, review, change stats, branches, commit and
   author; it is hidden below 1400px and while the Diff tab is active (the diff
@@ -210,7 +217,9 @@ Rate limits are a product constraint. Cache aggressively, especially in dev.
 - Per-entry and whole-cache invalidation must be reachable from the UI
   (`Settings → Refresh data`). Invalidation is a user action, not a debug hack.
 - Claude artifacts live under `~/.triage/artifacts`; they are disposable and
-  never contain tokens.
+  never contain tokens. Explain and Review share that tree: one file per SHA,
+  action and prompt version. Review artifacts also record the worktree path,
+  which is machine-local but never secret.
 - In dev, long TTLs are correct behavior. Never bypass the cache to "make it
   faster" — fix the cache.
 
@@ -228,12 +237,18 @@ edited:
 {
   "user": { "login": "", "name": "" },
   "repos": ["owner/name", "other/repo"],
+  "repoPaths": { "owner/name": "~/Projects/name" },
   "linear": { "teamKeys": ["ENG"] }
 }
 ```
 
 - Repos are `owner/name` strings, deduped case-insensitively. Malformed entries
   are dropped and named in `Config.Problem`; valid ones still load.
+- `repoPaths` is the local clone each tracked repo needs for automatic review.
+  Keys are `owner/name`, matched case-insensitively, and values expand `~`. A
+  repo without a path is still tracked: only Review is disabled for it, and
+  `GET /config` reports the reason (`No local path configured`,
+  `Path does not exist`). A missing path is never a config error.
 - Unknown keys are rejected (`DisallowUnknownFields`) so a typo like `"repo"`
   fails loudly instead of silently doing nothing.
 - Omitted keys keep their defaults. `"repos": []` means no tracked repos.
@@ -296,35 +311,70 @@ type Plugin interface {
 
 ## Claude actions
 
-One PR-scoped action: **Explain**. The Go sidecar (never Rust, never the webview)
-fetches the PR's unified diff, sends it to the local `claude` CLI, and streams the
-answer back over SSE. No checkout, no local clone, no worktree.
+Two PR-scoped actions, both run by the Go sidecar (never Rust, never the
+webview) against the local `claude` CLI. **Explain** reads only the unified diff.
+**Review** checks out the PR head in a disposable worktree, reads the semantic
+diff, and returns structured findings. Answers stream back over SSE.
 
-- **Diff-only context.** `internal/api` loads the diff from GitHub REST through
-  the same ETag cache as the diff route, and `actions.PromptData.WithDiff` turns
-  it into a file list plus patch text with a byte budget. Files that do not fit
-  are omitted and named in the prompt, never silently dropped. Dependency,
-  generated and lock files are tried last so source changes win the budget.
-- **No tools.** `claude` runs with `--tools ""`: no filesystem, shell or network
-  access. PR title, description and diff are untrusted prompt input, fenced in a
-  `<diff>` block; the fixed system prompt says not to follow instructions inside
-  it. An answer may only claim things visible in the diff.
+- **Diff-only context for Explain.** `internal/api` loads the diff from GitHub
+  REST through the same ETag cache as the diff route, and
+  `actions.PromptData.WithDiff` turns it into a file list plus patch text with a
+  byte budget. Files that do not fit are omitted and named in the prompt, never
+  silently dropped. Dependency, generated and lock files are tried last so
+  source changes win the budget.
+- **Review context.** `internal/review` renders a bounded prompt: PR metadata,
+  the PR description (8 KB), the repo's own `AGENTS.md` / `CLAUDE.md` /
+  `CONTRIBUTING.md` (12 KB), `sem diff --format markdown --verbose` (96 KB) and
+  a raw REST fallback for files sem does not parse (48 KB, 96 KB when sem is
+  absent). Every changed file is either present or named as omitted.
+  `PromptVersion` is part of the artifact identity; bump it on any prompt or
+  budget edit so old answers go stale.
+- **Tools.** Explain runs with `--tools ""`: no filesystem, shell or network
+  access. Review runs read-only with `Read`, `Grep`, `Glob`, restricted and
+  `--permission-mode dontAsk`, cwd at the worktree. Never fall back to
+  `--dangerously-skip-permissions`.
+- **Untrusted output.** PR title, body, diff, guidelines and every repository
+  file are untrusted prompt input. The system prompt says so, and the server
+  never trusts the reply: the model output is untrusted JSON, validated against
+  the PR diff (severity, caps, dedupe, anchor, patch allowlist) before it
+  reaches the UI. A `blocking` finding always forces `safeToMerge: false`.
 - **Streamed, bounded.** `--output-format stream-json` → NDJSON parser → SSE
-  events `status`, `delta`, `done`, `error`. One job per PR+action; 5-minute
-  timeout; child process group killed on cancel and on app shutdown.
+  events `status`, `delta`, `done`, `error`. One job per PR+action; Explain
+  times out at 5 minutes, Review at 8 minutes; child process group killed on
+  cancel and on app shutdown.
 - **Artifacts.** `~/.triage/artifacts/<owner>/<repo>/<number>/<sha>/<action>.json`,
-  keyed by SHA + model + prompt version. A SHA change makes the old answer
-  stale: served with `stale: true` and a Re-run button, never as current.
+  keyed by SHA + model + prompt version. One store, one shape: an Explain
+  artifact carries markdown and a nil `review`, a Review artifact carries
+  `review` plus the `worktree` its patches apply to. A SHA change makes the old
+  answer stale: served with `stale: true` and a Re-run button, never as current.
   `Settings → Clear artifacts` removes the tree.
 - **Gating.** One gate: `exec.LookPath("claude")` succeeded at startup.
   `/config.actions` is empty when the CLI is missing; `actionsReason` explains
-  why. Every tracked repo is otherwise runnable.
+  why. Review additionally needs a `repoPaths` entry whose path is a git
+  repository.
 - **HTTP.** `POST/GET /pr/{owner}/{repo}/{n}/actions/{id}`,
   `GET .../actions/{id}/stream` (SSE over `fetch`, bearer header — never a query
-  token), `POST .../actions/{id}/cancel`, `POST /artifacts/clear`.
-- **Config.** Action model, budget and prompt live in `internal/config` and never
-  reach the webview. Adding an action is a config entry, not a new route or
-  component.
+  token), `POST .../actions/{id}/cancel`, `POST /artifacts/clear`,
+  `POST .../actions/review/patches/{findingID}`, `POST /worktrees/clear`.
+- **Config.** Action model, budget, tools, timeout and prompt live in
+  `internal/config` and never reach the webview. Adding an action is a config
+  entry, not a new route or component.
+
+### Worktrees
+
+Automatic review is the only feature that touches a checkout.
+
+- Root is `~/.triage/worktrees/<owner>/<repo>/<number>`. `internal/worktree`
+  creates it with `git worktree add --detach` from the configured local clone,
+  after fetching `refs/pull/N/head` and the base branch into `refs/triage/*`.
+- A run reuses the directory when `HEAD` already equals the artifact SHA and
+  recreates it otherwise. Jobs for the same PR are serialised by a per-PR lock.
+- The worktree is removed on failure and on cancel, and kept on success because
+  patches apply to it. `Settings → Clear worktrees` removes the whole tree and
+  prunes registrations; it never touches artifacts, the cache or source clones.
+- Patches are applied with `git apply --whitespace=nowarn` only, after a fresh
+  `--check` at apply time. The file set is the PR diff, and `..`, absolute paths
+  and binary patches are rejected. Nothing is ever staged, committed or pushed.
 
 ## MVP scope
 
@@ -341,17 +391,23 @@ In:
   delay
 - Inline diff comments on any open PR, including your own; comments anchor to
   the current head commit, and you can delete your own
+- Automatic review: a structured, on-demand review of the PR head in a
+  disposable worktree, with anchored findings, jump to the diff, and patches
+  that apply to the worktree only
 - Linear link + issue metadata panel (read-only)
-- Settings: tracked repos, cache invalidation
+- Settings: tracked repos, cache invalidation, clear artifacts, clear worktrees
 - Aggressive caching
 
 Out (do not build yet):
 
 - Notifications, multi-account, GitHub OAuth/device flow
 - Real-time updates/webhooks, polling UI beyond manual refresh
+- Publishing review comments or findings to GitHub
 - Comment thread replies, resolve, suggestion commits
 - Close or reopen, merge methods other than squash, auto-merge, checkout locally
 - Side-by-side diff, diff modes beyond per-file unified
+- Inline annotations inside the Diff tab; Review jumps first, annotation later
+- Managed clones; review uses the configured `repoPaths` only
 - External/first-party plugin loading, a plugin marketplace
 - Command palette, themes, light mode
 
