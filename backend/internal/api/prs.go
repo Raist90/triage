@@ -104,6 +104,8 @@ func (s *Server) handlePR(w http.ResponseWriter, r *http.Request) {
 		s.handlePRDraft(w, r, parts[0], parts[1], parts[2])
 	case len(parts) == 4 && parts[3] == "merge":
 		s.handlePRMerge(w, r, parts[0], parts[1], parts[2])
+	case len(parts) == 4 && parts[3] == "close":
+		s.handlePRClose(w, r, parts[0], parts[1], parts[2])
 	case len(parts) == 5 && parts[3] == "comments":
 		s.handleCommentDelete(w, r, parts[0], parts[1], parts[2], parts[4])
 	case len(parts) == 4 && parts[3] == "diff":

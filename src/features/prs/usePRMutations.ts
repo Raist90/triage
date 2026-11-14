@@ -1,32 +1,38 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { describeError, mergePR, setPRDraft } from "../../lib/api";
+import { closePR, describeError, mergePR, setPRDraft } from "../../lib/api";
 
-/** GitHub's search index lags a merge or draft change by a moment. */
+/** GitHub's search index lags a merge, close or draft change by a moment. */
 const LIST_REFRESH_DELAY_MS = 1500;
+
+export type PRStateAction = "draft" | "merge" | "close";
 
 export type PRMutationController = {
   pending: boolean;
   /** Action currently in flight, so only that control reads as busy. */
-  submitting: "draft" | "merge" | null;
+  submitting: PRStateAction | null;
   error: string | null;
-  confirmOpen: boolean;
-  openConfirm: () => void;
+  /** Which confirmation bar is open, or null when none is. */
+  confirming: "merge" | "close" | null;
+  openMergeConfirm: () => void;
+  openCloseConfirm: () => void;
   closeConfirm: () => void;
   toggleDraft: (draft: boolean) => void;
   merge: (sha: string) => void;
+  close: () => void;
 };
 
 /**
- * Draft and merge mutations are server truth. The detail refreshes at once;
- * the list waits for GitHub's search index, then invalidates every list query.
+ * Draft, merge and close mutations are server truth. The detail refreshes at
+ * once; the list waits for GitHub's search index, then invalidates every list
+ * query.
  */
 export function usePRMutations(
   repo: string,
   number: number,
 ): PRMutationController {
   const queryClient = useQueryClient();
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirming, setConfirming] = useState<"merge" | "close" | null>(null);
   const listTimer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -59,7 +65,7 @@ export function usePRMutations(
   const mergeMutation = useMutation({
     mutationFn: (sha: string) => mergePR({ repo, number, sha }),
     onSuccess: () => {
-      setConfirmOpen(false);
+      setConfirming(null);
       refreshDetail();
       scheduleListRefresh();
     },
@@ -68,37 +74,65 @@ export function usePRMutations(
     onError: refreshDetail,
   });
 
+  const closeMutation = useMutation({
+    mutationFn: () => closePR({ repo, number }),
+    onSuccess: () => {
+      setConfirming(null);
+      refreshDetail();
+      scheduleListRefresh();
+    },
+    // A rejected close leaves the confirmation bar open with the reason, so
+    // the user can retry or cancel.
+    onError: refreshDetail,
+  });
+
   const error = draftMutation.isError
     ? describeError(draftMutation.error)
     : mergeMutation.isError
       ? describeError(mergeMutation.error)
-      : null;
+      : closeMutation.isError
+        ? describeError(closeMutation.error)
+        : null;
 
   return {
-    pending: draftMutation.isPending || mergeMutation.isPending,
+    pending:
+      draftMutation.isPending ||
+      mergeMutation.isPending ||
+      closeMutation.isPending,
     submitting: draftMutation.isPending
       ? "draft"
       : mergeMutation.isPending
         ? "merge"
-        : null,
+        : closeMutation.isPending
+          ? "close"
+          : null,
     error,
-    confirmOpen,
-    openConfirm: () => {
+    confirming,
+    openMergeConfirm: () => {
       draftMutation.reset();
       mergeMutation.reset();
-      setConfirmOpen(true);
+      closeMutation.reset();
+      setConfirming("merge");
     },
-    closeConfirm: () => setConfirmOpen(false),
+    openCloseConfirm: () => {
+      draftMutation.reset();
+      mergeMutation.reset();
+      closeMutation.reset();
+      setConfirming("close");
+    },
+    closeConfirm: () => setConfirming(null),
     toggleDraft: (draft) => {
       mergeMutation.reset();
+      closeMutation.reset();
       draftMutation.reset();
       draftMutation.mutate(draft);
     },
     merge: (sha) => mergeMutation.mutate(sha),
+    close: () => closeMutation.mutate(),
   };
 }
 
-/** Only your own open PR can be converted to a draft or merged from Triage. */
+/** Only your own open PR can be drafted, merged or closed from Triage. */
 export function canManagePR(pr: {
   state: string;
   author: string;

@@ -400,8 +400,8 @@ In:
   behind a global toggle
 - Post a review: approve, request changes, comment
 - Toggle your own PRs between draft and ready for review; squash merge your own
-  PRs once GitHub reports them mergeable, then refresh the list after a short
-  delay
+  PRs once GitHub reports them mergeable; close your own open PRs without
+  merging behind a confirmation bar. The list refreshes after a short delay.
 - Inline diff comments on any open PR, including your own; comments anchor to
   the current head commit, and you can delete your own
 - Automatic review: a structured, on-demand review of the PR head in a
@@ -417,7 +417,7 @@ Out (do not build yet):
 - Real-time updates/webhooks, polling UI beyond manual refresh
 - Publishing review comments or findings to GitHub
 - Comment thread replies, resolve, suggestion commits
-- Close or reopen, merge methods other than squash, auto-merge, checkout locally
+- Reopen a closed PR, merge methods other than squash, auto-merge, checkout locally
 - Side-by-side diff, diff modes beyond per-file unified
 - Inline annotations inside the Diff tab; Review jumps first, annotation later
 - Managed clones; review uses the configured `repoPaths` only

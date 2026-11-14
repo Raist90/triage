@@ -149,6 +149,13 @@ export function mergePR({
   });
 }
 
+/** Close an open PR without merging it. Author only, enforced by GitHub. */
+export function closePR({ repo, number }: PROptions): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>(`${prPath(repo, number)}/close`, {
+    method: "POST",
+  });
+}
+
 export function getPRComments({
   repo,
   number,
