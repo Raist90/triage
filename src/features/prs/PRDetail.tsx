@@ -69,10 +69,9 @@ export function PRDetail({ repo, number }: PRDetailProps) {
   const configuredRepo = configQuery.data?.repos.find(
     (item) => `${item.owner}/${item.name}`.toLowerCase() === repo.toLowerCase(),
   );
-  const action =
-    configuredRepo?.actions && configQuery.data
-      ? (configQuery.data.actions[0] ?? null)
-      : null;
+  const explainAction =
+    configQuery.data?.actions.find((item) => item.kind === "explain") ?? null;
+  const action = configuredRepo?.actions ? explainAction : null;
   const claudeAction = useClaudeAction(repo, number, action, action !== null);
   const review = useReview(repo, number);
   const mutations = usePRMutations(repo, number);
