@@ -20,10 +20,6 @@ const (
 	maxEntityRunes     = 120
 	maxSummaryRunes    = 240
 	maxPatchBytes      = 8 << 10
-
-	// maxAnchorDistance is how far a finding may sit from a hunk and still get
-	// a snippet in the UI. Beyond it the finding is kept but unanchored.
-	maxAnchorDistance = 40
 )
 
 // Parse turns the model's answer into a Review. structured is the result
@@ -235,8 +231,8 @@ func clampBytes(value string, limit int) string {
 	return value[:limit]
 }
 
-// anchorIndex answers "is this finding on or near a changed hunk". Hunks are
-// built lazily per file so a review that cites one file does not parse the rest.
+// anchorIndex answers "is this finding on a changed hunk". Hunks are built
+// lazily per file so a review that cites one file does not parse the rest.
 type anchorIndex struct {
 	hunks map[string][]diff.Hunk
 	built map[string]bool
@@ -258,6 +254,9 @@ func buildAnchorIndex(files []diff.File) *anchorIndex {
 	return index
 }
 
+// contains reports whether line is on a hunk line. Distance does not count:
+// a citation outside the hunk is unanchored, and the UI shows no snippet
+// rather than evidence from an unrelated hunk.
 func (a *anchorIndex) contains(path string, line int) bool {
 	if line <= 0 {
 		return false
@@ -267,31 +266,21 @@ func (a *anchorIndex) contains(path string, line int) bool {
 		return false
 	}
 	hunks := a.hunksFor(file)
-	if len(hunks) == 0 {
-		return false
-	}
-
-	distance := maxAnchorDistance + 1
 	for _, hunk := range hunks {
-		start := hunk.NewStart
-		end := hunk.NewStart + hunk.NewCount - 1
-		if hunk.NewCount <= 0 {
-			end = start
-		}
-		switch {
-		case line >= start && line <= end:
+		if hunkHasLine(hunk, line) {
 			return true
-		case line < start:
-			if start-line < distance {
-				distance = start - line
-			}
-		case line > end:
-			if line-end < distance {
-				distance = line - end
-			}
 		}
 	}
-	return distance <= maxAnchorDistance
+	return false
+}
+
+func hunkHasLine(hunk diff.Hunk, line int) bool {
+	for _, candidate := range hunk.Lines {
+		if candidate.NewNumber == line || candidate.OldNumber == line {
+			return true
+		}
+	}
+	return false
 }
 
 func (a *anchorIndex) hunksFor(file diff.File) []diff.Hunk {

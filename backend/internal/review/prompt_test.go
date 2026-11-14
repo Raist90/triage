@@ -220,6 +220,64 @@ func TestBuildInputMixed(t *testing.T) {
 	}
 }
 
+func TestBuildInputChangedLines(t *testing.T) {
+	patch := "diff --git a/api/checkout.go b/api/checkout.go\n" +
+		"--- a/api/checkout.go\n" +
+		"+++ b/api/checkout.go\n" +
+		"@@ -1,3 +1,4 @@\n" +
+		" package api\n" +
+		" \n" +
+		"+// Retry reuses the request key.\n" +
+		" func checkout() {}\n" +
+		"@@ -40,2 +41,3 @@ func authorize() {\n" +
+		" \tcheck()\n" +
+		"+\tcommit()\n" +
+		"}\n"
+	files := diff.Parse([]byte(patch))
+	in := BuildInput(fixtureMeta(), "", nil, "", files, []byte(patch))
+
+	if !strings.Contains(in.ChangedLines, "api/checkout.go: 1-4, 41-43") {
+		t.Fatalf("ChangedLines = %q", in.ChangedLines)
+	}
+
+	out, err := Render(defaultReviewPrompt(t), in)
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	if !strings.Contains(out, "Changed lines (absolute, new file):") {
+		t.Fatalf("prompt missing the line map heading: %q", out)
+	}
+}
+
+func TestChangedLineMapCapsRangesAndBudget(t *testing.T) {
+	var patch strings.Builder
+	patch.WriteString("diff --git a/src/many.go b/src/many.go\n--- a/src/many.go\n+++ b/src/many.go\n")
+	for index := 0; index < 12; index++ {
+		line := 1 + index*10
+		fmt.Fprintf(&patch, "@@ -%d,1 +%d,2 @@ func thing%d() {\n \told()\n+\tnew()\n }\n", line, line, index)
+	}
+	files := diff.Parse([]byte(patch.String()))
+	got := changedLineMap(files)
+	if !strings.Contains(got, "src/many.go: ") {
+		t.Fatalf("ChangedLines = %q", got)
+	}
+	if !strings.Contains(got, "… 4 more") {
+		t.Fatalf("per-file ranges were not capped: %q", got)
+	}
+
+	var many strings.Builder
+	for index := 0; index < 400; index++ {
+		appendPatchFile(&many, fmt.Sprintf("src/generated/file%04d.go", index), 1)
+	}
+	got = changedLineMap(diff.Parse([]byte(many.String())))
+	if len(got) > maxChangedBytes+96 {
+		t.Fatalf("ChangedLines = %d bytes, budget %d", len(got), maxChangedBytes)
+	}
+	if !strings.Contains(got, "beyond the line-map budget") {
+		t.Fatalf("budget truncation was not marked: %q", got)
+	}
+}
+
 func TestBuildInputOmitsLockfileLast(t *testing.T) {
 	var patch strings.Builder
 	appendPatchFile(&patch, "bun.lock", 3)

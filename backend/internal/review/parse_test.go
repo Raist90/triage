@@ -174,26 +174,30 @@ func TestSanitizeClampsStrings(t *testing.T) {
 func TestSanitizeAnchors(t *testing.T) {
 	findings := []Finding{
 		finding(SeverityWarning, "inside hunk", 3),
+		finding(SeverityWarning, "context line in hunk", 2),
 		finding(SeverityWarning, "near hunk", 20),
 		finding(SeverityWarning, "far hunk", 1000),
 		finding(SeverityWarning, "missing file", 2),
 	}
-	findings[3].File = "api/gone.go"
+	findings[4].File = "api/gone.go"
 	out := Sanitize(Review{Verdict: Verdict{SafeToMerge: true}, Findings: findings}, fixtureFiles())
 
-	if len(out.Findings) != 4 {
+	if len(out.Findings) != 5 {
 		t.Fatalf("findings = %d, want every finding kept", len(out.Findings))
 	}
 	if !out.Findings[0].Anchored {
 		t.Error("line inside a hunk must be anchored")
 	}
 	if !out.Findings[1].Anchored {
-		t.Error("line within 40 of a hunk must be anchored")
+		t.Error("a context line inside a hunk must be anchored")
 	}
 	if out.Findings[2].Anchored {
-		t.Error("line 1000 away must not be anchored")
+		t.Error("a line outside the hunk must not be anchored, however near")
 	}
 	if out.Findings[3].Anchored {
+		t.Error("line 1000 away must not be anchored")
+	}
+	if out.Findings[4].Anchored {
 		t.Error("a file absent from the diff must not be anchored")
 	}
 }

@@ -62,7 +62,10 @@ export function FindingCard({
   const hunk = useMemo(() => {
     if (!diffFiles) return null;
     const match = findHunk(diffFiles, finding.file, finding.line);
-    if (!match) return null;
+    // A snippet is evidence for the cited line. If that line is not in the
+    // selected hunk, showing the hunk top would claim evidence the model never
+    // pointed at, so show nothing instead.
+    if (!match || !match.focusedLine) return null;
     return { match, lines: sliceHunk(match.hunk, finding.line, 12) };
   }, [diffFiles, finding.file, finding.line]);
 

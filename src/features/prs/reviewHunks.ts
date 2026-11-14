@@ -11,9 +11,10 @@ export type HunkMatch = {
 };
 
 /**
- * Find the hunk a finding points at. The server already decided whether the
- * finding is anchored, so the UI never hides evidence because of distance: a
- * line outside every hunk falls back to the nearest one in the same file.
+ * Find the hunk a finding points at. The server decides whether the finding is
+ * anchored; a line outside every hunk still resolves to the nearest one so that
+ * "Open in diff" has a target, but `focusedLine` stays undefined and callers
+ * must not render that hunk as evidence.
  */
 export function findHunk(
   files: DiffFile[],

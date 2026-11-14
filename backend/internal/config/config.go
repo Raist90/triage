@@ -111,6 +111,9 @@ Description:
 Changed files ({{.FileCount}}):
 {{.FileList}}
 
+Changed lines (absolute, new file):
+{{.ChangedLines}}
+
 Repository guidelines:
 <guidelines>
 {{.Guidelines}}
