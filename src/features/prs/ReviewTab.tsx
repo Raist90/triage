@@ -1,12 +1,15 @@
 import { Sparkles, X } from "lucide-react";
-import { Button, MicroLabel } from "../../components/ui";
+import { Button } from "../../components/ui";
 import { cx } from "../../lib/cx";
-import type {
-  ActionStatus,
-  DiffFile,
-  ReviewDocument,
-  ReviewSeverity,
+import { formatRelative } from "../../lib/time";
+import {
+  REVIEW_SEVERITY_ORDER,
+  type ActionStatus,
+  type DiffFile,
 } from "../../lib/types";
+import { FindingCard } from "./FindingCard";
+import { FindingGroup } from "./FindingGroup";
+import { ReviewVerdict } from "./ReviewVerdict";
 import type { ClaudeActionController } from "./useClaudeAction";
 
 type ReviewTabProps = {
@@ -165,20 +168,60 @@ export function ReviewTab({
       ) : null}
 
       {showArtifact && review ? (
-        <div className="flex flex-col gap-3">
+        <div>
           {stale ? (
-            <p className="text-meta text-fg-faint">
+            <p className="mb-3 text-meta text-fg-faint">
               This review is from an older commit. Re-run to refresh it.
             </p>
           ) : null}
-          <VerdictLine review={review} />
-          <p className="text-meta text-fg-faint">
-            <span className="tabular font-mono">{review.findings.length}</span>{" "}
-            finding{review.findings.length === 1 ? "" : "s"}
-            {review.omitted
-              ? ` · ${review.omitted} omitted by the server`
-              : null}
-          </p>
+
+          {artifact ? (
+            <div className="mb-2 flex items-center gap-2 font-mono text-meta text-fg-faint">
+              <span>{artifact.model}</span>
+              <span aria-hidden>·</span>
+              <span className="tabular">
+                {formatRelative(artifact.createdAt)}
+              </span>
+              <span aria-hidden>·</span>
+              <span className="tabular">
+                ${artifact.usage.totalCostUsd.toFixed(2)}
+              </span>
+            </div>
+          ) : null}
+
+          <ReviewVerdict review={review} />
+
+          {review.findings.length === 0 ? (
+            <p className="mt-4 text-prose text-fg-faint">
+              No issues found in the changed code.
+            </p>
+          ) : (
+            <div className="mt-6 flex flex-col gap-6">
+              {REVIEW_SEVERITY_ORDER.map((severity) => {
+                const group = review.findings.filter(
+                  (finding) => finding.severity === severity,
+                );
+                return (
+                  <FindingGroup
+                    key={severity}
+                    severity={severity}
+                    findings={group}
+                  >
+                    {group.map((finding) => (
+                      <FindingCard key={finding.id} finding={finding} />
+                    ))}
+                  </FindingGroup>
+                );
+              })}
+            </div>
+          )}
+
+          {review.omitted ? (
+            <p className="mt-4 text-meta text-fg-faint">
+              {review.omitted} finding{review.omitted === 1 ? "" : "s"} omitted
+              to keep the page short.
+            </p>
+          ) : null}
         </div>
       ) : null}
 
@@ -233,63 +276,6 @@ function StageRow({
       <span className="w-28 shrink-0 text-meta text-fg-body">{label}</span>
       <span className="min-w-0 truncate font-mono text-meta text-fg-faint">
         {detail}
-      </span>
-    </div>
-  );
-}
-
-const SEVERITY_ORDER: ReviewSeverity[] = [
-  "blocking",
-  "warning",
-  "nitpick",
-  "praise",
-];
-
-function countSeverities(
-  findings: ReviewDocument["findings"],
-): Record<ReviewSeverity, number> {
-  const counts: Record<ReviewSeverity, number> = {
-    blocking: 0,
-    warning: 0,
-    nitpick: 0,
-    praise: 0,
-  };
-  for (const finding of findings) counts[finding.severity] += 1;
-  return counts;
-}
-
-function plural(count: number, singular: string, pluralForm: string): string {
-  return `${count} ${count === 1 ? singular : pluralForm}`;
-}
-
-/**
- * C4 keeps the verdict to one line. C5 replaces this with the full banner and
- * the severity groups below it.
- */
-function VerdictLine({ review }: { review: ReviewDocument }) {
-  const counts = countSeverities(review.findings);
-  const parts = SEVERITY_ORDER.filter(
-    (severity) => severity !== "praise" || counts.praise > 0,
-  ).map((severity) => {
-    const count = counts[severity];
-    switch (severity) {
-      case "warning":
-        return plural(count, "warning", "warnings");
-      case "nitpick":
-        return plural(count, "nitpick", "nitpicks");
-      default:
-        return plural(count, severity, severity);
-    }
-  });
-  const safe = review.verdict.safeToMerge;
-
-  return (
-    <div className="flex flex-wrap items-baseline gap-3">
-      <MicroLabel className={safe ? "text-accent!" : "text-danger!"}>
-        {safe ? "Safe to merge" : "Needs work"}
-      </MicroLabel>
-      <span className="tabular font-mono text-meta text-fg-muted">
-        {parts.join(" · ")}
       </span>
     </div>
   );
