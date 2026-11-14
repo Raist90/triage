@@ -1,7 +1,12 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { RefreshCw, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { clearArtifacts, describeError, invalidateCache } from "../lib/api";
+import {
+  clearArtifacts,
+  clearWorktrees,
+  describeError,
+  invalidateCache,
+} from "../lib/api";
 import type { Config } from "../lib/types";
 import { Button, MicroLabel } from "./ui";
 
@@ -13,7 +18,9 @@ type SettingsDialogProps = {
 
 export function SettingsDialog({ open, config, onClose }: SettingsDialogProps) {
   const queryClient = useQueryClient();
-  const [busy, setBusy] = useState<"cache" | "artifacts" | null>(null);
+  const [busy, setBusy] = useState<"cache" | "artifacts" | "worktrees" | null>(
+    null,
+  );
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,8 +71,24 @@ export function SettingsDialog({ open, config, onClose }: SettingsDialogProps) {
     }
   }
 
-  const claudeReady = (config?.actions.length ?? 0) > 0;
+  // Worktrees are disposable by definition, so this has no confirmation step.
+  async function clearDisposableWorktrees() {
+    setBusy("worktrees");
+    setError(null);
+    setMessage(null);
+    try {
+      const result = await clearWorktrees();
+      setMessage(
+        `Cleared ${result.cleared} worktree${result.cleared === 1 ? "" : "s"}.`,
+      );
+    } catch (caught) {
+      setError(describeError(caught));
+    } finally {
+      setBusy(null);
+    }
+  }
 
+  const claudeReady = (config?.actions.length ?? 0) > 0;
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-canvas/80 p-6"
@@ -173,6 +196,17 @@ export function SettingsDialog({ open, config, onClose }: SettingsDialogProps) {
                 aria-hidden
               />
               Clear artifacts
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => void clearDisposableWorktrees()}
+              disabled={busy !== null}
+            >
+              <Trash2
+                className={`size-3.5 ${busy === "worktrees" ? "animate-spin" : ""}`}
+                aria-hidden
+              />
+              Clear worktrees
             </Button>
           </section>
 

@@ -3,6 +3,7 @@ package actions
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"os"
@@ -554,5 +555,55 @@ func TestReviewRunnerCancelRemovesWorktree(t *testing.T) {
 	case <-cleaned:
 	case <-time.After(5 * time.Second):
 		t.Fatal("cleanup did not run after cancel")
+	}
+}
+
+func TestArtifactStoreUpdate(t *testing.T) {
+	store := NewStore(t.TempDir())
+	when := time.Now().UTC()
+	artifact := Artifact{
+		ActionID:  "review",
+		Model:     "model-a",
+		SHA:       "aaaaaaa",
+		CreatedAt: when,
+		Review: &review.Review{
+			Verdict:  review.Verdict{SafeToMerge: true, Summary: "ok"},
+			Findings: []review.Finding{{ID: "F1", Severity: review.SeverityWarning, Category: review.CategoryRisk, Title: "t", File: "a.go", Line: 1, Patch: "diff"}},
+		},
+	}
+	if err := store.Put("owner", "name", 5, artifact); err != nil {
+		t.Fatalf("Put: %v", err)
+	}
+
+	stamp := when.Add(time.Minute)
+	updated, err := store.Update("owner", "name", 5, "aaaaaaa", "review", func(candidate *Artifact) error {
+		candidate.Review.Findings[0].AppliedAt = &stamp
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	if updated.Review.Findings[0].AppliedAt == nil {
+		t.Fatal("Update must return the mutated artifact")
+	}
+
+	stored, ok := store.Get("owner", "name", 5, "aaaaaaa", "review")
+	if !ok || stored.Review == nil || stored.Review.Findings[0].AppliedAt == nil {
+		t.Fatalf("Get after Update = %+v, %v", stored, ok)
+	}
+	if !stored.Review.Findings[0].AppliedAt.Equal(stamp) {
+		t.Fatalf("appliedAt = %v, want %v", stored.Review.Findings[0].AppliedAt, stamp)
+	}
+
+	if _, err := store.Update("owner", "name", 5, "bbbbbbb", "review", func(*Artifact) error { return nil }); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("missing artifact err = %v, want ErrNotFound", err)
+	}
+	if _, err := store.Update("owner", "name", 5, "aaaaaaa", "review", func(*Artifact) error {
+		return errors.New("refuse")
+	}); err == nil {
+		t.Fatal("a mutate error must abort the write")
+	}
+	if stored, _ := store.Get("owner", "name", 5, "aaaaaaa", "review"); stored == nil || stored.Review.Findings[0].AppliedAt == nil {
+		t.Fatal("a failed mutate must not change the stored artifact")
 	}
 }

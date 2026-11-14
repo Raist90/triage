@@ -53,6 +53,10 @@ export function clearArtifacts(): Promise<{ cleared: number }> {
   return request<{ cleared: number }>("/artifacts/clear", { method: "POST" });
 }
 
+export function clearWorktrees(): Promise<{ cleared: number }> {
+  return request<{ cleared: number }>("/worktrees/clear", { method: "POST" });
+}
+
 type PRListOptions = {
   tab: string;
   /** `owner/name`, or null for every tracked repo. */
@@ -367,6 +371,31 @@ function parseStreamFrame(frame: string): ActionStreamEvent | null {
 
 function actionPath(repo: string, number: number, actionID: string): string {
   return `${prPath(repo, number)}/actions/${encodeURIComponent(actionID)}`;
+}
+
+type ApplyFindingOptions = ActionOptions & {
+  findingID: string;
+};
+
+/**
+ * Apply one finding's patch to the review worktree. The client sends a finding
+ * id only; the server owns the patch text. A second call returns the stored
+ * timestamp.
+ */
+export function applyFindingPatch({
+  repo,
+  number,
+  actionID,
+  findingID,
+}: ApplyFindingOptions): Promise<{
+  ok: boolean;
+  appliedAt: string;
+  worktree: string;
+}> {
+  return request(
+    `${actionPath(repo, number, actionID)}/patches/${encodeURIComponent(findingID)}`,
+    { method: "POST" },
+  );
 }
 
 function prPath(repo: string, number: number): string {

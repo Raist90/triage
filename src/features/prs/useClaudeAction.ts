@@ -183,7 +183,17 @@ export function useClaudeAction(
   const phase = status ?? job?.status ?? "queued";
   const running =
     streaming || starting || (job !== undefined && ACTIVE_STATUSES.has(phase));
-  const artifact = finished ?? query.data?.artifact;
+  // A finished run is fresher than the query cache for a moment, but an apply
+  // updates the artifact on disk only, so the query copy must win once it
+  // catches up. Later createdAt means fresher; a tie means the query saw the
+  // applied patch.
+  const cached = query.data?.artifact;
+  const artifact =
+    finished && cached
+      ? Date.parse(cached.createdAt) >= Date.parse(finished.createdAt)
+        ? cached
+        : finished
+      : (finished ?? cached);
 
   return {
     kind: action?.kind ?? "explain",

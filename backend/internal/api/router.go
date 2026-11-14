@@ -60,6 +60,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/config", s.handleConfig)
 	mux.HandleFunc("/cache/invalidate", s.handleCacheInvalidate)
 	mux.HandleFunc("/artifacts/clear", s.handleArtifactsClear)
+	mux.HandleFunc("/worktrees/clear", s.handleWorktreesClear)
 	mux.HandleFunc("/prs", s.handlePRs)
 	mux.HandleFunc("/pr/", s.handlePR)
 	mux.HandleFunc("/", s.handleNotFound)
@@ -98,6 +99,24 @@ func (s *Server) handleArtifactsClear(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, artifactsClearResponse{Cleared: cleared})
+}
+
+func (s *Server) handleWorktreesClear(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, codeMethodNotAllowed, "only POST is allowed")
+		return
+	}
+	if s.worktrees == nil {
+		writeError(w, http.StatusServiceUnavailable, codeInternal, "worktrees are not configured")
+		return
+	}
+	cleared, err := s.worktrees.Clear(r.Context(), s.cfg.Repos)
+	if err != nil {
+		s.logger.Error("worktree clear failed", "err", err)
+		writeError(w, http.StatusInternalServerError, codeInternal, "failed to clear worktrees")
+		return
+	}
+	writeJSON(w, http.StatusOK, worktreesClearResponse{Cleared: cleared})
 }
 
 func (s *Server) handleCacheInvalidate(w http.ResponseWriter, r *http.Request) {

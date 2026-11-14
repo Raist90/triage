@@ -1,5 +1,8 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { Sparkles, X } from "lucide-react";
+import { useState } from "react";
 import { Button } from "../../components/ui";
+import { applyFindingPatch, describeError } from "../../lib/api";
 import { cx } from "../../lib/cx";
 import { formatRelative } from "../../lib/time";
 import {
@@ -83,6 +86,38 @@ export function ReviewTab({
 }: ReviewTabProps) {
   const { artifact, error, phase, review, running, stale } = controller;
   const configFile = configPath ?? "~/.triage/config.json";
+  const queryClient = useQueryClient();
+  const [applying, setApplying] = useState<string | null>(null);
+  const [applyFailure, setApplyFailure] = useState<{
+    id: string;
+    message: string;
+  } | null>(null);
+
+  // One apply at a time. The server serialises them too; this only disables the
+  // button so two clicks cannot queue up.
+  async function applyFinding(finding: ReviewFinding) {
+    const action = controller.action;
+    if (!action) return;
+    setApplying(finding.id);
+    setApplyFailure(null);
+    try {
+      await applyFindingPatch({
+        repo,
+        number,
+        actionID: action.id,
+        findingID: finding.id,
+      });
+      // The artifact on disk now carries appliedAt. Refetch so a reload and the
+      // current page agree.
+      await queryClient.invalidateQueries({
+        queryKey: ["pr-action", repo, number, action.id],
+      });
+    } catch (caught) {
+      setApplyFailure({ id: finding.id, message: describeError(caught) });
+    } finally {
+      setApplying(null);
+    }
+  }
 
   if (!reviewAvailable) {
     return (
@@ -217,6 +252,14 @@ export function ReviewTab({
                         finding={finding}
                         diffFiles={diffFiles}
                         onOpenInDiff={onOpenInDiff}
+                        onApply={applyFinding}
+                        applying={applying === finding.id}
+                        applyError={
+                          applyFailure?.id === finding.id
+                            ? applyFailure.message
+                            : undefined
+                        }
+                        worktree={artifact?.worktree}
                       />
                     ))}
                   </FindingGroup>

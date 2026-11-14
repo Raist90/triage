@@ -2,6 +2,7 @@ package review
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path"
@@ -14,6 +15,14 @@ import (
 const (
 	patchCheckTimeout = 10 * time.Second
 	maxPatchTotal     = 32 << 10
+)
+
+// ErrPatchConflict means git refused the patch, usually because the worktree
+// moved under it. ErrPatchRejected means the patch itself is not acceptable:
+// wrong paths, not a unified diff, or too large.
+var (
+	ErrPatchConflict = errors.New("review: the patch no longer applies")
+	ErrPatchRejected = errors.New("review: the patch is not acceptable")
 )
 
 // ValidatePatches decides, per finding, whether the suggested patch is a
@@ -64,6 +73,9 @@ func validPatch(ctx context.Context, dir, patch string, allowed map[string]struc
 		return false
 	}
 	for _, file := range parsed {
+		if file.Binary {
+			return false
+		}
 		if !permittedPath(file.Path, allowed) {
 			return false
 		}
@@ -91,12 +103,53 @@ func permittedPath(name string, allowed map[string]struct{}) bool {
 }
 
 func applyCheck(ctx context.Context, dir, patch string) bool {
+	return runGitApply(ctx, dir, patch, true) == nil
+}
+
+// ApplyPatch applies one finding's patch to the worktree. The allowlist and
+// parse checks run again: a stored validation is never trusted. Nothing is
+// staged, committed or pushed, and no git flag other than --check and
+// --whitespace is ever passed.
+func ApplyPatch(ctx context.Context, dir, patch string, files []diff.File) error {
+	if dir == "" || patch == "" || len(patch) > maxPatchBytes {
+		return ErrPatchRejected
+	}
+	allowed := allowedPaths(files)
+	parsed := diff.Parse([]byte(patch))
+	if len(parsed) == 0 {
+		return ErrPatchRejected
+	}
+	for _, file := range parsed {
+		if file.Binary {
+			return ErrPatchRejected
+		}
+		if !permittedPath(file.Path, allowed) {
+			return ErrPatchRejected
+		}
+		if file.OldPath != "" && !permittedPath(file.OldPath, allowed) {
+			return ErrPatchRejected
+		}
+	}
+	if err := runGitApply(ctx, dir, patch, true); err != nil {
+		return ErrPatchConflict
+	}
+	if err := runGitApply(ctx, dir, patch, false); err != nil {
+		return ErrPatchConflict
+	}
+	return nil
+}
+
+func runGitApply(ctx context.Context, dir, patch string, check bool) error {
 	ctx, cancel := context.WithTimeout(ctx, patchCheckTimeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "git", "apply", "--check", "--whitespace=nowarn")
+	args := []string{"apply", "--whitespace=nowarn"}
+	if check {
+		args = append(args, "--check")
+	}
+	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Dir = dir
 	cmd.Stdin = strings.NewReader(patch)
 	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
-	return cmd.Run() == nil
+	return cmd.Run()
 }
