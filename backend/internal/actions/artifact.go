@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/Raist90/triage/backend/internal/review"
 )
 
 var actionIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
@@ -28,14 +30,18 @@ type Usage struct {
 }
 
 // Artifact is one finished answer for a specific SHA, model and prompt version.
+// An explain artifact carries Markdown and a nil Review; a review artifact
+// carries Review and the worktree its patches apply to.
 type Artifact struct {
-	ActionID      string    `json:"action"`
-	Model         string    `json:"model"`
-	SHA           string    `json:"sha"`
-	PromptVersion string    `json:"promptVersion"`
-	CreatedAt     time.Time `json:"createdAt"`
-	Markdown      string    `json:"markdown"`
-	Usage         Usage     `json:"usage"`
+	ActionID      string         `json:"action"`
+	Model         string         `json:"model"`
+	SHA           string         `json:"sha"`
+	PromptVersion string         `json:"promptVersion"`
+	CreatedAt     time.Time      `json:"createdAt"`
+	Markdown      string         `json:"markdown"`
+	Usage         Usage          `json:"usage"`
+	Review        *review.Review `json:"review,omitempty"`
+	Worktree      string         `json:"worktree,omitempty"`
 }
 
 // Store is a directory of artifact files.
