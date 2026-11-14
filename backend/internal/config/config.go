@@ -97,6 +97,38 @@ Diff ({{.DiffNote}}):
 Explain what this PR does.
 `
 
+// actionReviewPrompt is the user message for the automatic review. The model
+// runs inside the PR worktree and returns the object validated by
+// review.JSONSchema. The semantic report, the diff and the guidelines are
+// fenced because all three are untrusted input.
+const actionReviewPrompt = `Repository: {{.Repo}}
+PR #{{.Number}}: {{.Title}}
+Branch: {{.Branch}} -> base {{.BaseBranch}} ({{.BaseSHA}})
+
+Description:
+{{.Description}}
+
+Changed files ({{.FileCount}}):
+{{.FileList}}
+
+Repository guidelines:
+<guidelines>
+{{.Guidelines}}
+</guidelines>
+
+Semantic changes (sem):
+<semantic>
+{{.Semantic}}
+</semantic>
+
+Changes sem did not cover ({{.DiffNote}}):
+<diff>
+{{.RawDiff}}
+</diff>
+
+Review the changes. Return only the JSON object described in the system prompt.
+`
+
 // Default returns the fallback configuration, used for everything the config
 // file does not set. Repos start empty: they belong in the config file.
 func Default() Config {
@@ -132,9 +164,7 @@ func Default() Config {
 					MaxBudgetUSD: 1.00,
 					Timeout:      8 * time.Minute,
 					Tools:        []string{"Read", "Grep", "Glob"},
-					// Filled by the review prompt chunk; the UI and runner reach
-					// this action only after that lands.
-					Prompt: "",
+					Prompt:       actionReviewPrompt,
 				},
 			},
 		},
