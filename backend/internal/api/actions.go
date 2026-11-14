@@ -26,17 +26,33 @@ func (s *Server) configView() configResponse {
 	available := s.runner != nil && s.runner.Available()
 	if available {
 		for _, action := range s.cfg.Actions.Items {
-			view.Actions = append(view.Actions, actionView{ID: action.ID, Label: action.Label})
+			view.Actions = append(view.Actions, actionView{ID: action.ID, Label: action.Label, Kind: action.Kind})
 		}
 	} else {
 		view.ActionsReason = "Claude Code CLI not found"
 	}
 
-	// Diff-only actions need nothing but a tracked repo and the CLI.
+	// Explain needs only a tracked repo and the CLI. Review also needs a local
+	// checkout, so its readiness is per repo.
 	for _, repo := range s.cfg.Repos {
-		view.Repos = append(view.Repos, repoView{Owner: repo.Owner, Name: repo.Name, Actions: available})
+		view.Repos = append(view.Repos, repoView{
+			Owner:   repo.Owner,
+			Name:    repo.Name,
+			Actions: available,
+			Review:  repoReview(repo, available),
+		})
 	}
 	return view
+}
+
+// repoReview reports whether automatic review can run for one repo. C1 replaces
+// the path presence check with a real worktree probe; the calculation lives here
+// so only this function changes.
+func repoReview(repo config.Repo, claudeAvailable bool) repoReviewView {
+	if repo.Path == "" {
+		return repoReviewView{Available: false, Reason: "No local path configured"}
+	}
+	return repoReviewView{Available: claudeAvailable}
 }
 
 func (s *Server) findRepo(owner, name string) (config.Repo, bool) {

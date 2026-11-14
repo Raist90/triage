@@ -13,19 +13,26 @@ type UserConfig struct {
 	Name  string `json:"name"`
 }
 
-// Repo is a tracked repository, identified by owner/name.
+// Repo is a tracked repository, identified by owner/name. Path is the local
+// checkout on this machine, resolved from the config file's repoPaths map; it is
+// never serialized to the webview.
 type Repo struct {
 	Owner string `json:"owner"`
 	Name  string `json:"name"`
+	Path  string `json:"-"`
 }
 
-// Action is one Claude action. Model, budget and prompt are server-side only.
+// Action is one Claude action. Model, budget, timeout, tools and prompt are
+// server-side only.
 type Action struct {
-	ID           string  `json:"id"`
-	Label        string  `json:"label"`
-	Model        string  `json:"-"`
-	MaxBudgetUSD float64 `json:"-"`
-	Prompt       string  `json:"-"` // Go text/template; see actions.PromptData
+	ID           string        `json:"id"`
+	Label        string        `json:"label"`
+	Kind         string        `json:"-"`
+	Model        string        `json:"-"`
+	MaxBudgetUSD float64       `json:"-"`
+	Timeout      time.Duration `json:"-"`
+	Tools        []string      `json:"-"`
+	Prompt       string        `json:"-"` // Go text/template; see actions.PromptData
 }
 
 // ActionsConfig is the Claude actions registry. Nothing here is serialized.
@@ -107,13 +114,29 @@ func Default() Config {
 			REST:    5 * time.Minute,
 		},
 		Actions: ActionsConfig{
-			Items: []Action{{
-				ID:           "explain",
-				Label:        "Explain",
-				Model:        "claude-haiku-5-5",
-				MaxBudgetUSD: 0.50,
-				Prompt:       actionExplainPrompt,
-			}},
+			Items: []Action{
+				{
+					ID:           "explain",
+					Label:        "Explain",
+					Kind:         "explain",
+					Model:        "claude-haiku-5-5",
+					MaxBudgetUSD: 0.50,
+					Timeout:      5 * time.Minute,
+					Prompt:       actionExplainPrompt,
+				},
+				{
+					ID:           "review",
+					Label:        "Automatic review",
+					Kind:         "review",
+					Model:        "claude-haiku-5-5",
+					MaxBudgetUSD: 1.00,
+					Timeout:      8 * time.Minute,
+					Tools:        []string{"Read", "Grep", "Glob"},
+					// Filled by the review prompt chunk; the UI and runner reach
+					// this action only after that lands.
+					Prompt: "",
+				},
+			},
 		},
 	}
 }
