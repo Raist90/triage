@@ -16,8 +16,9 @@ const semTimeout = 60 * time.Second
 // files the report covers. ok is false on a missing binary, a non-zero exit, an
 // empty report or a timeout; callers then fall back to the raw diff.
 //
-// The markdown is the prompt input, and its headings are the coverage map. sem
-// runs once, never twice.
+// The markdown is the prompt input, and its headings are the coverage map. The
+// function runs sem once; structured entity ranges used for grounding come from
+// a separate diff.Semantic run in the API layer.
 func Semantic(ctx context.Context, dir, baseSHA, headSHA string) (string, map[string]bool, bool) {
 	if dir == "" || baseSHA == "" || headSHA == "" {
 		return "", nil, false

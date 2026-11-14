@@ -75,9 +75,13 @@ type Finding struct {
 }
 
 // Review is one review document. Omitted counts findings dropped to stay inside
-// the output budget.
+// the output budget. Unverified counts findings hidden because they did not
+// match the changed code. UnverifiedBlocking keeps the verdict conservative
+// when one of the hidden findings claimed to block the merge.
 type Review struct {
-	Verdict  Verdict   `json:"verdict"`
-	Findings []Finding `json:"findings"`
-	Omitted  int       `json:"omitted,omitempty"`
+	Verdict            Verdict   `json:"verdict"`
+	Findings           []Finding `json:"findings"`
+	Omitted            int       `json:"omitted,omitempty"`
+	Unverified         int       `json:"unverified,omitempty"`
+	UnverifiedBlocking int       `json:"unverifiedBlocking,omitempty"`
 }

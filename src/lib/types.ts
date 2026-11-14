@@ -140,6 +140,10 @@ export type ReviewDocument = {
   verdict: ReviewVerdict;
   findings: ReviewFinding[];
   omitted?: number;
+  /** Findings hidden because they did not match the changed code. */
+  unverified?: number;
+  /** Hidden findings that claimed to block the merge. */
+  unverifiedBlocking?: number;
 };
 
 export type ActionResponse = {

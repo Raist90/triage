@@ -232,7 +232,9 @@ export function ReviewTab({
 
           {review.findings.length === 0 ? (
             <p className="mt-4 text-prose text-fg-faint">
-              No issues found in the changed code.
+              {review.unverified
+                ? "No finding could be verified against the changed code."
+                : "No issues found in the changed code."}
             </p>
           ) : (
             <div className="mt-6 flex flex-col gap-6">
@@ -272,6 +274,20 @@ export function ReviewTab({
             <p className="mt-4 text-meta text-fg-faint">
               {review.omitted} finding{review.omitted === 1 ? "" : "s"} omitted
               to keep the page short.
+            </p>
+          ) : null}
+
+          {review.unverified ? (
+            <p className="mt-2 text-meta text-fg-faint">
+              {review.unverified} finding
+              {review.unverified === 1 ? "" : "s"} could not be verified against
+              the changed code and {review.unverified === 1 ? "was" : "were"}{" "}
+              hidden.
+              {review.unverifiedBlocking
+                ? ` ${review.unverifiedBlocking} of them ${
+                    review.unverifiedBlocking === 1 ? "was" : "were"
+                  } blocking, so the verdict stays conservative.`
+                : ""}
             </p>
           ) : null}
         </div>

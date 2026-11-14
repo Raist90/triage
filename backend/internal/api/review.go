@@ -169,8 +169,14 @@ func (s *Server) prepareReview(ctx context.Context, source config.Repo, number i
 	guidelines := review.Guidelines(ctx, info.Dir)
 
 	files := diff.Parse(unified)
+	// sem's structured changes ground the model's output later: an entity name
+	// and its absolute line range let Sanitize snap or reject a citation. This
+	// run is separate from the markdown report because the prompt wants sem's
+	// prose report and the server wants its entity ranges.
+	report, _ := diff.Semantic(ctx, unified)
 	for index := range files {
 		files[index].Kinds = diff.Kinds(files[index].Path)
+		files[index].Semantic = report.Changes[files[index].Path]
 	}
 
 	meta := review.Meta{

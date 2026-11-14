@@ -244,8 +244,39 @@ func TestBuildInputChangedLines(t *testing.T) {
 	if err != nil {
 		t.Fatalf("render: %v", err)
 	}
-	if !strings.Contains(out, "Changed lines (absolute, new file):") {
+	if !strings.Contains(out, "Changed lines and entities (absolute, new file):") {
 		t.Fatalf("prompt missing the line map heading: %q", out)
+	}
+}
+
+func TestChangedLineMapListsEntities(t *testing.T) {
+	patch := "diff --git a/api/checkout.go b/api/checkout.go\n" +
+		"--- a/api/checkout.go\n" +
+		"+++ b/api/checkout.go\n" +
+		"@@ -1,3 +1,4 @@\n" +
+		" package api\n" +
+		" \n" +
+		"+// Retry reuses the request key.\n" +
+		" func checkout() {}\n" +
+		"@@ -40,2 +41,3 @@ func authorize() {\n" +
+		" \tcheck()\n" +
+		"+\tcommit()\n" +
+		"}\n"
+	files := diff.Parse([]byte(patch))
+	files[0].Semantic = []diff.SemanticChange{
+		{EntityName: "checkout", ChangeType: "modified", StartLine: 1, EndLine: 4},
+		{EntityName: "authorize", ChangeType: "modified", StartLine: 41, EndLine: 43},
+		{EntityName: "gone", ChangeType: "deleted", OldStartLine: 2, OldEndLine: 2},
+	}
+
+	got := changedLineMap(files)
+	for _, want := range []string{"api/checkout.go\n", "  checkout: 1-4", "  authorize: 41-43"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("ChangedLines missing %q: %q", want, got)
+		}
+	}
+	if strings.Contains(got, "gone") {
+		t.Fatalf("a deleted entity has no new line to cite: %q", got)
 	}
 }
 

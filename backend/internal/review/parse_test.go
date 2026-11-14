@@ -171,34 +171,78 @@ func TestSanitizeClampsStrings(t *testing.T) {
 	}
 }
 
-func TestSanitizeAnchors(t *testing.T) {
+func TestSanitizeHidesUngroundedFindings(t *testing.T) {
 	findings := []Finding{
 		finding(SeverityWarning, "inside hunk", 3),
 		finding(SeverityWarning, "context line in hunk", 2),
 		finding(SeverityWarning, "near hunk", 20),
-		finding(SeverityWarning, "far hunk", 1000),
+		finding(SeverityBlocking, "far hunk", 1000),
 		finding(SeverityWarning, "missing file", 2),
 	}
 	findings[4].File = "api/gone.go"
 	out := Sanitize(Review{Verdict: Verdict{SafeToMerge: true}, Findings: findings}, fixtureFiles())
 
-	if len(out.Findings) != 5 {
-		t.Fatalf("findings = %d, want every finding kept", len(out.Findings))
+	if len(out.Findings) != 2 {
+		t.Fatalf("findings = %d, want the two grounded findings", len(out.Findings))
 	}
-	if !out.Findings[0].Anchored {
-		t.Error("line inside a hunk must be anchored")
+	if !out.Findings[0].Anchored || !out.Findings[1].Anchored {
+		t.Error("grounded findings must stay anchored")
 	}
-	if !out.Findings[1].Anchored {
-		t.Error("a context line inside a hunk must be anchored")
+	if out.Unverified != 3 {
+		t.Fatalf("unverified = %d, want 3", out.Unverified)
 	}
-	if out.Findings[2].Anchored {
-		t.Error("a line outside the hunk must not be anchored, however near")
+	if out.UnverifiedBlocking != 1 {
+		t.Fatalf("unverified blocking = %d, want 1", out.UnverifiedBlocking)
 	}
-	if out.Findings[3].Anchored {
-		t.Error("line 1000 away must not be anchored")
+	if out.Verdict.SafeToMerge {
+		t.Error("a hidden blocking finding must keep the verdict conservative")
 	}
-	if out.Findings[4].Anchored {
-		t.Error("a file absent from the diff must not be anchored")
+}
+
+func TestSanitizeSnapsEntityLine(t *testing.T) {
+	files := fixtureFiles()
+	files[0].Semantic = []diff.SemanticChange{
+		{EntityName: "checkout", ChangeType: "modified", StartLine: 1, EndLine: 4},
+	}
+	item := finding(SeverityWarning, "wrong line", 40)
+	item.Entity = "checkout"
+	out := Sanitize(Review{Verdict: Verdict{SafeToMerge: true}, Findings: []Finding{item}}, files)
+
+	if len(out.Findings) != 1 {
+		t.Fatalf("findings = %d, want 1", len(out.Findings))
+	}
+	if out.Findings[0].Line != 4 {
+		t.Fatalf("line = %d, want the nearest changed line inside the entity", out.Findings[0].Line)
+	}
+}
+
+func TestSanitizeMatchesCompoundEntity(t *testing.T) {
+	files := fixtureFiles()
+	files[0].Semantic = []diff.SemanticChange{
+		{EntityName: "checkout", ChangeType: "modified", StartLine: 1, EndLine: 4},
+	}
+	item := finding(SeverityWarning, "compound name", 40)
+	item.Entity = "helper / checkout"
+	out := Sanitize(Review{Verdict: Verdict{SafeToMerge: true}, Findings: []Finding{item}}, files)
+
+	if len(out.Findings) != 1 {
+		t.Fatalf("findings = %d, want 1", len(out.Findings))
+	}
+	if out.Findings[0].Entity != "checkout" {
+		t.Fatalf("entity = %q, want the matched sem name", out.Findings[0].Entity)
+	}
+	if out.Findings[0].Line != 4 {
+		t.Fatalf("line = %d, want 4", out.Findings[0].Line)
+	}
+}
+
+func TestSanitizeAcceptsUnknownEntityOnAChangedLine(t *testing.T) {
+	item := finding(SeverityWarning, "context note", 3)
+	item.Entity = "helper not in sem"
+	out := Sanitize(Review{Verdict: Verdict{SafeToMerge: true}, Findings: []Finding{item}}, fixtureFiles())
+
+	if len(out.Findings) != 1 || out.Unverified != 0 {
+		t.Fatalf("findings = %d unverified = %d", len(out.Findings), out.Unverified)
 	}
 }
 

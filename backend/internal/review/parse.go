@@ -77,11 +77,15 @@ func extractJSONObject(text string) string {
 }
 
 // Sanitize enforces the output contract on a parsed review: known enums, string
-// limits, dedupe, the 12-finding and 2-praise caps, anchors against the real
-// diff, server-owned IDs and the verdict override. A finding is never dropped
-// for a bad anchor; it is kept and rendered without a snippet.
+// limits, dedupe, the 12-finding and 2-praise caps, grounding against the real
+// diff and sem's changed entities, server-owned IDs and the verdict override.
+//
+// A finding that cannot be tied to the pull request is hidden and counted. The
+// model is untrusted, so a confident claim about a file, entity or line that
+// never changed must not reach the UI as evidence.
 func Sanitize(r Review, files []diff.File) Review {
 	out := Review{Omitted: r.Omitted}
+	index := buildGroundIndex(files)
 	seen := make(map[string]struct{}, len(r.Findings))
 	kept := make([]Finding, 0, len(r.Findings))
 
@@ -100,13 +104,25 @@ func Sanitize(r Review, files []diff.File) Review {
 			finding.EndLine = 0
 		}
 
-		key := fmt.Sprintf("%s\x00%d\x00%s", finding.File, finding.Line, finding.Title)
+		grounded, ok := index.ground(finding)
+		if !ok {
+			out.Unverified++
+			if finding.Severity == SeverityBlocking {
+				out.UnverifiedBlocking++
+			}
+			continue
+		}
+		if grounded.EndLine < grounded.Line {
+			grounded.EndLine = 0
+		}
+
+		key := fmt.Sprintf("%s\x00%d\x00%s", grounded.File, grounded.Line, grounded.Title)
 		if _, duplicate := seen[key]; duplicate {
 			out.Omitted++
 			continue
 		}
 		seen[key] = struct{}{}
-		kept = append(kept, finding)
+		kept = append(kept, grounded)
 	}
 
 	// Highest severity first, model order preserved inside a severity.
@@ -133,11 +149,11 @@ func Sanitize(r Review, files []diff.File) Review {
 		findings = append(findings, finding)
 	}
 
-	anchors := buildAnchorIndex(files)
 	blocking := false
 	for index := range findings {
 		findings[index].ID = fmt.Sprintf("F%d", index+1)
-		findings[index].Anchored = anchors.contains(findings[index].File, findings[index].Line)
+		// Grounding only keeps a finding whose line is on a hunk.
+		findings[index].Anchored = true
 		if findings[index].Severity == SeverityBlocking {
 			blocking = true
 		}
@@ -147,18 +163,27 @@ func Sanitize(r Review, files []diff.File) Review {
 	out.Verdict.SafeToMerge = r.Verdict.SafeToMerge
 	out.Verdict.Summary = clampRunes(strings.TrimSpace(r.Verdict.Summary), maxSummaryRunes)
 	if out.Verdict.Summary == "" {
-		out.Verdict.Summary = fallbackSummary(findings)
+		switch {
+		case len(findings) == 0 && out.UnverifiedBlocking > 0:
+			out.Verdict.Summary = "A blocking finding could not be verified against the changed code."
+		case len(findings) == 0 && out.Unverified > 0:
+			out.Verdict.Summary = "No finding could be verified against the changed code."
+		default:
+			out.Verdict.Summary = fallbackSummary(findings)
+		}
 	}
 
 	// The server owns safeToMerge: a blocking finding always wins, and an empty
 	// review with a false verdict is contradictory because nothing is actionable.
-	if blocking {
+	// A hidden blocking finding is different: the model still called it blocking,
+	// so the verdict stays conservative instead of flipping to safe.
+	if blocking || out.UnverifiedBlocking > 0 {
 		if out.Verdict.SafeToMerge {
 			out.Verdict.Overridden = true
 		}
 		out.Verdict.SafeToMerge = false
 	}
-	if len(findings) == 0 && !out.Verdict.SafeToMerge {
+	if len(findings) == 0 && !out.Verdict.SafeToMerge && out.UnverifiedBlocking == 0 {
 		out.Verdict.SafeToMerge = true
 		out.Verdict.Overridden = true
 	}
@@ -231,68 +256,227 @@ func clampBytes(value string, limit int) string {
 	return value[:limit]
 }
 
-// anchorIndex answers "is this finding on a changed hunk". Hunks are built
-// lazily per file so a review that cites one file does not parse the rest.
-type anchorIndex struct {
-	hunks map[string][]diff.Hunk
-	built map[string]bool
-	files map[string]diff.File
+// groundIndex resolves a finding against the diff and sem's entity changes.
+// The model may cite a file, entity or line that does not exist or that the
+// pull request never changed; grounding turns that into a hidden finding
+// instead of a confident snippet.
+type groundIndex struct {
+	files map[string]*groundFile
 }
 
-func buildAnchorIndex(files []diff.File) *anchorIndex {
-	index := &anchorIndex{
-		hunks: make(map[string][]diff.Hunk, len(files)),
-		built: make(map[string]bool, len(files)),
-		files: make(map[string]diff.File, len(files)),
-	}
+type groundFile struct {
+	Path     string
+	NewLines map[int]bool
+	OldLines map[int]bool
+	entities map[string]diff.SemanticChange
+}
+
+func buildGroundIndex(files []diff.File) *groundIndex {
+	index := &groundIndex{files: make(map[string]*groundFile, len(files)*2)}
 	for _, file := range files {
-		index.files[normalizeFindingPath(file.Path)] = file
-		if file.OldPath != "" {
-			index.files[normalizeFindingPath(file.OldPath)] = file
+		ground := newGroundFile(file)
+		if path := normalizeFindingPath(file.Path); path != "" {
+			index.files[path] = ground
+		}
+		if path := normalizeFindingPath(file.OldPath); path != "" {
+			index.files[path] = ground
 		}
 	}
 	return index
 }
 
-// contains reports whether line is on a hunk line. Distance does not count:
-// a citation outside the hunk is unanchored, and the UI shows no snippet
-// rather than evidence from an unrelated hunk.
-func (a *anchorIndex) contains(path string, line int) bool {
-	if line <= 0 {
-		return false
+func newGroundFile(file diff.File) *groundFile {
+	hunks := file.Hunks
+	if len(hunks) == 0 {
+		hunks = diff.BuildHunksFor(file.Path, file.Patch)
 	}
-	file, ok := a.files[normalizeFindingPath(path)]
-	if !ok {
-		return false
+	ground := &groundFile{
+		Path:     file.Path,
+		NewLines: make(map[int]bool),
+		OldLines: make(map[int]bool),
+		entities: make(map[string]diff.SemanticChange),
 	}
-	hunks := a.hunksFor(file)
 	for _, hunk := range hunks {
-		if hunkHasLine(hunk, line) {
-			return true
+		for _, line := range hunk.Lines {
+			if line.NewNumber > 0 {
+				ground.NewLines[line.NewNumber] = true
+			}
+			if line.OldNumber > 0 {
+				ground.OldLines[line.OldNumber] = true
+			}
 		}
 	}
-	return false
+	for _, change := range file.Semantic {
+		name := normalizeEntityName(change.EntityName)
+		if name == "" {
+			continue
+		}
+		if _, exists := ground.entities[name]; exists {
+			continue
+		}
+		ground.entities[name] = change
+	}
+	return ground
 }
 
-func hunkHasLine(hunk diff.Hunk, line int) bool {
-	for _, candidate := range hunk.Lines {
-		if candidate.NewNumber == line || candidate.OldNumber == line {
-			return true
+// ground returns the finding with a line that exists on the changed file, or
+// false when the citation cannot be tied to the pull request.
+func (g *groundIndex) ground(finding Finding) (Finding, bool) {
+	file, ok := g.files[normalizeFindingPath(finding.File)]
+	if !ok {
+		return finding, false
+	}
+	finding.File = file.Path
+	if finding.Line <= 0 {
+		return finding, false
+	}
+
+	if change, matched := file.matchEntity(finding.Entity, finding.Line); matched {
+		line, snapped := file.snapLine(change, finding.Line)
+		if !snapped {
+			return finding, false
+		}
+		finding.Line = line
+		finding.Entity = change.EntityName
+		return finding, true
+	}
+
+	// No sem entity matched. The line still has to be part of a hunk; a model
+	// that cites code outside the diff is pointing at something this pull
+	// request did not change.
+	if !file.hasLine(finding.Line) {
+		return finding, false
+	}
+	return finding, true
+}
+
+func (f *groundFile) hasLine(line int) bool {
+	return f.NewLines[line] || f.OldLines[line]
+}
+
+func changeRange(change diff.SemanticChange) (int, int) {
+	if change.StartLine > 0 {
+		end := change.EndLine
+		if end < change.StartLine {
+			end = change.StartLine
+		}
+		return change.StartLine, end
+	}
+	if change.OldStartLine > 0 {
+		end := change.OldEndLine
+		if end < change.OldStartLine {
+			end = change.OldStartLine
+		}
+		return change.OldStartLine, end
+	}
+	return 0, 0
+}
+
+func (f *groundFile) matchEntity(raw string, cited int) (diff.SemanticChange, bool) {
+	var best diff.SemanticChange
+	bestDistance := 0
+	found := false
+	for _, candidate := range entityCandidates(raw) {
+		change, ok := f.entities[normalizeEntityName(candidate)]
+		if !ok {
+			continue
+		}
+		distance := changeDistance(change, cited)
+		if !found || distance < bestDistance {
+			best = change
+			bestDistance = distance
+			found = true
 		}
 	}
-	return false
+	return best, found
 }
 
-func (a *anchorIndex) hunksFor(file diff.File) []diff.Hunk {
-	key := normalizeFindingPath(file.Path)
-	if a.built[key] {
-		return a.hunks[key]
+// snapLine keeps the cited line when it is a changed line inside the entity and
+// otherwise moves it to the nearest changed line the entity contains. The result
+// is always a hunk line, so the snippet and the jump land on real evidence.
+func (f *groundFile) snapLine(change diff.SemanticChange, cited int) (int, bool) {
+	start, end := changeRange(change)
+	if start <= 0 {
+		return 0, false
 	}
-	a.built[key] = true
-	if len(file.Hunks) > 0 {
-		a.hunks[key] = file.Hunks
-		return a.hunks[key]
+	source := f.NewLines
+	if change.StartLine <= 0 {
+		source = f.OldLines
 	}
-	a.hunks[key] = diff.BuildHunksFor(file.Path, file.Patch)
-	return a.hunks[key]
+
+	best := 0
+	bestDistance := 0
+	if source[cited] && cited >= start && cited <= end {
+		return cited, true
+	}
+	for line := range source {
+		if line < start || line > end {
+			continue
+		}
+		distance := absInt(line - cited)
+		if best == 0 || distance < bestDistance || (distance == bestDistance && line < best) {
+			best = line
+			bestDistance = distance
+		}
+	}
+	return best, best != 0
+}
+
+func changeDistance(change diff.SemanticChange, line int) int {
+	start, end := changeRange(change)
+	if start <= 0 {
+		return int(^uint(0) >> 1)
+	}
+	switch {
+	case line < start:
+		return start - line
+	case line > end:
+		return line - end
+	default:
+		return 0
+	}
+}
+
+func absInt(value int) int {
+	if value < 0 {
+		return -value
+	}
+	return value
+}
+
+func normalizeEntityName(name string) string {
+	return strings.ToLower(strings.TrimSpace(strings.Trim(name, "`")))
+}
+
+// entityCandidates handles models that join several entity names in one string,
+// such as "configView / repoReview". The full string is tried first.
+func entityCandidates(raw string) []string {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return nil
+	}
+	seen := make(map[string]bool)
+	out := make([]string, 0, 4)
+	add := func(name string) {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			return
+		}
+		key := normalizeEntityName(name)
+		if seen[key] {
+			return
+		}
+		seen[key] = true
+		out = append(out, name)
+	}
+	add(value)
+	for _, separator := range []string{" / ", " · ", ",", "/"} {
+		if !strings.Contains(value, separator) {
+			continue
+		}
+		for _, part := range strings.Split(value, separator) {
+			add(part)
+		}
+	}
+	return out
 }
