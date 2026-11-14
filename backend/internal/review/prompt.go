@@ -10,10 +10,10 @@ import (
 	"github.com/Raist90/triage/backend/internal/diff"
 )
 
-// PromptVersion is bumped whenever the template, the system prompt, the schema
-// or the budgets change. It is part of the artifact identity, so an edit
-// invalidates stale answers.
-const PromptVersion = "4"
+// PromptVersion is bumped whenever the template, the system prompt, the schema,
+// the budgets or the finding validation rules change. It is part of the artifact
+// identity, so an edit invalidates answers produced under the old contract.
+const PromptVersion = "5"
 
 const (
 	maxDescriptionBytes = 8 << 10

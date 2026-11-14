@@ -146,6 +146,10 @@ export type ReviewDroppedFinding = {
   title: string;
   severity: ReviewSeverity;
   file: string;
+  line?: number;
+  evidence?: string;
+  guideline?: string;
+  guidelineQuote?: string;
   reason: string;
 };
 

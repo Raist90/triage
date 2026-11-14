@@ -34,7 +34,6 @@ const (
 	reasonFileNotChanged     = "file_not_changed"
 	reasonNoEvidence         = "no_evidence"
 	reasonEvidenceNotChanged = "evidence_not_changed"
-	reasonEntityMismatch     = "entity_mismatch"
 	reasonDuplicate          = "duplicate"
 	reasonCap                = "cap"
 )
@@ -118,10 +117,14 @@ func Sanitize(r Review, grounding Grounding) Review {
 
 	drop := func(finding Finding, reason string) {
 		out.Dropped = append(out.Dropped, DroppedFinding{
-			Title:    finding.Title,
-			Severity: finding.Severity,
-			File:     finding.File,
-			Reason:   reason,
+			Title:          finding.Title,
+			Severity:       finding.Severity,
+			File:           finding.File,
+			Line:           finding.Line,
+			Evidence:       finding.Evidence,
+			Guideline:      finding.Guideline,
+			GuidelineQuote: finding.GuidelineQuote,
+			Reason:         reason,
 		})
 	}
 
@@ -144,9 +147,13 @@ func Sanitize(r Review, grounding Grounding) Review {
 			drop(finding, reasonSeverityRule)
 			continue
 		}
-		if finding.Category == CategoryConventions && !validGuidelineFinding(finding, grounding.Guidelines) {
-			drop(finding, reasonGuidelineMismatch)
-			continue
+		if finding.Category == CategoryConventions {
+			path, ok := resolveGuidelineQuote(grounding.Guidelines, finding.GuidelineQuote)
+			if !ok {
+				drop(finding, reasonGuidelineMismatch)
+				continue
+			}
+			finding.Guideline = path
 		}
 
 		grounded, reason := index.ground(finding)
@@ -278,48 +285,41 @@ func fallbackSummary(findings []Finding) string {
 	return fmt.Sprintf("Review found %s.", strings.Join(parts, ", "))
 }
 
-// validGuidelineFinding checks the claim that a rule comes from a repository
-// guideline. The path must be a section the review actually read, and the quote
-// must appear inside that section.
-func validGuidelineFinding(finding Finding, guidelines string) bool {
-	section, ok := guidelineSection(guidelines, finding.Guideline)
-	if !ok {
-		return false
-	}
-	quote := normalizeWhitespace(finding.GuidelineQuote)
+// resolveGuidelineQuote finds the guideline section that contains the quoted
+// rule and returns its path. The quote is the evidence: a model that names the
+// wrong file or formats the path differently still keeps a real rule, while an
+// invented rule is rejected. The first section in reading order wins.
+func resolveGuidelineQuote(guidelines, raw string) (string, bool) {
+	quote := normalizeWhitespace(raw)
 	if quote == "" {
-		return false
-	}
-	return strings.Contains(normalizeWhitespace(section), quote)
-}
-
-// guidelineSection returns one document from the guidelines block. Guidelines
-// renders sections as "## <path>" followed by the file body.
-func guidelineSection(guidelines, raw string) (string, bool) {
-	name := normalizeFindingPath(raw)
-	if name == "" {
 		return "", false
 	}
-	lines := strings.Split(guidelines, "\n")
-	heading := "## " + name
-	start := -1
-	for index, line := range lines {
-		if strings.TrimSpace(line) == heading {
-			start = index + 1
-			break
+	var (
+		path  string
+		body  []string
+		check = func() bool {
+			return path != "" &&
+				strings.Contains(normalizeWhitespace(strings.Join(body, "\n")), quote)
+		}
+	)
+	for _, line := range strings.Split(guidelines, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "## ") {
+			if check() {
+				return path, true
+			}
+			path = normalizeFindingPath(strings.TrimPrefix(trimmed, "## "))
+			body = body[:0]
+			continue
+		}
+		if path != "" {
+			body = append(body, line)
 		}
 	}
-	if start < 0 {
-		return "", false
+	if check() {
+		return path, true
 	}
-	end := len(lines)
-	for index := start; index < len(lines); index++ {
-		if strings.HasPrefix(strings.TrimSpace(lines[index]), "## ") {
-			end = index
-			break
-		}
-	}
-	return strings.Join(lines[start:end], "\n"), true
+	return "", false
 }
 
 // normalizeFindingPath puts a model-supplied path into the same shape diff.Parse
@@ -461,20 +461,20 @@ func (g *groundIndex) ground(finding Finding) (Finding, string) {
 		return finding, reasonEvidenceNotChanged
 	}
 
+	// The entity is a hint, not the anchor. Evidence already resolved to a
+	// changed line, so a wrong or unknown entity clears the label instead of
+	// hiding a correctly anchored finding.
 	if raw := strings.TrimSpace(finding.Entity); raw != "" {
-		change, found := file.lookupEntity(raw)
-		if !found {
-			return finding, reasonEntityMismatch
+		finding.Entity = ""
+		if change, found := file.lookupEntity(raw); found {
+			start, end := changeRange(change)
+			if start > 0 {
+				if contained, ok := findEvidenceLine(file, evidence, start, end); ok {
+					line = contained
+					finding.Entity = change.EntityName
+				}
+			}
 		}
-		start, end := changeRange(change)
-		if start <= 0 {
-			return finding, reasonEntityMismatch
-		}
-		line, ok = findEvidenceLine(file, evidence, start, end)
-		if !ok {
-			return finding, reasonEntityMismatch
-		}
-		finding.Entity = change.EntityName
 	}
 
 	finding.File = file.Path

@@ -81,12 +81,17 @@ type Finding struct {
 }
 
 // DroppedFinding records one finding the server refused to show and why. The
-// title and file are enough to audit a run without storing speculative prose.
+// submitted evidence and guideline quote are included so a drop can be audited
+// without rerunning the review.
 type DroppedFinding struct {
-	Title    string   `json:"title"`
-	Severity Severity `json:"severity"`
-	File     string   `json:"file"`
-	Reason   string   `json:"reason"`
+	Title          string   `json:"title"`
+	Severity       Severity `json:"severity"`
+	File           string   `json:"file"`
+	Line           int      `json:"line,omitempty"`
+	Evidence       string   `json:"evidence,omitempty"`
+	Guideline      string   `json:"guideline,omitempty"`
+	GuidelineQuote string   `json:"guidelineQuote,omitempty"`
+	Reason         string   `json:"reason"`
 }
 
 // Review is one review document. Omitted counts findings dropped to stay inside

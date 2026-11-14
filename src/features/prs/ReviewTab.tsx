@@ -9,6 +9,7 @@ import {
   REVIEW_SEVERITY_ORDER,
   type ActionStatus,
   type DiffFile,
+  type ReviewDroppedFinding,
   type ReviewFinding,
 } from "../../lib/types";
 import { FindingCard } from "./FindingCard";
@@ -73,6 +74,32 @@ const STAGE_DETAILS: Record<StageKey, (number: number) => string> = {
   diff: () => "sem over the changed entities",
   review: () => "haiku 5.5, read-only worktree",
 };
+
+/** Reasons that reject a finding outright, as opposed to grounding or budget. */
+const RULE_DROP_REASONS = new Set([
+  "guideline_mismatch",
+  "severity_rule",
+  "invalid_field",
+]);
+
+const RULE_DROP_LABELS: Record<string, string> = {
+  guideline_mismatch: "guideline mismatch",
+  severity_rule: "severity rule",
+  invalid_field: "invalid field",
+};
+
+function summarizeDrops(findings: ReviewDroppedFinding[]): string {
+  const counts = new Map<string, number>();
+  for (const finding of findings) {
+    counts.set(finding.reason, (counts.get(finding.reason) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([reason, count]) => {
+      const label = RULE_DROP_LABELS[reason] ?? reason.replace(/_/g, " ");
+      return `${count} ${label}`;
+    })
+    .join(", ");
+}
 
 export function ReviewTab({
   repo,
@@ -142,6 +169,9 @@ export function ReviewTab({
   const showArtifact = artifact !== undefined && !running;
   const showEmpty = !running && !artifact && !error;
   const canceled = !running && phase === "canceled";
+  const ruleDrops = (review?.dropped ?? []).filter((finding) =>
+    RULE_DROP_REASONS.has(finding.reason),
+  );
 
   return (
     <section className="flex flex-col gap-3">
@@ -194,7 +224,7 @@ export function ReviewTab({
                 state="active"
                 word="validating"
                 label="validating findings"
-                detail="anchors, limits, patches"
+                detail="evidence, limits, guidelines"
               />
             ) : null}
           </div>
@@ -288,6 +318,14 @@ export function ReviewTab({
                     review.unverifiedBlocking === 1 ? "was" : "were"
                   } blocking, so the verdict stays conservative.`
                 : ""}
+            </p>
+          ) : null}
+
+          {ruleDrops.length ? (
+            <p className="mt-2 text-meta text-fg-faint">
+              {ruleDrops.length} finding
+              {ruleDrops.length === 1 ? "" : "s"} hidden before display (
+              {summarizeDrops(ruleDrops)}).
             </p>
           ) : null}
         </div>

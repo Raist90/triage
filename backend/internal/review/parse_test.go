@@ -267,6 +267,9 @@ func TestSanitizeHidesUngroundedFindings(t *testing.T) {
 	reasons := make(map[string]bool, len(out.Dropped))
 	for _, dropped := range out.Dropped {
 		reasons[dropped.Reason] = true
+		if dropped.Reason == reasonEvidenceNotChanged && dropped.Evidence == "" {
+			t.Fatalf("dropped finding lost its evidence: %+v", dropped)
+		}
 	}
 	for _, want := range []string{reasonNoEvidence, reasonEvidenceNotChanged, reasonFileNotChanged} {
 		if !reasons[want] {
@@ -275,7 +278,7 @@ func TestSanitizeHidesUngroundedFindings(t *testing.T) {
 	}
 }
 
-func TestSanitizeEntityMustContainEvidence(t *testing.T) {
+func TestSanitizeClearsEntityOutsideEvidence(t *testing.T) {
 	files := fixtureFiles()
 	files[0].Semantic = []diff.SemanticChange{
 		{EntityName: "checkout", ChangeType: "modified", StartLine: 1, EndLine: 2},
@@ -284,11 +287,11 @@ func TestSanitizeEntityMustContainEvidence(t *testing.T) {
 	item.Entity = "checkout"
 	out := Sanitize(Review{Verdict: Verdict{SafeToMerge: true}, Findings: []Finding{item}}, Grounding{Files: files})
 
-	if len(out.Findings) != 0 {
-		t.Fatalf("findings = %+v", out.Findings)
+	if len(out.Findings) != 1 {
+		t.Fatalf("findings = %+v, dropped = %+v", out.Findings, out.Dropped)
 	}
-	if len(out.Dropped) != 1 || out.Dropped[0].Reason != reasonEntityMismatch {
-		t.Fatalf("dropped = %+v", out.Dropped)
+	if out.Findings[0].Entity != "" || out.Findings[0].Line != 3 {
+		t.Fatalf("finding = %+v, want the evidence anchor and no entity", out.Findings[0])
 	}
 }
 
@@ -309,13 +312,13 @@ func TestSanitizeEntityContainsEvidence(t *testing.T) {
 	}
 }
 
-func TestSanitizeUnknownEntityIsHidden(t *testing.T) {
+func TestSanitizeUnknownEntityIsCleared(t *testing.T) {
 	item := finding(SeverityWarning, "unknown entity", checkoutEvidence)
 	item.Entity = "helper not in sem"
 	out := Sanitize(Review{Verdict: Verdict{SafeToMerge: true}, Findings: []Finding{item}}, fixtureGrounding())
 
-	if len(out.Findings) != 0 || out.Unverified != 1 {
-		t.Fatalf("findings = %d unverified = %d", len(out.Findings), out.Unverified)
+	if len(out.Findings) != 1 || out.Findings[0].Entity != "" {
+		t.Fatalf("findings = %+v", out.Findings)
 	}
 }
 
@@ -327,6 +330,20 @@ func TestSanitizeRequiresGuidelineQuote(t *testing.T) {
 	out := Sanitize(Review{Verdict: Verdict{SafeToMerge: true}, Findings: []Finding{item}}, fixtureGrounding())
 	if len(out.Findings) != 1 {
 		t.Fatalf("findings = %+v, dropped = %+v", out.Findings, out.Dropped)
+	}
+}
+
+func TestSanitizeResolvesGuidelineByQuote(t *testing.T) {
+	item := finding(SeverityWarning, "dependencies", checkoutEvidence)
+	item.Category = CategoryConventions
+	item.Guideline = "AGENTS.md (Frontend conventions)"
+	item.GuidelineQuote = "Do not add dependencies."
+	out := Sanitize(Review{Verdict: Verdict{SafeToMerge: true}, Findings: []Finding{item}}, fixtureGrounding())
+	if len(out.Findings) != 1 {
+		t.Fatalf("findings = %+v, dropped = %+v", out.Findings, out.Dropped)
+	}
+	if out.Findings[0].Guideline != "AGENTS.md" {
+		t.Fatalf("guideline = %q, want the section that holds the quote", out.Findings[0].Guideline)
 	}
 }
 

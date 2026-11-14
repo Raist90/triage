@@ -329,8 +329,8 @@ diff, and returns structured findings. Answers stream back over SSE.
   absent). Every changed file is either present or named as omitted. A separate
   `sem diff --patch --format json` run gives the server absolute entity ranges,
   which the prompt lists and the sanitizer uses to cross-check a citation.
-  `PromptVersion` is part of the artifact identity; bump it on any prompt or
-  budget edit so old answers go stale.
+  `PromptVersion` is part of the artifact identity; bump it on any prompt,
+  budget, schema or finding-validation edit so old answers go stale.
 - **Tools.** Explain runs with `--tools ""`: no filesystem, shell or network
   access. Review runs read-only with `Read`, `Grep`, `Glob`, restricted and
   `--permission-mode dontAsk`, cwd at the worktree. Never fall back to
@@ -343,10 +343,14 @@ diff, and returns structured findings. Answers stream back over SSE.
   line into `evidence`, and the server resolves the line from that quote; a
   finding whose quote is not on the changed side of the diff is hidden and
   counted as unverified, never shown as evidence for code the PR did not change.
-  Convention findings must also quote a rule from a guideline the run actually
-  read. A `blocking` finding always forces `safeToMerge: false`, and a hidden
-  blocking finding keeps that verdict conservative. Every hidden finding is
-  recorded in `dropped` with a stable reason.
+  An entity is a label, not an anchor: a named entity that does not contain the
+  evidence line is cleared, and the finding stays. Convention findings must also
+  quote a rule from a guideline the run actually read; the server finds the
+  section by quote, so a misnamed guideline file still keeps a real rule and an
+  invented quote is dropped. A `blocking` finding always forces
+  `safeToMerge: false`, and a hidden blocking finding keeps that verdict
+  conservative. Every hidden finding is recorded in `dropped` with a stable
+  reason and the submitted evidence.
 - **Streamed, bounded.** `--output-format stream-json` → NDJSON parser → SSE
   events `status`, `delta`, `done`, `error`. One job per PR+action; Explain
   times out at 5 minutes, Review at 8 minutes; child process group killed on
