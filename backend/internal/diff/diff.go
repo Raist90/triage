@@ -75,6 +75,7 @@ type Response struct {
 	Files             []File           `json:"files"`
 	SemanticAvailable bool             `json:"semanticAvailable"`
 	SemanticSummary   *SemanticSummary `json:"semanticSummary,omitempty"`
+	Complexity        *Complexity      `json:"complexity,omitempty"`
 }
 
 // Parse splits a unified diff into files. Malformed input still produces

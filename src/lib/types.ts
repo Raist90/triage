@@ -214,6 +214,17 @@ export type FileReview = {
   };
 };
 
+/** PR-level review effort from the Go side. Absent when sem found nothing. */
+export type Complexity = {
+  score: number;
+  band: ReviewBand;
+  sourceFiles: number;
+  changes: number;
+  deletes: number;
+  rewrites: number;
+  ripples?: number;
+};
+
 export type DiffSpan = {
   text: string;
   kind?:
@@ -267,6 +278,7 @@ export type PRDiffResponse = {
   files: DiffFile[];
   semanticAvailable: boolean;
   semanticSummary?: SemanticSummary;
+  complexity?: Complexity;
 };
 
 /** One inline review comment anchored to a diff line. */
