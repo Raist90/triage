@@ -65,12 +65,18 @@ Two optional CLIs:
    {
      "user": { "login": "", "name": "" },
      "repos": ["owner/name", "another/repo"],
+     "repoPaths": { "owner/name": "~/Projects/name" },
      "linear": { "teamKeys": ["ENG"] }
    }
    ```
 
-   Settings shows the path and any parse error. Invalid entries are dropped and
-   reported there instead of stopping the app.
+   `repoPaths` maps a tracked repo to its local checkout, which automatic review
+   reads. Values must be absolute; a leading `~` expands to your home directory.
+   Entries for repos not listed in `repos` are ignored. Empty or relative paths
+   are dropped and named in Settings, like malformed repo entries.
+
+   Settings shows the config file path and any parse error. Invalid entries are
+   dropped and reported there instead of stopping the app.
 
 ## Commands
 

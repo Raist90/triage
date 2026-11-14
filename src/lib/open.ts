@@ -1,4 +1,4 @@
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 
 function isTauri(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -26,4 +26,17 @@ export async function openExternal(href: string): Promise<void> {
     }
   }
   window.open(href, "_blank", "noreferrer");
+}
+
+/**
+ * Reveals a worktree in the system file manager. Only meaningful inside Tauri;
+ * in the browser the caller keeps showing the path as selectable text.
+ */
+export async function revealPath(path: string): Promise<void> {
+  if (!path || !isTauri()) return;
+  try {
+    await revealItemInDir(path);
+  } catch {
+    // Missing permission or a removed directory. The path stays on screen.
+  }
 }

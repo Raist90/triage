@@ -118,6 +118,8 @@ func (s *Server) handlePR(w http.ResponseWriter, r *http.Request) {
 		s.handleActionStream(w, r, parts[0], parts[1], parts[2], parts[4])
 	case len(parts) == 6 && parts[3] == "actions" && parts[5] == "cancel":
 		s.handleActionCancel(w, r, parts[0], parts[1], parts[2], parts[4])
+	case len(parts) == 7 && parts[3] == "actions" && parts[5] == "patches":
+		s.handlePatchApply(w, r, parts[0], parts[1], parts[2], parts[4], parts[6])
 	default:
 		writeError(w, http.StatusNotFound, codeNotFound, "route not found")
 	}

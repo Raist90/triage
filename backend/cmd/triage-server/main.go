@@ -25,6 +25,7 @@ import (
 	"github.com/Raist90/triage/backend/internal/cache"
 	"github.com/Raist90/triage/backend/internal/config"
 	"github.com/Raist90/triage/backend/internal/github"
+	"github.com/Raist90/triage/backend/internal/worktree"
 )
 
 const (
@@ -82,6 +83,12 @@ func run(logger *slog.Logger) error {
 	runner := actions.New(cfg.Actions, artifacts, claudePath, logger)
 	defer runner.Shutdown()
 
+	worktreeRoot, err := worktree.DefaultRoot()
+	if err != nil {
+		return err
+	}
+	worktrees := worktree.New(worktreeRoot, logger)
+
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return fmt.Errorf("listen on loopback: %w", err)
@@ -106,7 +113,7 @@ func run(logger *slog.Logger) error {
 	}
 
 	server := &http.Server{
-		Handler:           api.NewServer(cfg, store, gh, runner, artifacts, token, logger).Handler(),
+		Handler:           api.NewServer(cfg, store, gh, runner, artifacts, worktrees, token, logger).Handler(),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      60 * time.Second,
@@ -121,6 +128,7 @@ func run(logger *slog.Logger) error {
 		"github_configured", tokens.GitHub != "",
 		"linear_configured", tokens.Linear != "",
 		"claude_available", claudePath != "",
+		"worktree_root", worktreeRoot,
 	)
 
 	// Exactly one stdout line: the handshake Tauri parses.

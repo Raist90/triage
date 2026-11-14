@@ -29,6 +29,7 @@ import {
   DIFF_FILE_KINDS,
   fileKey,
   fileKinds,
+  findHunkIndex,
   focusBand,
   isCosmeticFile,
   reviewSignals,
@@ -50,6 +51,15 @@ type DiffViewProps = {
   headSHA: string;
   canComment: boolean;
   viewerLogin?: string;
+  /** Open this file and hunk once. The token re-triggers the same target. */
+  focusTarget?: DiffTarget;
+};
+
+/** A cross-tab jump target owned by PRDetail. */
+export type DiffTarget = {
+  path: string;
+  line?: number;
+  token: number;
 };
 
 /** One commentable diff line: GitHub needs path + side + line + head commit. */
@@ -98,6 +108,7 @@ export function DiffView({
   headSHA,
   canComment,
   viewerLogin,
+  focusTarget,
 }: DiffViewProps) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [draft, setDraft] = useState<string | null>(null);
@@ -221,6 +232,38 @@ export function DiffView({
         : entries[0].key,
     );
   }, [visibleSignature]);
+
+  // A finding clicked in the Review tab opens its file and hunk here. The token
+  // changes on every click, so two findings in the same file both jump. A file
+  // hidden by a user filter is left alone rather than silently un-filtered.
+  const focusPath = focusTarget?.path;
+  const focusLine = focusTarget?.line;
+  const focusToken = focusTarget?.token;
+  useEffect(() => {
+    if (focusToken === undefined || focusPath === undefined) return;
+    const entries = visibleRef.current;
+    if (entries.length === 0) return;
+    const entry = entries.find(
+      ({ file }) => file.path === focusPath || file.oldPath === focusPath,
+    );
+    if (!entry) return;
+
+    const key = entry.key;
+    const hunkIndex = findHunkIndex(entry.file, focusLine);
+    programmaticScroll.current = true;
+    setActiveKey(key);
+    setExpanded((current) => {
+      const next = focusModeRef.current ? new Set<string>() : new Set(current);
+      next.add(key);
+      return next;
+    });
+    setFlash(hunkIndex === undefined ? key : `${key}:${hunkIndex}`);
+    setJump((current) => ({
+      key,
+      hunkIndex,
+      token: (current?.token ?? 0) + 1,
+    }));
+  }, [focusToken, focusPath, focusLine, visibleSignature]);
 
   // Run the jump after the expanded-state commit, never before it: collapsing
   // the previously open file changes the height of every section above, so a

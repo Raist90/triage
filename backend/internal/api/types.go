@@ -4,6 +4,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/Raist90/triage/backend/internal/actions"
 	"github.com/Raist90/triage/backend/internal/config"
@@ -70,16 +71,24 @@ type commentsResponse struct {
 	Comments []github.InlineComment `json:"comments"`
 }
 
+// repoReviewView says whether an automatic review can run for one repo.
+type repoReviewView struct {
+	Available bool   `json:"available"`
+	Reason    string `json:"reason,omitempty"`
+}
+
 // repoView is the webview-safe repo entry.
 type repoView struct {
-	Owner   string `json:"owner"`
-	Name    string `json:"name"`
-	Actions bool   `json:"actions"`
+	Owner   string         `json:"owner"`
+	Name    string         `json:"name"`
+	Actions bool           `json:"actions"`
+	Review  repoReviewView `json:"review"`
 }
 
 type actionView struct {
 	ID    string `json:"id"`
 	Label string `json:"label"`
+	Kind  string `json:"kind"`
 }
 
 type configResponse struct {
@@ -97,6 +106,18 @@ type actionResponse struct {
 	Job      *actions.Job      `json:"job,omitempty"`
 	Artifact *actions.Artifact `json:"artifact,omitempty"`
 	Stale    bool              `json:"stale,omitempty"`
+}
+
+// patchApplyResponse is returned by the apply route. AppliedAt is stored in the
+// artifact, so a second call returns the same timestamp.
+type patchApplyResponse struct {
+	OK        bool      `json:"ok"`
+	AppliedAt time.Time `json:"appliedAt"`
+	Worktree  string    `json:"worktree"`
+}
+
+type worktreesClearResponse struct {
+	Cleared int `json:"cleared"`
 }
 
 // writeJSON writes v as the response body. Marshaling happens before any write
