@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,10 +10,11 @@ import (
 	"github.com/Raist90/triage/backend/internal/actions"
 	"github.com/Raist90/triage/backend/internal/config"
 	"github.com/Raist90/triage/backend/internal/github"
+	"github.com/Raist90/triage/backend/internal/worktree"
 )
 
 // configView derives what the webview may know: no models, no prompts.
-func (s *Server) configView() configResponse {
+func (s *Server) configView(ctx context.Context) configResponse {
 	view := configResponse{
 		User:        s.cfg.User,
 		Tabs:        s.cfg.Tabs,
@@ -39,18 +41,22 @@ func (s *Server) configView() configResponse {
 			Owner:   repo.Owner,
 			Name:    repo.Name,
 			Actions: available,
-			Review:  repoReview(repo, available),
+			Review:  repoReview(ctx, s.worktrees, repo, available),
 		})
 	}
 	return view
 }
 
-// repoReview reports whether automatic review can run for one repo. C1 replaces
-// the path presence check with a real worktree probe; the calculation lives here
-// so only this function changes.
-func repoReview(repo config.Repo, claudeAvailable bool) repoReviewView {
+// repoReview reports whether automatic review can run for one repo: the CLI must
+// be present and the configured local path must be a git repository.
+func repoReview(ctx context.Context, manager *worktree.Manager, repo config.Repo, claudeAvailable bool) repoReviewView {
 	if repo.Path == "" {
 		return repoReviewView{Available: false, Reason: "No local path configured"}
+	}
+	if manager != nil {
+		if ok, reason := worktree.Status(ctx, repo.Path); !ok {
+			return repoReviewView{Available: false, Reason: reason}
+		}
 	}
 	return repoReviewView{Available: claudeAvailable}
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/Raist90/triage/backend/internal/cache"
 	"github.com/Raist90/triage/backend/internal/config"
 	"github.com/Raist90/triage/backend/internal/github"
+	"github.com/Raist90/triage/backend/internal/worktree"
 )
 
 // allowedOrigins are the only origins the webview can use: the Vite dev server
@@ -28,13 +29,14 @@ type Server struct {
 	github    *github.Client
 	runner    *actions.Runner
 	artifacts *actions.Store
+	worktrees *worktree.Manager
 	token     [sha256.Size]byte
 	logger    *slog.Logger
 }
 
 // NewServer builds the API server. token is the per-process bearer token; only
 // its hash is retained.
-func NewServer(cfg config.Config, c *cache.Cache, gh *github.Client, runner *actions.Runner, artifacts *actions.Store, token string, logger *slog.Logger) *Server {
+func NewServer(cfg config.Config, c *cache.Cache, gh *github.Client, runner *actions.Runner, artifacts *actions.Store, worktrees *worktree.Manager, token string, logger *slog.Logger) *Server {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -44,6 +46,7 @@ func NewServer(cfg config.Config, c *cache.Cache, gh *github.Client, runner *act
 		github:    gh,
 		runner:    runner,
 		artifacts: artifacts,
+		worktrees: worktrees,
 		token:     sha256.Sum256([]byte(token)),
 		logger:    logger,
 	}
@@ -76,7 +79,7 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusMethodNotAllowed, codeMethodNotAllowed, "only GET is allowed")
 		return
 	}
-	writeJSON(w, http.StatusOK, s.configView())
+	writeJSON(w, http.StatusOK, s.configView(r.Context()))
 }
 
 func (s *Server) handleArtifactsClear(w http.ResponseWriter, r *http.Request) {
