@@ -21,6 +21,7 @@ import { DiffView } from "./DiffView";
 import { PRStateActions, PRStatePanel } from "./PRStateActions";
 import { ReviewHeaderActions } from "./ReviewHeaderActions";
 import { ReviewPanel } from "./ReviewPanel";
+import { ReviewTab } from "./ReviewTab";
 import { complexityLines } from "./semantics";
 import { useClaudeAction } from "./useClaudeAction";
 import { useDiffComments } from "./useDiffComments";
@@ -32,7 +33,7 @@ type PRDetailProps = {
   number: number;
 };
 
-type DetailTab = "conversation" | "diff" | "explain";
+type DetailTab = "conversation" | "diff" | "review" | "explain";
 
 type TabDef = {
   id: DetailTab;
@@ -41,6 +42,13 @@ type TabDef = {
 };
 
 export function PRDetail({ repo, number }: PRDetailProps) {
+  // Remount per PR so action state (stream, artifact, phase) can never leak
+  // from one pull request into the next. The query keys already do this for
+  // server data; this covers the local run state in useClaudeAction.
+  return <PRDetailBody key={`${repo}#${number}`} repo={repo} number={number} />;
+}
+
+function PRDetailBody({ repo, number }: PRDetailProps) {
   const closeDetail = useUIStore((state) => state.closeDetail);
   const fullscreen = useUIStore((state) => state.detailFullscreen);
   const toggleFullscreen = useUIStore((state) => state.toggleDetailFullscreen);
@@ -69,10 +77,25 @@ export function PRDetail({ repo, number }: PRDetailProps) {
   const configuredRepo = configQuery.data?.repos.find(
     (item) => `${item.owner}/${item.name}`.toLowerCase() === repo.toLowerCase(),
   );
-  const explainAction =
-    configQuery.data?.actions.find((item) => item.kind === "explain") ?? null;
-  const action = configuredRepo?.actions ? explainAction : null;
-  const claudeAction = useClaudeAction(repo, number, action, action !== null);
+  const explainAction = configuredRepo?.actions
+    ? (configQuery.data?.actions.find((item) => item.kind === "explain") ??
+      null)
+    : null;
+  const reviewAction = configuredRepo?.actions
+    ? (configQuery.data?.actions.find((item) => item.kind === "review") ?? null)
+    : null;
+  const explain = useClaudeAction(
+    repo,
+    number,
+    explainAction,
+    explainAction !== null,
+  );
+  const reviewController = useClaudeAction(
+    repo,
+    number,
+    reviewAction,
+    reviewAction !== null,
+  );
   const review = useReview(repo, number);
   const mutations = usePRMutations(repo, number);
   const diffComments = useDiffComments(repo, number, tab === "diff");
@@ -134,16 +157,23 @@ export function PRDetail({ repo, number }: PRDetailProps) {
     return () => window.clearTimeout(timer);
   }, [pr, refetchDetail]);
   const comments = pr?.comments ?? [];
-  const explainAvailable = claudeAction.enabled && claudeAction.action !== null;
-  const activeTab: DetailTab =
-    tab === "explain" && !explainAvailable ? "conversation" : tab;
+  const explainAvailable = explain.enabled && explain.action !== null;
+  const reviewAvailable =
+    reviewController.enabled && reviewController.action !== null;
+  const requestedTabAvailable =
+    (tab !== "explain" || explainAvailable) &&
+    (tab !== "review" || reviewAvailable);
+  const activeTab: DetailTab = requestedTabAvailable ? tab : "conversation";
 
   const tabs: TabDef[] = [
     { id: "conversation", label: "Conversation", count: comments.length },
     { id: "diff", label: "Diff", count: pr?.changedFiles },
   ];
-  if (claudeAction.action) {
-    tabs.push({ id: "explain", label: claudeAction.action.label });
+  if (reviewAvailable) {
+    tabs.push({ id: "review", label: "Review" });
+  }
+  if (explain.action) {
+    tabs.push({ id: "explain", label: explain.action.label });
   }
 
   return (
@@ -375,19 +405,29 @@ export function PRDetail({ repo, number }: PRDetailProps) {
                   </section>
                 ) : null}
 
+                {activeTab === "review" ? (
+                  <ReviewTab
+                    repo={repo}
+                    number={number}
+                    controller={reviewController}
+                    reviewAvailable={configuredRepo?.review.available ?? false}
+                    unavailableReason={configuredRepo?.review.reason}
+                    configPath={configQuery.data?.configPath}
+                    diffFiles={diffQuery.data?.files}
+                  />
+                ) : null}
+
                 {activeTab === "explain" ? (
                   <section className="max-w-[68ch]">
                     <div className="mb-3 flex justify-end">
-                      <ClaudeActionButton controller={claudeAction} />
+                      <ClaudeActionButton controller={explain} />
                     </div>
-                    {!claudeAction.artifact &&
-                    !claudeAction.running &&
-                    !claudeAction.error ? (
+                    {!explain.artifact && !explain.running && !explain.error ? (
                       <p className="text-prose text-fg-faint">
                         Ask Claude to explain this pull request from its diff.
                       </p>
                     ) : (
-                      <ClaudeActionPanel controller={claudeAction} />
+                      <ClaudeActionPanel controller={explain} />
                     )}
                   </section>
                 ) : null}
