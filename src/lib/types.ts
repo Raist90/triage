@@ -102,6 +102,15 @@ export type ActionArtifact = {
 };
 
 export type ReviewSeverity = "blocking" | "warning" | "nitpick" | "praise";
+
+/** Page order for severity groups and verdict counts. */
+export const REVIEW_SEVERITY_ORDER: ReviewSeverity[] = [
+  "blocking",
+  "warning",
+  "nitpick",
+  "praise",
+];
+
 export type ReviewCategory =
   "risk" | "design" | "architecture" | "conventions" | "tests";
 
