@@ -44,6 +44,30 @@ func (s *Server) handlePRDraft(w http.ResponseWriter, r *http.Request, owner, re
 	writeJSON(w, http.StatusOK, prStateResponse{OK: true})
 }
 
+// handlePRClose serves POST /pr/{owner}/{repo}/{number}/close. Closing needs no
+// body: the request itself is the whole intent, and the UI confirms first.
+func (s *Server) handlePRClose(w http.ResponseWriter, r *http.Request, owner, repo, rawNumber string) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, codeMethodNotAllowed, "only POST is allowed")
+		return
+	}
+	number, ok := parsePRTarget(w, owner, repo, rawNumber)
+	if !ok {
+		return
+	}
+
+	err := s.github.ClosePR(r.Context(), owner, repo, number)
+	// Drop the cached detail even on failure so a rejected close cannot leave a
+	// stale open state behind.
+	s.invalidatePR(owner, repo, number)
+	if err != nil {
+		s.writePRStateError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, prStateResponse{OK: true})
+}
+
 // handlePRMerge serves POST /pr/{owner}/{repo}/{number}/merge.
 func (s *Server) handlePRMerge(w http.ResponseWriter, r *http.Request, owner, repo, rawNumber string) {
 	if r.Method != http.MethodPost {

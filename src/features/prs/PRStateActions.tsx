@@ -1,4 +1,4 @@
-import { FilePenLine, GitMerge, Send } from "lucide-react";
+import { CircleX, FilePenLine, GitMerge, Send } from "lucide-react";
 import { Button } from "../../components/ui";
 import type { PR } from "../../lib/types";
 import {
@@ -23,7 +23,7 @@ const BLOCKER_TITLE: Record<
   disabled: "Squash merge is disabled for this repository",
 };
 
-/** Draft toggle and squash merge for your own open PR. */
+/** Draft toggle, close and squash merge for your own open PR. */
 export function PRStateActions({ pr, mutations }: PRStateActionsProps) {
   if (!canManagePR(pr)) return null;
 
@@ -58,8 +58,19 @@ export function PRStateActions({ pr, mutations }: PRStateActionsProps) {
       </Button>
 
       <Button
+        variant="outline"
+        onClick={mutations.openCloseConfirm}
+        disabled={mutations.pending}
+        aria-label="Close pull request"
+        title="Close this pull request without merging"
+      >
+        <CircleX className="size-4" aria-hidden />
+        <span className="hidden min-[1280px]:inline">Close</span>
+      </Button>
+
+      <Button
         variant="primary"
-        onClick={mutations.openConfirm}
+        onClick={mutations.openMergeConfirm}
         disabled={mutations.pending || blocker !== null}
         title={
           blocker ? BLOCKER_TITLE[blocker] : "Squash merge this pull request"
@@ -74,7 +85,7 @@ export function PRStateActions({ pr, mutations }: PRStateActionsProps) {
 
 /** Confirmation bar or a failed action, rendered below the detail bar. */
 export function PRStatePanel({ pr, mutations }: PRStateActionsProps) {
-  if (mutations.confirmOpen) {
+  if (mutations.confirming === "merge") {
     return (
       <section
         aria-label="Confirm squash merge"
@@ -104,11 +115,43 @@ export function PRStatePanel({ pr, mutations }: PRStateActionsProps) {
             Cancel
           </Button>
         </div>
-        {mutations.error ? (
-          <p role="alert" className="mt-2 text-meta text-danger">
-            {mutations.error}
-          </p>
-        ) : null}
+        <PanelError error={mutations.error} />
+      </section>
+    );
+  }
+
+  if (mutations.confirming === "close") {
+    return (
+      <section
+        aria-label="Confirm close pull request"
+        className="shrink-0 border-b border-line px-4 py-3"
+      >
+        <p className="text-ui text-fg">
+          Close <span className="font-mono text-fg-muted">#{pr.number}</span>{" "}
+          without merging?
+        </p>
+        <p className="mt-1 text-meta text-fg-faint">
+          The branch is kept. You can reopen it on GitHub.
+        </p>
+        <div className="mt-2 flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={mutations.close}
+            disabled={mutations.pending}
+          >
+            {mutations.submitting === "close"
+              ? "Closing…"
+              : "Close pull request"}
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={mutations.closeConfirm}
+            disabled={mutations.pending}
+          >
+            Cancel
+          </Button>
+        </div>
+        <PanelError error={mutations.error} />
       </section>
     );
   }
@@ -122,5 +165,14 @@ export function PRStatePanel({ pr, mutations }: PRStateActionsProps) {
     >
       {mutations.error}
     </div>
+  );
+}
+
+function PanelError({ error }: { error: string | null }) {
+  if (!error) return null;
+  return (
+    <p role="alert" className="mt-2 text-meta text-danger">
+      {error}
+    </p>
   );
 }

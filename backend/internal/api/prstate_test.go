@@ -58,6 +58,28 @@ func TestHandlePRMergeRejectsInvalidPayloads(t *testing.T) {
 	}
 }
 
+func TestHandlePRCloseRejectsInvalidRequests(t *testing.T) {
+	cases := []struct {
+		name   string
+		method string
+		status int
+	}{
+		{name: "wrong method", method: http.MethodGet, status: http.StatusMethodNotAllowed},
+		{name: "delete method", method: http.MethodDelete, status: http.StatusMethodNotAllowed},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			request := httptest.NewRequest(tc.method, "/pr/o/r/1/close", nil)
+			recorder := httptest.NewRecorder()
+			(&Server{}).handlePRClose(recorder, request, "o", "r", "1")
+			if recorder.Code != tc.status {
+				t.Fatalf("status = %d, want %d", recorder.Code, tc.status)
+			}
+		})
+	}
+}
+
 func TestHandlePRStateRejectsBadRepoOrNumber(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -84,6 +106,13 @@ func TestHandlePRStateRejectsBadRepoOrNumber(t *testing.T) {
 			(&Server{}).handlePRMerge(mergeRecorder, mergeRequest, tc.owner, tc.repo, tc.number)
 			if mergeRecorder.Code != http.StatusBadRequest {
 				t.Fatalf("merge status = %d, want 400", mergeRecorder.Code)
+			}
+
+			closeRequest := httptest.NewRequest(http.MethodPost, "/pr/o/r/1/close", nil)
+			closeRecorder := httptest.NewRecorder()
+			(&Server{}).handlePRClose(closeRecorder, closeRequest, tc.owner, tc.repo, tc.number)
+			if closeRecorder.Code != http.StatusBadRequest {
+				t.Fatalf("close status = %d, want 400", closeRecorder.Code)
 			}
 		})
 	}

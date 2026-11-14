@@ -35,10 +35,16 @@ type DiffResult struct {
 type webClient struct {
 	token string
 	http  *http.Client
+	// baseURL is restBaseURL in production and an httptest server in tests.
+	baseURL string
 }
 
 func newWebClient(token string) *webClient {
-	return &webClient{token: token, http: &http.Client{Timeout: diffTimeout}}
+	return &webClient{
+		token:   token,
+		http:    &http.Client{Timeout: diffTimeout},
+		baseURL: restBaseURL,
+	}
 }
 
 // doJSON sends one REST request with an optional JSON payload and decodes the
@@ -59,7 +65,7 @@ func (c *Client) doJSON(ctx context.Context, method, path string, payload, out a
 		body = bytes.NewReader(encoded)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, method, restBaseURL+path, body)
+	req, err := http.NewRequestWithContext(ctx, method, c.web.baseURL+path, body)
 	if err != nil {
 		return &gql.APIError{Message: "could not build request"}
 	}
@@ -165,7 +171,7 @@ func (c *Client) Diff(ctx context.Context, owner, repo string, number int, etag 
 	}
 
 	endpoint := fmt.Sprintf("%s/repos/%s/%s/pulls/%d",
-		restBaseURL, url.PathEscape(owner), url.PathEscape(repo), number)
+		c.web.baseURL, url.PathEscape(owner), url.PathEscape(repo), number)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {

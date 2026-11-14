@@ -124,9 +124,9 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
       // A line-comment composer closes itself and marks the event handled.
       if (event.defaultPrevented) return;
       event.preventDefault();
-      // The merge confirmation and review form close first, then fullscreen,
-      // then the detail itself.
-      if (mutations.confirmOpen) {
+      // The merge and close confirmation bars and the review form close first,
+      // then fullscreen, then the detail itself.
+      if (mutations.confirming !== null) {
         mutations.closeConfirm();
         return;
       }
