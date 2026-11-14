@@ -114,7 +114,7 @@ func (s *Server) handleActionRun(w http.ResponseWriter, r *http.Request, owner, 
 
 	// Second click with a current artifact: no fetch, no spawn.
 	if artifact, found := s.artifacts.Get(owner, repo, number, pr.HeadSHA, action.ID); found &&
-		artifact.Model == action.Model && artifact.PromptVersion == actions.PromptVersion {
+		artifact.Model == action.Model && artifact.PromptVersion == actions.PromptVersionFor(action) {
 		writeJSON(w, http.StatusOK, actionResponse{Artifact: artifact})
 		return
 	}
@@ -125,7 +125,7 @@ func (s *Server) handleActionRun(w http.ResponseWriter, r *http.Request, owner, 
 		return
 	}
 
-	result, err := s.runner.Start(actions.Request{
+	request := actions.Request{
 		Owner:         tracked.Owner,
 		Name:          tracked.Name,
 		Number:        number,
@@ -136,7 +136,22 @@ func (s *Server) handleActionRun(w http.ResponseWriter, r *http.Request, owner, 
 		PRDescription: pr.Description,
 		Branch:        pr.Branch,
 		Diff:          unified,
-	})
+	}
+	if action.Kind == actions.KindReview {
+		request.Kind = action.Kind
+		request.Prepare = func(ctx context.Context) (actions.Prepared, error) {
+			return s.prepareReview(ctx, tracked, number, pr, unified)
+		}
+		if s.worktrees != nil {
+			request.Cleanup = func(ctx context.Context) {
+				if err := s.worktrees.Remove(ctx, tracked, number); err != nil {
+					s.logger.Warn("worktree cleanup failed", "repo", tracked.Owner+"/"+tracked.Name, "number", number, "err", err)
+				}
+			}
+		}
+	}
+
+	result, err := s.runner.Start(request)
 	if err != nil {
 		s.writeActionError(w, err)
 		return
@@ -356,7 +371,9 @@ func (s *Server) writeActionError(w http.ResponseWriter, err error) {
 		status = http.StatusServiceUnavailable
 	case actions.CodeRepoNotConfigured:
 		status = http.StatusBadRequest
-	case actions.CodeDiffUnavailable:
+	case worktree.CodeRepoPathMissing, worktree.CodeRepoPathInvalid:
+		status = http.StatusBadRequest
+	case actions.CodeDiffUnavailable, worktree.CodeWorktreeFailed, actions.CodeReviewInvalid:
 		status = http.StatusBadGateway
 	case actions.CodeActionTimeout:
 		status = http.StatusGatewayTimeout

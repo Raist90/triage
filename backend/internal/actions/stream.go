@@ -13,9 +13,10 @@ type streamUpdate struct {
 }
 
 type finalResult struct {
-	markdown string
-	usage    Usage
-	isError  bool
+	markdown   string
+	structured json.RawMessage
+	usage      Usage
+	isError    bool
 }
 
 type streamLine struct {
@@ -26,10 +27,14 @@ type streamLine struct {
 			Text string `json:"text"`
 		} `json:"content"`
 	} `json:"message"`
-	Result       string  `json:"result"`
-	TotalCostUSD float64 `json:"total_cost_usd"`
-	IsError      bool    `json:"is_error"`
-	Usage        struct {
+	Result string `json:"result"`
+	// StructuredOutput is present when the CLI ran with --json-schema. Older
+	// CLI versions put the same object in Result instead; review.Parse accepts
+	// both.
+	StructuredOutput json.RawMessage `json:"structured_output"`
+	TotalCostUSD     float64         `json:"total_cost_usd"`
+	IsError          bool            `json:"is_error"`
+	Usage            struct {
 		InputTokens  int `json:"input_tokens"`
 		OutputTokens int `json:"output_tokens"`
 	} `json:"usage"`
@@ -63,9 +68,10 @@ func parseStreamLine(line []byte) (streamUpdate, error) {
 			TotalCostUSD: event.TotalCostUSD,
 		}
 		return streamUpdate{final: &finalResult{
-			markdown: event.Result,
-			usage:    usage,
-			isError:  event.IsError,
+			markdown:   event.Result,
+			structured: event.StructuredOutput,
+			usage:      usage,
+			isError:    event.IsError,
 		}}, nil
 
 	default:

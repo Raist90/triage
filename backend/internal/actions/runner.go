@@ -13,12 +13,19 @@ import (
 	"time"
 
 	"github.com/Raist90/triage/backend/internal/config"
+	"github.com/Raist90/triage/backend/internal/diff"
+	"github.com/Raist90/triage/backend/internal/review"
 )
 
 const (
-	jobTimeout   = 5 * time.Minute
 	maxStderr    = 4 << 10
 	maxLineBytes = 4 << 20
+
+	// cleanupTimeout bounds worktree removal after a failure. It runs on a
+	// fresh context because the job context may already be canceled.
+	cleanupTimeout = 30 * time.Second
+	// defaultTimeout is used when an action carries no timeout of its own.
+	defaultTimeout = 5 * time.Minute
 
 	// Error codes shared with the HTTP envelope and the webview.
 	CodeClaudeUnavailable = "claude_unavailable"
@@ -27,15 +34,25 @@ const (
 	CodeActionFailed      = "action_failed"
 	CodeActionTimeout     = "action_timeout"
 	CodeActionCanceled    = "action_canceled"
+	CodeReviewInvalid     = "review_invalid"
+)
+
+// Action kinds. The registry sets these; an empty kind means explain, the
+// original diff-only action.
+const (
+	KindExplain = "explain"
+	KindReview  = "review"
 )
 
 // Job statuses.
 const (
-	StatusQueued   = "queued"
-	StatusRunning  = "running"
-	StatusDone     = "done"
-	StatusFailed   = "failed"
-	StatusCanceled = "canceled"
+	StatusQueued     = "queued"
+	StatusPreparing  = "preparing"
+	StatusRunning    = "running"
+	StatusValidating = "validating"
+	StatusDone       = "done"
+	StatusFailed     = "failed"
+	StatusCanceled   = "canceled"
 )
 
 // Error is a classified runner failure. Message is safe for the webview.
@@ -74,6 +91,14 @@ type Job struct {
 	Error     string    `json:"error,omitempty"`
 }
 
+// Prepared is what a review needs before the model can run: a checked-out PR
+// head plus the bounded prompt input and the parsed diff files.
+type Prepared struct {
+	WorkDir string
+	Input   review.Input
+	Files   []diff.File
+}
+
 // Request starts one action for one PR.
 type Request struct {
 	Owner         string
@@ -86,6 +111,13 @@ type Request struct {
 	PRDescription string
 	Branch        string
 	Diff          []byte
+	Kind          string
+	// Prepare runs inside the job goroutine after the preparing status, never
+	// in Start. Explain has none: its diff is already in Diff.
+	Prepare func(ctx context.Context) (Prepared, error)
+	// Cleanup runs when the job fails or is canceled, on a fresh context. It
+	// removes the worktree so a failed review leaves nothing behind.
+	Cleanup func(ctx context.Context)
 }
 
 // StartResult is the outcome of Start.
@@ -181,13 +213,13 @@ func (r *Runner) Start(req Request) (StartResult, error) {
 	if req.SHA == "" {
 		return StartResult{}, errorf(CodeDiffUnavailable, "Could not resolve the pull request head")
 	}
-	if len(req.Diff) == 0 {
+	if req.Prepare == nil && len(req.Diff) == 0 {
 		return StartResult{}, errorf(CodeDiffUnavailable, "This pull request has no changes to explain")
 	}
 
 	key := jobKey(req.Owner, req.Name, req.Number, req.ActionID)
 	if existing, ok := r.lookup(key); ok {
-		if existing.Status() == StatusQueued || existing.Status() == StatusRunning {
+		if liveStatus(existing.Status()) {
 			return StartResult{Job: existing.Info(), AlreadyRunning: true}, nil
 		}
 	}
@@ -196,13 +228,13 @@ func (r *Runner) Start(req Request) (StartResult, error) {
 	defer r.startMu.Unlock()
 
 	if existing, ok := r.lookup(key); ok {
-		if existing.Status() == StatusQueued || existing.Status() == StatusRunning {
+		if liveStatus(existing.Status()) {
 			return StartResult{Job: existing.Info(), AlreadyRunning: true}, nil
 		}
 	}
 
 	if artifact, ok := r.store.Get(req.Owner, req.Name, req.Number, req.SHA, req.ActionID); ok {
-		if artifact.Model == action.Model && artifact.PromptVersion == PromptVersion {
+		if artifact.Model == action.Model && artifact.PromptVersion == PromptVersionFor(action) {
 			return StartResult{
 				Job:      Job{Key: key, ActionID: req.ActionID, Repo: req.Owner + "/" + req.Name, Number: req.Number, SHA: req.SHA, Status: StatusDone, StartedAt: artifact.CreatedAt},
 				Artifact: artifact,
@@ -210,17 +242,24 @@ func (r *Runner) Start(req Request) (StartResult, error) {
 		}
 	}
 
-	prompt, err := RenderPrompt(action.Prompt, PromptData{
-		Repo:        req.Owner + "/" + req.Name,
-		Number:      req.Number,
-		Title:       req.PRTitle,
-		Branch:      req.Branch,
-		BaseBranch:  req.BaseBranch,
-		Description: req.PRDescription,
-	}.WithDiff(req.Diff))
-	if err != nil {
-		r.logger.Error("prompt render failed", "err", err)
-		return StartResult{}, errorf(CodeActionFailed, "Action prompt is misconfigured")
+	// Explain is fully prepared at Start, so a broken template fails the request.
+	// Review renders after Prepare, inside the job, because its input comes from
+	// the worktree.
+	var prompt string
+	if req.Prepare == nil {
+		rendered, err := RenderPrompt(action.Prompt, PromptData{
+			Repo:        req.Owner + "/" + req.Name,
+			Number:      req.Number,
+			Title:       req.PRTitle,
+			Branch:      req.Branch,
+			BaseBranch:  req.BaseBranch,
+			Description: req.PRDescription,
+		}.WithDiff(req.Diff))
+		if err != nil {
+			r.logger.Error("prompt render failed", "err", err)
+			return StartResult{}, errorf(CodeActionFailed, "Action prompt is misconfigured")
+		}
+		prompt = rendered
 	}
 
 	created := &job{
@@ -241,7 +280,7 @@ func (r *Runner) Start(req Request) (StartResult, error) {
 	r.mu.Unlock()
 
 	r.wg.Add(1)
-	go r.run(created, key, action, prompt, req.Owner, req.Name)
+	go r.run(created, key, action, prompt, req)
 	return StartResult{Job: created.Info()}, nil
 }
 
@@ -288,7 +327,7 @@ func (r *Runner) Cancel(key string) bool {
 	cancel := value.cancel
 	status := value.info.Status
 	value.mu.Unlock()
-	if cancel == nil || (status != StatusQueued && status != StatusRunning) {
+	if cancel == nil || !liveStatus(status) {
 		return false
 	}
 	cancel()
@@ -346,12 +385,67 @@ func (r *Runner) ClearArtifacts() (int, error) {
 	return r.store.Clear()
 }
 
-func (r *Runner) run(j *job, key string, action config.Action, prompt, owner, repo string) {
+func (r *Runner) run(j *job, key string, action config.Action, prompt string, req Request) {
 	defer r.wg.Done()
 
-	ctx, cancel := context.WithTimeout(r.rootCtx, jobTimeout)
+	kind := action.Kind
+	if kind == "" {
+		kind = req.Kind
+	}
+	if kind == "" {
+		kind = KindExplain
+	}
+
+	// Preparation and the model run get separate deadlines: a cold fetch plus a
+	// sem index must not eat the action's own budget. Both inherit the runner's
+	// root context, so shutdown and cancel reach every child.
+	ctx, cancel := context.WithCancel(r.rootCtx)
 	defer cancel()
 	j.setCancel(cancel)
+
+	kept := false
+	defer func() {
+		if kept || req.Cleanup == nil {
+			return
+		}
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), cleanupTimeout)
+		defer cleanupCancel()
+		req.Cleanup(cleanupCtx)
+	}()
+
+	if kind == KindReview && len(action.Tools) == 0 {
+		r.finishFailed(ctx, j, key, CodeReviewInvalid, "Review tools are not configured")
+		return
+	}
+
+	var prepared Prepared
+	if req.Prepare != nil {
+		j.setStatus(StatusPreparing)
+		value, err := req.Prepare(ctx)
+		if err != nil {
+			code, message := CodeOf(err)
+			r.finishFailed(ctx, j, key, code, message)
+			return
+		}
+		prepared = value
+		r.logger.Info("review prepared", "key", key, "workdir", prepared.WorkDir, "files", len(prepared.Files))
+
+		rendered, err := review.Render(action.Prompt, prepared.Input)
+		if err != nil {
+			r.logger.Error("review prompt render failed", "err", err)
+			r.finishFailed(ctx, j, key, CodeActionFailed, "Action prompt is misconfigured")
+			return
+		}
+		prompt = rendered
+	}
+
+	timeout := action.Timeout
+	if timeout <= 0 {
+		timeout = defaultTimeout
+	}
+	runCtx, runCancel := context.WithTimeout(ctx, timeout)
+	defer runCancel()
+
 	j.setStatus(StatusRunning)
 
 	args := []string{
@@ -359,24 +453,41 @@ func (r *Runner) run(j *job, key string, action config.Action, prompt, owner, re
 		"--model", action.Model,
 		"--output-format", "stream-json",
 		"--verbose",
-		// Diff-only: no filesystem, no shell, no network tools.
-		"--tools", "",
 		"--no-session-persistence",
-		"--append-system-prompt", SystemPrompt,
+	}
+	if kind == KindReview {
+		// Restricted, read-only. The worktree is the working directory and the
+		// tools list is the whole filesystem surface. Never skip permissions.
+		args = append(args,
+			"--restricted",
+			"--tools", strings.Join(action.Tools, ","),
+			"--permission-mode", "dontAsk",
+			"--json-schema", review.JSONSchema(),
+			"--append-system-prompt", review.SystemPrompt,
+		)
+	} else {
+		// Diff-only: no filesystem, no shell, no network tools.
+		args = append(args,
+			"--tools", "",
+			"--append-system-prompt", SystemPrompt,
+		)
 	}
 	if action.MaxBudgetUSD > 0 {
 		args = append(args, "--max-budget-usd", strconv.FormatFloat(action.MaxBudgetUSD, 'f', 2, 64))
 	}
 
-	cmd := exec.CommandContext(ctx, r.claudePath, args...)
+	cmd := exec.CommandContext(runCtx, r.claudePath, args...)
 	cmd.Stdin = strings.NewReader(prompt)
 	cmd.SysProcAttr = processGroupAttr()
 	cmd.Cancel = func() error { return killProcessGroup(cmd) }
 	cmd.WaitDelay = 2 * time.Second
+	if kind == KindReview {
+		cmd.Dir = prepared.WorkDir
+	}
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		r.finishFailed(ctx, j, key, CodeActionFailed, "Could not read Claude output")
+		r.finishFailed(runCtx, j, key, CodeActionFailed, "Could not read Claude output")
 		return
 	}
 	var stderr limitedBuffer
@@ -385,7 +496,7 @@ func (r *Runner) run(j *job, key string, action config.Action, prompt, owner, re
 
 	if err := cmd.Start(); err != nil {
 		r.logger.Warn("claude start failed", "err", err)
-		r.finishFailed(ctx, j, key, CodeActionFailed, "Could not start Claude Code")
+		r.finishFailed(runCtx, j, key, CodeActionFailed, "Could not start Claude Code")
 		return
 	}
 
@@ -397,7 +508,8 @@ func (r *Runner) run(j *job, key string, action config.Action, prompt, owner, re
 		if err != nil {
 			continue
 		}
-		if update.text != "" {
+		// Review output is JSON: streaming it would only show noise.
+		if update.text != "" && kind != KindReview {
 			j.appendText(update.text)
 			j.emit(Event{Type: "delta", Text: update.text})
 		}
@@ -409,8 +521,8 @@ func (r *Runner) run(j *job, key string, action config.Action, prompt, owner, re
 	waitErr := cmd.Wait()
 
 	switch {
-	case errors.Is(ctx.Err(), context.DeadlineExceeded):
-		r.finishFailed(ctx, j, key, CodeActionTimeout, fmt.Sprintf("Timed out after %s", jobTimeout))
+	case errors.Is(runCtx.Err(), context.DeadlineExceeded):
+		r.finishFailed(runCtx, j, key, CodeActionTimeout, fmt.Sprintf("Timed out after %s", timeout))
 		return
 	case errors.Is(ctx.Err(), context.Canceled):
 		r.finishCanceled(j)
@@ -437,23 +549,40 @@ func (r *Runner) run(j *job, key string, action config.Action, prompt, owner, re
 		r.logger.Warn("claude exited non-zero after a result event", "err", waitErr)
 	}
 
-	markdown := final.markdown
-	if strings.TrimSpace(markdown) == "" {
-		markdown = j.currentText()
-	}
 	artifact := &Artifact{
 		ActionID:      action.ID,
 		Model:         action.Model,
 		SHA:           j.Info().SHA,
-		PromptVersion: PromptVersion,
+		PromptVersion: PromptVersionFor(action),
 		CreatedAt:     time.Now().UTC(),
-		Markdown:      markdown,
 		Usage:         final.usage,
 	}
-	if err := r.store.Put(owner, repo, j.Info().Number, *artifact); err != nil {
+	if kind == KindReview {
+		j.setStatus(StatusValidating)
+		parsed, err := review.Parse(final.structured, final.markdown)
+		if err != nil {
+			r.logger.Warn("review output invalid", "err", err)
+			r.finishFailed(ctx, j, key, CodeReviewInvalid, "The review did not return valid JSON")
+			return
+		}
+		parsed = review.Sanitize(parsed, prepared.Files)
+		parsed = review.ValidatePatches(ctx, prepared.WorkDir, parsed, prepared.Files)
+		artifact.Review = &parsed
+		artifact.Worktree = prepared.WorkDir
+	} else {
+		markdown := final.markdown
+		if strings.TrimSpace(markdown) == "" {
+			markdown = j.currentText()
+		}
+		artifact.Markdown = markdown
+	}
+
+	if err := r.store.Put(req.Owner, req.Name, j.Info().Number, *artifact); err != nil {
 		r.logger.Warn("artifact write failed", "err", err)
 	}
 
+	// The worktree stays on success: patches need somewhere to land.
+	kept = true
 	j.mu.Lock()
 	j.artifact = artifact
 	j.info.Status = StatusDone
@@ -510,6 +639,30 @@ func (r *Runner) lookup(key string) (*job, bool) {
 	defer r.mu.Unlock()
 	value, ok := r.jobs[key]
 	return value, ok
+}
+
+// PromptVersionFor is the artifact prompt version for one action's kind. A
+// review prompt edit must invalidate old reviews without invalidating explain.
+func PromptVersionFor(action config.Action) string {
+	kind := action.Kind
+	if kind == "" {
+		kind = KindExplain
+	}
+	if kind == KindReview {
+		return review.PromptVersion
+	}
+	return PromptVersion
+}
+
+// liveStatus reports whether a job still owns its key: a second Start must
+// dedupe against it and Cancel must be able to stop it.
+func liveStatus(status string) bool {
+	switch status {
+	case StatusQueued, StatusPreparing, StatusRunning, StatusValidating:
+		return true
+	default:
+		return false
+	}
 }
 
 func jobKey(owner, name string, number int, actionID string) string {
