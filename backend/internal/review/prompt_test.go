@@ -446,6 +446,46 @@ func TestJSONSchemaIsValidJSON(t *testing.T) {
 	}
 }
 
+func TestJSONSchemaRequiresEvidenceAndNoLine(t *testing.T) {
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(JSONSchema()), &payload); err != nil {
+		t.Fatalf("schema is not valid JSON: %v", err)
+	}
+	properties, _ := payload["properties"].(map[string]any)
+	findings, _ := properties["findings"].(map[string]any)
+	items, _ := findings["items"].(map[string]any)
+	required, _ := items["required"].([]any)
+	fields, _ := items["properties"].(map[string]any)
+
+	foundEvidence := false
+	for _, name := range required {
+		if value, ok := name.(string); ok && value == "evidence" {
+			foundEvidence = true
+		}
+	}
+	if !foundEvidence {
+		t.Fatalf("evidence is not required: %v", required)
+	}
+	for _, forbidden := range []string{"line", "endLine", "patch"} {
+		if _, exists := fields[forbidden]; exists {
+			t.Fatalf("schema still accepts %q", forbidden)
+		}
+	}
+}
+
+func TestSystemPromptRequiresEvidence(t *testing.T) {
+	for _, phrase := range []string{
+		`Set "evidence" to one`,
+		"Only report defects introduced by this pull request.",
+		`"guidelineQuote"`,
+		"The server owns the line number",
+	} {
+		if !strings.Contains(SystemPrompt, phrase) {
+			t.Fatalf("system prompt is missing %q", phrase)
+		}
+	}
+}
+
 // assertNoDuplicateOrDropped checks the rule that matters most: a changed file
 // is in exactly one diff section, or the prompt says what was dropped.
 func assertNoDuplicateOrDropped(t *testing.T, files []diff.File, in Input) {

@@ -131,14 +131,28 @@ export type ReviewFinding = {
   line: number;
   endLine?: number;
   entity?: string;
+  /** The exact changed line the finding quoted; the server resolved `line` from it. */
+  evidence?: string;
+  /** Convention findings only: the guideline file and the rule text. */
+  guideline?: string;
+  guidelineQuote?: string;
   patch?: string;
   anchored: boolean;
   appliedAt?: string;
 };
 
+/** One finding the server hid, with the stable reason it was dropped. */
+export type ReviewDroppedFinding = {
+  title: string;
+  severity: ReviewSeverity;
+  file: string;
+  reason: string;
+};
+
 export type ReviewDocument = {
   verdict: ReviewVerdict;
   findings: ReviewFinding[];
+  dropped?: ReviewDroppedFinding[];
   omitted?: number;
   /** Findings hidden because they did not match the changed code. */
   unverified?: number;

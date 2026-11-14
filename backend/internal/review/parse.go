@@ -14,13 +14,38 @@ const (
 	maxFindings = 12
 	maxPraise   = 2
 
-	maxTitleRunes      = 80
-	maxClaimRunes      = 320
-	maxSuggestionRunes = 480
-	maxEntityRunes     = 120
-	maxSummaryRunes    = 240
-	maxPatchBytes      = 8 << 10
+	maxTitleRunes          = 80
+	maxClaimRunes          = 320
+	maxSuggestionRunes     = 480
+	maxEntityRunes         = 120
+	maxEvidenceRunes       = 400
+	maxGuidelineRunes      = 120
+	maxGuidelineQuoteRunes = 400
+	maxSummaryRunes        = 240
+	maxPatchBytes          = 8 << 10
 )
+
+// Reasons a finding is hidden. They are part of the artifact and stable on
+// purpose: changing one is a contract change, not a wording tweak.
+const (
+	reasonInvalidField       = "invalid_field"
+	reasonSeverityRule       = "severity_rule"
+	reasonGuidelineMismatch  = "guideline_mismatch"
+	reasonFileNotChanged     = "file_not_changed"
+	reasonNoEvidence         = "no_evidence"
+	reasonEvidenceNotChanged = "evidence_not_changed"
+	reasonEntityMismatch     = "entity_mismatch"
+	reasonDuplicate          = "duplicate"
+	reasonCap                = "cap"
+)
+
+// Grounding is the server-side truth a review is checked against. Files is the
+// parsed pull request diff, including sem's entity ranges. Guidelines is the
+// exact text read from the repository's convention documents.
+type Grounding struct {
+	Files      []diff.File
+	Guidelines string
+}
 
 // Parse turns the model's answer into a Review. structured is the result
 // event's structured_output, which the CLI returns when --json-schema is in
@@ -77,60 +102,93 @@ func extractJSONObject(text string) string {
 }
 
 // Sanitize enforces the output contract on a parsed review: known enums, string
-// limits, dedupe, the 12-finding and 2-praise caps, grounding against the real
-// diff and sem's changed entities, server-owned IDs and the verdict override.
+// limits, dedupe, the 12-finding and 2-praise caps, evidence grounding against
+// the real diff and sem's changed entities, server-owned lines and IDs, and the
+// verdict override.
 //
-// A finding that cannot be tied to the pull request is hidden and counted. The
-// model is untrusted, so a confident claim about a file, entity or line that
-// never changed must not reach the UI as evidence.
-func Sanitize(r Review, files []diff.File) Review {
+// The model never supplies a line number. It quotes a changed line, and the
+// server resolves the line from that quote. A finding whose quote is not on the
+// changed side of the diff is hidden and counted. Convention findings must also
+// quote a real guideline rule. Every hidden finding is recorded in Dropped.
+func Sanitize(r Review, grounding Grounding) Review {
 	out := Review{Omitted: r.Omitted}
-	index := buildGroundIndex(files)
+	index := buildGroundIndex(grounding.Files)
 	seen := make(map[string]struct{}, len(r.Findings))
 	kept := make([]Finding, 0, len(r.Findings))
 
+	drop := func(finding Finding, reason string) {
+		out.Dropped = append(out.Dropped, DroppedFinding{
+			Title:    finding.Title,
+			Severity: finding.Severity,
+			File:     finding.File,
+			Reason:   reason,
+		})
+	}
+
 	for _, finding := range r.Findings {
-		if !finding.Severity.Valid() || !finding.Category.Valid() {
-			out.Omitted++
-			continue
-		}
 		finding.Title = clampRunes(finding.Title, maxTitleRunes)
 		finding.Claim = clampRunes(finding.Claim, maxClaimRunes)
 		finding.Suggestion = clampRunes(finding.Suggestion, maxSuggestionRunes)
 		finding.Entity = clampRunes(finding.Entity, maxEntityRunes)
+		finding.Evidence = clampRunes(finding.Evidence, maxEvidenceRunes)
+		finding.Guideline = clampRunes(finding.Guideline, maxGuidelineRunes)
+		finding.GuidelineQuote = clampRunes(finding.GuidelineQuote, maxGuidelineQuoteRunes)
 		finding.Patch = clampBytes(finding.Patch, maxPatchBytes)
 		finding.File = normalizeFindingPath(finding.File)
-		if finding.EndLine < finding.Line {
-			finding.EndLine = 0
+
+		if !finding.Severity.Valid() || !finding.Category.Valid() {
+			drop(finding, reasonInvalidField)
+			continue
+		}
+		if finding.Category == CategoryConventions && finding.Severity == SeverityBlocking {
+			drop(finding, reasonSeverityRule)
+			continue
+		}
+		if finding.Category == CategoryConventions && !validGuidelineFinding(finding, grounding.Guidelines) {
+			drop(finding, reasonGuidelineMismatch)
+			continue
 		}
 
-		grounded, ok := index.ground(finding)
-		if !ok {
+		grounded, reason := index.ground(finding)
+		if reason != "" {
 			out.Unverified++
 			if finding.Severity == SeverityBlocking {
 				out.UnverifiedBlocking++
 			}
+			drop(finding, reason)
 			continue
 		}
-		if grounded.EndLine < grounded.Line {
-			grounded.EndLine = 0
-		}
 
-		key := fmt.Sprintf("%s\x00%d\x00%s", grounded.File, grounded.Line, grounded.Title)
+		key := dedupeKey(grounded)
 		if _, duplicate := seen[key]; duplicate {
 			out.Omitted++
+			drop(grounded, reasonDuplicate)
 			continue
 		}
 		seen[key] = struct{}{}
 		kept = append(kept, grounded)
 	}
 
-	// Highest severity first, model order preserved inside a severity.
+	// Highest severity first, then a stable file, line and title order so two
+	// runs over the same findings produce the same list and IDs.
 	sort.SliceStable(kept, func(i, j int) bool {
-		return severityRank(kept[i].Severity) < severityRank(kept[j].Severity)
+		left, right := kept[i], kept[j]
+		if severityRank(left.Severity) != severityRank(right.Severity) {
+			return severityRank(left.Severity) < severityRank(right.Severity)
+		}
+		if left.File != right.File {
+			return left.File < right.File
+		}
+		if left.Line != right.Line {
+			return left.Line < right.Line
+		}
+		return left.Title < right.Title
 	})
 	if len(kept) > maxFindings {
-		out.Omitted += len(kept) - maxFindings
+		for _, finding := range kept[maxFindings:] {
+			out.Omitted++
+			drop(finding, reasonCap)
+		}
 		kept = kept[:maxFindings]
 	}
 
@@ -143,6 +201,7 @@ func Sanitize(r Review, files []diff.File) Review {
 			praise++
 			if praise > maxPraise {
 				out.Omitted++
+				drop(finding, reasonCap)
 				continue
 			}
 		}
@@ -152,7 +211,6 @@ func Sanitize(r Review, files []diff.File) Review {
 	blocking := false
 	for index := range findings {
 		findings[index].ID = fmt.Sprintf("F%d", index+1)
-		// Grounding only keeps a finding whose line is on a hunk.
 		findings[index].Anchored = true
 		if findings[index].Severity == SeverityBlocking {
 			blocking = true
@@ -220,6 +278,50 @@ func fallbackSummary(findings []Finding) string {
 	return fmt.Sprintf("Review found %s.", strings.Join(parts, ", "))
 }
 
+// validGuidelineFinding checks the claim that a rule comes from a repository
+// guideline. The path must be a section the review actually read, and the quote
+// must appear inside that section.
+func validGuidelineFinding(finding Finding, guidelines string) bool {
+	section, ok := guidelineSection(guidelines, finding.Guideline)
+	if !ok {
+		return false
+	}
+	quote := normalizeWhitespace(finding.GuidelineQuote)
+	if quote == "" {
+		return false
+	}
+	return strings.Contains(normalizeWhitespace(section), quote)
+}
+
+// guidelineSection returns one document from the guidelines block. Guidelines
+// renders sections as "## <path>" followed by the file body.
+func guidelineSection(guidelines, raw string) (string, bool) {
+	name := normalizeFindingPath(raw)
+	if name == "" {
+		return "", false
+	}
+	lines := strings.Split(guidelines, "\n")
+	heading := "## " + name
+	start := -1
+	for index, line := range lines {
+		if strings.TrimSpace(line) == heading {
+			start = index + 1
+			break
+		}
+	}
+	if start < 0 {
+		return "", false
+	}
+	end := len(lines)
+	for index := start; index < len(lines); index++ {
+		if strings.HasPrefix(strings.TrimSpace(lines[index]), "## ") {
+			end = index
+			break
+		}
+	}
+	return strings.Join(lines[start:end], "\n"), true
+}
+
 // normalizeFindingPath puts a model-supplied path into the same shape diff.Parse
 // uses: no a/ or b/ prefix, no redundant segments.
 func normalizeFindingPath(name string) string {
@@ -233,6 +335,21 @@ func normalizeFindingPath(name string) string {
 		value = strings.ReplaceAll(value, "//", "/")
 	}
 	return value
+}
+
+// normalizeWhitespace makes copied code comparable without letting indentation
+// or spacing changes hide a mismatch.
+func normalizeWhitespace(value string) string {
+	return strings.Join(strings.Fields(value), " ")
+}
+
+func dedupeKey(finding Finding) string {
+	return strings.Join([]string{
+		finding.File,
+		normalizeEntityName(finding.Entity),
+		string(finding.Category),
+		normalizeWhitespace(strings.ToLower(finding.Title)),
+	}, "\x00")
 }
 
 func clampRunes(value string, limit int) string {
@@ -256,18 +373,18 @@ func clampBytes(value string, limit int) string {
 	return value[:limit]
 }
 
-// groundIndex resolves a finding against the diff and sem's entity changes.
-// The model may cite a file, entity or line that does not exist or that the
-// pull request never changed; grounding turns that into a hidden finding
-// instead of a confident snippet.
+// groundIndex resolves a finding against the diff and sem's entity changes. The
+// model may quote a line from a file, entity or context the pull request never
+// changed; grounding turns that into a hidden finding instead of a confident
+// snippet.
 type groundIndex struct {
 	files map[string]*groundFile
 }
 
 type groundFile struct {
 	Path     string
-	NewLines map[int]bool
-	OldLines map[int]bool
+	NewLines map[int]string
+	OldLines map[int]string
 	entities map[string]diff.SemanticChange
 }
 
@@ -292,17 +409,25 @@ func newGroundFile(file diff.File) *groundFile {
 	}
 	ground := &groundFile{
 		Path:     file.Path,
-		NewLines: make(map[int]bool),
-		OldLines: make(map[int]bool),
+		NewLines: make(map[int]string),
+		OldLines: make(map[int]string),
 		entities: make(map[string]diff.SemanticChange),
 	}
 	for _, hunk := range hunks {
 		for _, line := range hunk.Lines {
-			if line.NewNumber > 0 {
-				ground.NewLines[line.NewNumber] = true
-			}
-			if line.OldNumber > 0 {
-				ground.OldLines[line.OldNumber] = true
+			// Only added and deleted lines are evidence. A context line inside a
+			// hunk is still unchanged code, and quoting it would let a finding
+			// anchor to code the pull request did not change.
+			text := normalizeWhitespace(line.Text)
+			switch line.Kind {
+			case "add":
+				if line.NewNumber > 0 {
+					ground.NewLines[line.NewNumber] = text
+				}
+			case "del":
+				if line.OldNumber > 0 {
+					ground.OldLines[line.OldNumber] = text
+				}
 			}
 		}
 	}
@@ -319,39 +444,68 @@ func newGroundFile(file diff.File) *groundFile {
 	return ground
 }
 
-// ground returns the finding with a line that exists on the changed file, or
-// false when the citation cannot be tied to the pull request.
-func (g *groundIndex) ground(finding Finding) (Finding, bool) {
+// ground resolves the finding's evidence to a changed line. The returned reason
+// is empty on success and one of the reason constants otherwise.
+func (g *groundIndex) ground(finding Finding) (Finding, string) {
 	file, ok := g.files[normalizeFindingPath(finding.File)]
 	if !ok {
-		return finding, false
+		return finding, reasonFileNotChanged
 	}
-	finding.File = file.Path
-	if finding.Line <= 0 {
-		return finding, false
+	evidence := normalizeWhitespace(finding.Evidence)
+	if evidence == "" {
+		return finding, reasonNoEvidence
 	}
 
-	if change, matched := file.matchEntity(finding.Entity, finding.Line); matched {
-		line, snapped := file.snapLine(change, finding.Line)
-		if !snapped {
-			return finding, false
+	line, ok := findEvidenceLine(file, evidence, 0, 0)
+	if !ok {
+		return finding, reasonEvidenceNotChanged
+	}
+
+	if raw := strings.TrimSpace(finding.Entity); raw != "" {
+		change, found := file.lookupEntity(raw)
+		if !found {
+			return finding, reasonEntityMismatch
 		}
-		finding.Line = line
+		start, end := changeRange(change)
+		if start <= 0 {
+			return finding, reasonEntityMismatch
+		}
+		line, ok = findEvidenceLine(file, evidence, start, end)
+		if !ok {
+			return finding, reasonEntityMismatch
+		}
 		finding.Entity = change.EntityName
-		return finding, true
 	}
 
-	// No sem entity matched. The line still has to be part of a hunk; a model
-	// that cites code outside the diff is pointing at something this pull
-	// request did not change.
-	if !file.hasLine(finding.Line) {
-		return finding, false
-	}
-	return finding, true
+	finding.File = file.Path
+	finding.Line = line
+	finding.EndLine = 0
+	return finding, ""
 }
 
-func (f *groundFile) hasLine(line int) bool {
-	return f.NewLines[line] || f.OldLines[line]
+func findEvidenceLine(file *groundFile, evidence string, start, end int) (int, bool) {
+	if line, ok := matchLine(file.NewLines, evidence, start, end); ok {
+		return line, true
+	}
+	return matchLine(file.OldLines, evidence, start, end)
+}
+
+// matchLine returns the lowest matching line inside the optional range. File
+// order is the tie-breaker, so duplicate lines resolve the same way every run.
+func matchLine(lines map[int]string, evidence string, start, end int) (int, bool) {
+	best := 0
+	for number, text := range lines {
+		if text != evidence {
+			continue
+		}
+		if start > 0 && (number < start || number > end) {
+			continue
+		}
+		if best == 0 || number < best {
+			best = number
+		}
+	}
+	return best, best != 0
 }
 
 func changeRange(change diff.SemanticChange) (int, int) {
@@ -372,76 +526,13 @@ func changeRange(change diff.SemanticChange) (int, int) {
 	return 0, 0
 }
 
-func (f *groundFile) matchEntity(raw string, cited int) (diff.SemanticChange, bool) {
-	var best diff.SemanticChange
-	bestDistance := 0
-	found := false
+func (f *groundFile) lookupEntity(raw string) (diff.SemanticChange, bool) {
 	for _, candidate := range entityCandidates(raw) {
-		change, ok := f.entities[normalizeEntityName(candidate)]
-		if !ok {
-			continue
-		}
-		distance := changeDistance(change, cited)
-		if !found || distance < bestDistance {
-			best = change
-			bestDistance = distance
-			found = true
+		if change, ok := f.entities[normalizeEntityName(candidate)]; ok {
+			return change, true
 		}
 	}
-	return best, found
-}
-
-// snapLine keeps the cited line when it is a changed line inside the entity and
-// otherwise moves it to the nearest changed line the entity contains. The result
-// is always a hunk line, so the snippet and the jump land on real evidence.
-func (f *groundFile) snapLine(change diff.SemanticChange, cited int) (int, bool) {
-	start, end := changeRange(change)
-	if start <= 0 {
-		return 0, false
-	}
-	source := f.NewLines
-	if change.StartLine <= 0 {
-		source = f.OldLines
-	}
-
-	best := 0
-	bestDistance := 0
-	if source[cited] && cited >= start && cited <= end {
-		return cited, true
-	}
-	for line := range source {
-		if line < start || line > end {
-			continue
-		}
-		distance := absInt(line - cited)
-		if best == 0 || distance < bestDistance || (distance == bestDistance && line < best) {
-			best = line
-			bestDistance = distance
-		}
-	}
-	return best, best != 0
-}
-
-func changeDistance(change diff.SemanticChange, line int) int {
-	start, end := changeRange(change)
-	if start <= 0 {
-		return int(^uint(0) >> 1)
-	}
-	switch {
-	case line < start:
-		return start - line
-	case line > end:
-		return line - end
-	default:
-		return 0
-	}
-}
-
-func absInt(value int) int {
-	if value < 0 {
-		return -value
-	}
-	return value
+	return diff.SemanticChange{}, false
 }
 
 func normalizeEntityName(name string) string {

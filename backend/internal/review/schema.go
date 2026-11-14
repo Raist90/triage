@@ -23,7 +23,7 @@ const Schema = `{
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["severity", "category", "title", "claim", "file", "line"],
+        "required": ["severity", "category", "title", "claim", "file", "evidence"],
         "properties": {
           "severity": { "enum": ["blocking", "warning", "nitpick", "praise"] },
           "category": {
@@ -33,10 +33,10 @@ const Schema = `{
           "claim": { "type": "string", "maxLength": 320 },
           "suggestion": { "type": "string", "maxLength": 480 },
           "file": { "type": "string" },
-          "line": { "type": "integer", "minimum": 1 },
-          "endLine": { "type": "integer", "minimum": 1 },
           "entity": { "type": "string", "maxLength": 120 },
-          "patch": { "type": "string", "maxLength": 8192 }
+          "evidence": { "type": "string", "maxLength": 400 },
+          "guideline": { "type": "string", "maxLength": 120 },
+          "guidelineQuote": { "type": "string", "maxLength": 400 }
         }
       }
     }

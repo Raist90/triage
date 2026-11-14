@@ -328,7 +328,7 @@ diff, and returns structured findings. Answers stream back over SSE.
   a raw REST fallback for files sem does not parse (48 KB, 96 KB when sem is
   absent). Every changed file is either present or named as omitted. A separate
   `sem diff --patch --format json` run gives the server absolute entity ranges,
-  which the prompt lists and the sanitizer uses to snap or reject a citation.
+  which the prompt lists and the sanitizer uses to cross-check a citation.
   `PromptVersion` is part of the artifact identity; bump it on any prompt or
   budget edit so old answers go stale.
 - **Tools.** Explain runs with `--tools ""`: no filesystem, shell or network
@@ -338,12 +338,15 @@ diff, and returns structured findings. Answers stream back over SSE.
 - **Untrusted output.** PR title, body, diff, guidelines and every repository
   file are untrusted prompt input. The system prompt says so, and the server
   never trusts the reply: the model output is untrusted JSON, validated against
-  the PR diff (severity, caps, dedupe, anchor, patch allowlist) before it
-  reaches the UI. A finding whose file, entity or line cannot be grounded in the
-  changed diff is hidden and counted as unverified, never shown as evidence for
-  code the PR did not change. A `blocking` finding always forces
-  `safeToMerge: false`, and a hidden blocking finding keeps that verdict
-  conservative.
+  the PR diff (severity, caps, dedupe, evidence, guideline quote) before it
+  reaches the UI. The model never supplies a line number. It copies one changed
+  line into `evidence`, and the server resolves the line from that quote; a
+  finding whose quote is not on the changed side of the diff is hidden and
+  counted as unverified, never shown as evidence for code the PR did not change.
+  Convention findings must also quote a rule from a guideline the run actually
+  read. A `blocking` finding always forces `safeToMerge: false`, and a hidden
+  blocking finding keeps that verdict conservative. Every hidden finding is
+  recorded in `dropped` with a stable reason.
 - **Streamed, bounded.** `--output-format stream-json` → NDJSON parser → SSE
   events `status`, `delta`, `done`, `error`. One job per PR+action; Explain
   times out at 5 minutes, Review at 8 minutes; child process group killed on

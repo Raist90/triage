@@ -94,9 +94,10 @@ type Job struct {
 // Prepared is what a review needs before the model can run: a checked-out PR
 // head plus the bounded prompt input and the parsed diff files.
 type Prepared struct {
-	WorkDir string
-	Input   review.Input
-	Files   []diff.File
+	WorkDir    string
+	Input      review.Input
+	Files      []diff.File
+	Guidelines string
 }
 
 // Request starts one action for one PR.
@@ -565,7 +566,10 @@ func (r *Runner) run(j *job, key string, action config.Action, prompt string, re
 			r.finishFailed(ctx, j, key, CodeReviewInvalid, "The review did not return valid JSON")
 			return
 		}
-		parsed = review.Sanitize(parsed, prepared.Files)
+		parsed = review.Sanitize(parsed, review.Grounding{
+			Files:      prepared.Files,
+			Guidelines: prepared.Guidelines,
+		})
 		parsed = review.ValidatePatches(ctx, prepared.WorkDir, parsed, prepared.Files)
 		artifact.Review = &parsed
 		artifact.Worktree = prepared.WorkDir

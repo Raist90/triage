@@ -56,32 +56,49 @@ type Verdict struct {
 	Overridden  bool   `json:"overridden,omitempty"`
 }
 
-// Finding is one review point anchored to a file and line. Patch is a suggested
-// unified diff hunk, empty when the finding has no mechanical fix.
+// Finding is one review point anchored to a file and line. Evidence is the
+// exact changed line the finding is about, copied by the model; the server
+// resolves the line from it instead of trusting a model-supplied number. Patch
+// is a suggested unified diff hunk, empty when the finding has no mechanical
+// fix.
 type Finding struct {
-	ID         string     `json:"id"`
-	Severity   Severity   `json:"severity"`
-	Category   Category   `json:"category"`
-	Title      string     `json:"title"`
-	Claim      string     `json:"claim"`
-	Suggestion string     `json:"suggestion,omitempty"`
-	File       string     `json:"file"`
-	Line       int        `json:"line"`
-	EndLine    int        `json:"endLine,omitempty"`
-	Entity     string     `json:"entity,omitempty"`
-	Patch      string     `json:"patch,omitempty"`
-	Anchored   bool       `json:"anchored"`
-	AppliedAt  *time.Time `json:"appliedAt,omitempty"`
+	ID             string     `json:"id"`
+	Severity       Severity   `json:"severity"`
+	Category       Category   `json:"category"`
+	Title          string     `json:"title"`
+	Claim          string     `json:"claim"`
+	Suggestion     string     `json:"suggestion,omitempty"`
+	File           string     `json:"file"`
+	Line           int        `json:"line"`
+	EndLine        int        `json:"endLine,omitempty"`
+	Entity         string     `json:"entity,omitempty"`
+	Evidence       string     `json:"evidence,omitempty"`
+	Guideline      string     `json:"guideline,omitempty"`
+	GuidelineQuote string     `json:"guidelineQuote,omitempty"`
+	Patch          string     `json:"patch,omitempty"`
+	Anchored       bool       `json:"anchored"`
+	AppliedAt      *time.Time `json:"appliedAt,omitempty"`
+}
+
+// DroppedFinding records one finding the server refused to show and why. The
+// title and file are enough to audit a run without storing speculative prose.
+type DroppedFinding struct {
+	Title    string   `json:"title"`
+	Severity Severity `json:"severity"`
+	File     string   `json:"file"`
+	Reason   string   `json:"reason"`
 }
 
 // Review is one review document. Omitted counts findings dropped to stay inside
 // the output budget. Unverified counts findings hidden because they did not
 // match the changed code. UnverifiedBlocking keeps the verdict conservative
-// when one of the hidden findings claimed to block the merge.
+// when one of the hidden findings claimed to block the merge. Dropped carries
+// the audit trail for every hidden finding.
 type Review struct {
-	Verdict            Verdict   `json:"verdict"`
-	Findings           []Finding `json:"findings"`
-	Omitted            int       `json:"omitted,omitempty"`
-	Unverified         int       `json:"unverified,omitempty"`
-	UnverifiedBlocking int       `json:"unverifiedBlocking,omitempty"`
+	Verdict            Verdict          `json:"verdict"`
+	Findings           []Finding        `json:"findings"`
+	Dropped            []DroppedFinding `json:"dropped,omitempty"`
+	Omitted            int              `json:"omitted,omitempty"`
+	Unverified         int              `json:"unverified,omitempty"`
+	UnverifiedBlocking int              `json:"unverifiedBlocking,omitempty"`
 }

@@ -189,7 +189,7 @@ func (s *Server) prepareReview(ctx context.Context, source config.Repo, number i
 		Description: pr.Description,
 	}
 	input := review.BuildInput(meta, semantic, covered, guidelines, files, unified)
-	return actions.Prepared{WorkDir: info.Dir, Input: input, Files: files}, nil
+	return actions.Prepared{WorkDir: info.Dir, Input: input, Files: files, Guidelines: guidelines}, nil
 }
 
 // worktreeActionError maps a worktree failure onto the action envelope, keeping
