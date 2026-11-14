@@ -6,6 +6,7 @@ import {
   REVIEW_SEVERITY_ORDER,
   type ActionStatus,
   type DiffFile,
+  type ReviewFinding,
 } from "../../lib/types";
 import { FindingCard } from "./FindingCard";
 import { FindingGroup } from "./FindingGroup";
@@ -19,9 +20,10 @@ type ReviewTabProps = {
   reviewAvailable: boolean;
   unavailableReason?: string;
   configPath?: string;
-  /** Reserved for C5/C6: findings are matched against the PR diff. */
-  repoPath?: string;
+  /** Hunk snippets and jumps match findings against the PR diff. */
   diffFiles?: DiffFile[];
+  /** Switch to the Diff tab and land on this finding's hunk. */
+  onOpenInDiff?: (finding: ReviewFinding) => void;
 };
 
 type StageKey = "worktree" | "diff" | "review";
@@ -76,6 +78,8 @@ export function ReviewTab({
   reviewAvailable,
   unavailableReason,
   configPath,
+  diffFiles,
+  onOpenInDiff,
 }: ReviewTabProps) {
   const { artifact, error, phase, review, running, stale } = controller;
   const configFile = configPath ?? "~/.triage/config.json";
@@ -208,7 +212,12 @@ export function ReviewTab({
                     findings={group}
                   >
                     {group.map((finding) => (
-                      <FindingCard key={finding.id} finding={finding} />
+                      <FindingCard
+                        key={finding.id}
+                        finding={finding}
+                        diffFiles={diffFiles}
+                        onOpenInDiff={onOpenInDiff}
+                      />
                     ))}
                   </FindingGroup>
                 );

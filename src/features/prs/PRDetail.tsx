@@ -13,11 +13,16 @@ import { describeError, getConfig, getPR, getPRDiff } from "../../lib/api";
 import { cx } from "../../lib/cx";
 import { openExternal } from "../../lib/open";
 import { formatRelative } from "../../lib/time";
-import type { Complexity, PR, PRDiffResponse } from "../../lib/types";
+import type {
+  Complexity,
+  PR,
+  PRDiffResponse,
+  ReviewFinding,
+} from "../../lib/types";
 import { useUIStore } from "../../stores/ui";
 import { ClaudeActionButton, ClaudeActionPanel } from "./ClaudeActionPanel";
 import { Conversation } from "./Conversation";
-import { DiffView } from "./DiffView";
+import { DiffView, type DiffTarget } from "./DiffView";
 import { PRStateActions, PRStatePanel } from "./PRStateActions";
 import { ReviewHeaderActions } from "./ReviewHeaderActions";
 import { ReviewPanel } from "./ReviewPanel";
@@ -59,6 +64,17 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
   }>({ key: prKey, tab: "conversation" });
   const tab: DetailTab = tabState.key === prKey ? tabState.tab : "conversation";
   const setTab = (next: DetailTab) => setTabState({ key: prKey, tab: next });
+  // A finding clicked in the Review tab. The token re-triggers the jump for two
+  // findings in the same file; the target is never cleared after consumption.
+  const [diffTarget, setDiffTarget] = useState<DiffTarget | null>(null);
+  function openInDiff(finding: ReviewFinding) {
+    setDiffTarget({
+      path: finding.file,
+      line: finding.line,
+      token: Date.now(),
+    });
+    setTab("diff");
+  }
 
   const mergePolls = useRef(0);
   const detailQuery = useQuery({
@@ -395,6 +411,7 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
                           headSHA={pr.headSHA}
                           canComment={pr.state === "open" && pr.headSHA !== ""}
                           viewerLogin={pr.viewerLogin}
+                          focusTarget={diffTarget ?? undefined}
                         />
                       </div>
                     ) : (
@@ -414,6 +431,7 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
                     unavailableReason={configuredRepo?.review.reason}
                     configPath={configQuery.data?.configPath}
                     diffFiles={diffQuery.data?.files}
+                    onOpenInDiff={openInDiff}
                   />
                 ) : null}
 

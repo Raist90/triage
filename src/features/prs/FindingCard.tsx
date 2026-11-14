@@ -1,9 +1,11 @@
 import { ChevronRight } from "lucide-react";
-import { useId, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { Button, MicroLabel } from "../../components/ui";
 import { cx } from "../../lib/cx";
 import { formatAgo } from "../../lib/time";
-import type { ReviewFinding, ReviewSeverity } from "../../lib/types";
+import type { DiffFile, ReviewFinding, ReviewSeverity } from "../../lib/types";
+import { FindingHunk } from "./FindingHunk";
+import { findHunk, sliceHunk } from "./reviewHunks";
 
 /** Color roles only: blocking and praise carry meaning, the rest stay neutral. */
 const SEVERITY_TEXT: Record<ReviewSeverity, string> = {
@@ -15,6 +17,8 @@ const SEVERITY_TEXT: Record<ReviewSeverity, string> = {
 
 type FindingCardProps = {
   finding: ReviewFinding;
+  /** The PR diff already loaded by PRDetail; used for the hunk snippet. */
+  diffFiles?: DiffFile[];
   /** C6: jump to the finding's hunk in the diff tab. */
   onOpenInDiff?: (finding: ReviewFinding) => void;
   /** C7: apply the finding's patch to the worktree. */
@@ -36,10 +40,21 @@ function anchorLabel(finding: ReviewFinding): string {
  * The toggle is a real button, actions live in the expanded body so nothing is
  * nested inside it.
  */
-export function FindingCard({ finding, onOpenInDiff }: FindingCardProps) {
+export function FindingCard({
+  finding,
+  diffFiles,
+  onOpenInDiff,
+}: FindingCardProps) {
   const bodyId = useId();
   // Local only. A blocking card the user closed stays closed across renders.
   const [open, setOpen] = useState(finding.severity === "blocking");
+
+  const hunk = useMemo(() => {
+    if (!diffFiles) return null;
+    const match = findHunk(diffFiles, finding.file, finding.line);
+    if (!match) return null;
+    return { match, lines: sliceHunk(match.hunk, finding.line, 12) };
+  }, [diffFiles, finding.file, finding.line]);
 
   return (
     <article className="rounded-[4px] border border-line">
@@ -92,6 +107,8 @@ export function FindingCard({ finding, onOpenInDiff }: FindingCardProps) {
       >
         <p className="max-w-[72ch] text-prose text-fg-body">{finding.claim}</p>
 
+        {hunk ? <FindingHunk match={hunk.match} lines={hunk.lines} /> : null}
+
         {finding.suggestion ? (
           <div className="mt-3">
             <MicroLabel>Suggestion</MicroLabel>
@@ -100,8 +117,6 @@ export function FindingCard({ finding, onOpenInDiff }: FindingCardProps) {
             </p>
           </div>
         ) : null}
-
-        {/* C6 renders the hunk snippet here, between claim and actions. */}
 
         {/* C7 adds Preview patch and Apply to this row. */}
         {onOpenInDiff ? (
