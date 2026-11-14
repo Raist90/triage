@@ -133,10 +133,19 @@ export function SettingsDialog({ open, config, onClose }: SettingsDialogProps) {
                     <span className="truncate font-mono text-fg-body">
                       {repo.owner}/{repo.name}
                     </span>
-                    <span className="text-fg-faint">
-                      {repo.actions ? "Explain ready" : "Actions off"}
+                    <span
+                      className={
+                        repo.review.available ? "text-accent" : "text-fg-faint"
+                      }
+                    >
+                      {repo.review.available ? "Review ready" : "Review off"}
                     </span>
                   </div>
+                  {repo.review.reason ? (
+                    <p className="mt-1 text-meta text-fg-faint">
+                      {repo.review.reason}
+                    </p>
+                  ) : null}
                 </div>
               ))}
             </div>

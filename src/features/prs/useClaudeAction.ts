@@ -10,15 +10,25 @@ import {
 import type {
   ActionArtifact,
   ActionJob,
+  ActionKind,
   ActionResponse,
+  ActionStatus,
   ActionView,
+  ReviewDocument,
 } from "../../lib/types";
 
 export type ClaudeActionController = {
+  kind: ActionKind;
   enabled: boolean;
   action: ActionView | null;
   job: ActionJob | undefined;
+  /** Job lifecycle as last reported by the server or the local stream. */
+  phase: ActionStatus;
   artifact: ActionArtifact | undefined;
+  /** Automatic review only: the structured document from the artifact. */
+  review: ReviewDocument | undefined;
+  /** Automatic review only: the worktree the run used. */
+  worktree: string | undefined;
   stale: boolean;
   running: boolean;
   liveText: string;
@@ -27,9 +37,19 @@ export type ClaudeActionController = {
   cancel: () => void;
 };
 
+const ACTIVE_STATUSES: ReadonlySet<ActionStatus> = new Set<ActionStatus>([
+  "queued",
+  "preparing",
+  "running",
+  "validating",
+]);
+
 /**
  * One action per PR. Ownership of the run lives here so the header button and
  * the panel below share the same stream; nothing is duplicated into a store.
+ *
+ * Review jobs stream JSON, so `delta` events are ignored and the answer arrives
+ * only through the artifact. Explain keeps its live markdown.
  */
 export function useClaudeAction(
   repo: string,
@@ -45,6 +65,8 @@ export function useClaudeAction(
 
   const [liveText, setLiveText] = useState("");
   const [streaming, setStreaming] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [status, setStatus] = useState<ActionStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [finished, setFinished] = useState<ActionArtifact | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -61,7 +83,7 @@ export function useClaudeAction(
     refetchInterval: (current) => {
       if (streaming) return false;
       const job = current.state.data?.job;
-      if (job && (job.status === "queued" || job.status === "running")) {
+      if (job && ACTIVE_STATUSES.has(job.status)) {
         return 1000;
       }
       return false;
@@ -82,21 +104,27 @@ export function useClaudeAction(
     setError(null);
     setLiveText("");
     setFinished(null);
+    setStatus(null);
+    setStarting(true);
 
     void (async () => {
       let response: ActionResponse;
       try {
         response = await runAction({ repo, number, actionID: action.id });
       } catch (caught) {
+        setStarting(false);
         setError(describeError(caught));
         return;
       }
       if (response.artifact) {
         setFinished(response.artifact);
+        setStatus("done");
+        setStarting(false);
         invalidate();
         return;
       }
       setStreaming(true);
+      setStarting(false);
       const controller = new AbortController();
       abortRef.current = controller;
       try {
@@ -107,16 +135,22 @@ export function useClaudeAction(
           signal: controller.signal,
           onEvent: (event) => {
             switch (event.type) {
+              case "status":
+                setStatus(event.status);
+                break;
               case "delta":
+                if (action.kind === "review") break;
                 setLiveText((previous) => previous + event.text);
                 break;
               case "done":
                 setFinished(event.artifact);
+                setStatus("done");
                 setStreaming(false);
                 invalidate();
                 break;
               case "error":
                 setError(event.message);
+                setStatus("failed");
                 setStreaming(false);
                 break;
               default:
@@ -138,20 +172,28 @@ export function useClaudeAction(
     abortRef.current?.abort();
     abortRef.current = null;
     setStreaming(false);
+    setStarting(false);
+    setStatus("canceled");
     void cancelAction({ repo, number, actionID: action.id })
       .catch(() => undefined)
       .finally(invalidate);
   }, [action, invalidate, number, repo]);
 
   const job = query.data?.job;
-  const jobRunning = job?.status === "queued" || job?.status === "running";
-  const running = streaming || jobRunning;
+  const phase = status ?? job?.status ?? "queued";
+  const running =
+    streaming || starting || (job !== undefined && ACTIVE_STATUSES.has(phase));
+  const artifact = finished ?? query.data?.artifact;
 
   return {
+    kind: action?.kind ?? "explain",
     enabled,
     action,
     job,
-    artifact: finished ?? query.data?.artifact,
+    phase,
+    artifact,
+    review: artifact?.review,
+    worktree: artifact?.worktree,
     stale: finished ? false : (query.data?.stale ?? false),
     running,
     liveText,

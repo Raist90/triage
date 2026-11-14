@@ -70,16 +70,24 @@ type commentsResponse struct {
 	Comments []github.InlineComment `json:"comments"`
 }
 
+// repoReviewView says whether an automatic review can run for one repo.
+type repoReviewView struct {
+	Available bool   `json:"available"`
+	Reason    string `json:"reason,omitempty"`
+}
+
 // repoView is the webview-safe repo entry.
 type repoView struct {
-	Owner   string `json:"owner"`
-	Name    string `json:"name"`
-	Actions bool   `json:"actions"`
+	Owner   string         `json:"owner"`
+	Name    string         `json:"name"`
+	Actions bool           `json:"actions"`
+	Review  repoReviewView `json:"review"`
 }
 
 type actionView struct {
 	ID    string `json:"id"`
 	Label string `json:"label"`
+	Kind  string `json:"kind"`
 }
 
 type configResponse struct {
