@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -23,6 +24,7 @@ const (
 const template = `{
   "user": { "login": "", "name": "" },
   "repos": [],
+  "repoPaths": {},
   "linear": { "teamKeys": [] }
 }
 `
@@ -40,9 +42,10 @@ func DefaultPath() (string, error) {
 // "present but empty". Repos are owner/name strings because a person edits this
 // file by hand.
 type fileConfig struct {
-	User   *UserConfig   `json:"user"`
-	Repos  *[]string     `json:"repos"`
-	Linear *LinearConfig `json:"linear"`
+	User      *UserConfig        `json:"user"`
+	Repos     *[]string          `json:"repos"`
+	RepoPaths *map[string]string `json:"repoPaths"`
+	Linear    *LinearConfig      `json:"linear"`
 }
 
 // Load reads the config file at path over Default. A missing file is created
@@ -85,6 +88,16 @@ func Load(path string) Config {
 	}
 	if file.Repos != nil {
 		cfg.Repos, cfg.Problem = parseRepos(*file.Repos)
+	}
+	if file.RepoPaths != nil {
+		paths, problem := parseRepoPaths(*file.RepoPaths)
+		cfg.Problem = combineProblems(cfg.Problem, problem)
+		for i := range cfg.Repos {
+			key := strings.ToLower(cfg.Repos[i].Owner + "/" + cfg.Repos[i].Name)
+			if path, ok := paths[key]; ok {
+				cfg.Repos[i].Path = path
+			}
+		}
 	}
 	return cfg
 }
@@ -146,6 +159,73 @@ func parseRepos(raw []string) ([]Repo, string) {
 		return repos, ""
 	}
 	return repos, "ignored " + strings.Join(problems, ", ")
+}
+
+// parseRepoPaths turns owner/name keys into expanded absolute paths, keyed by
+// lowercase owner/name. Entries that do not parse are dropped and named in the
+// returned problem. Keys that match no tracked repo are harmless and kept, so a
+// repo can be added and given a path in either order.
+func parseRepoPaths(raw map[string]string) (map[string]string, string) {
+	paths := make(map[string]string, len(raw))
+	keys := make([]string, 0, len(raw))
+	for key := range raw {
+		keys = append(keys, key)
+	}
+	// Map order is random. Sorting keeps the problem text and the winner of a
+	// case-only duplicate stable across runs.
+	sort.Strings(keys)
+
+	problems := make([]string, 0)
+	for _, entry := range keys {
+		owner, name, ok := strings.Cut(strings.TrimSpace(entry), "/")
+		owner, name = strings.TrimSpace(owner), strings.TrimSpace(name)
+		if !ok || owner == "" || name == "" || strings.Contains(name, "/") {
+			problems = append(problems, fmt.Sprintf("repoPaths[%q] is not owner/name", entry))
+			continue
+		}
+		path, problem := expandPath(strings.TrimSpace(raw[entry]))
+		if problem != "" {
+			problems = append(problems, fmt.Sprintf("repoPaths[%q] %s", entry, problem))
+			continue
+		}
+		paths[strings.ToLower(owner+"/"+name)] = path
+	}
+
+	if len(problems) == 0 {
+		return paths, ""
+	}
+	return paths, "ignored " + strings.Join(problems, ", ")
+}
+
+// expandPath trims and validates one repo path value. A leading ~ expands to the
+// user home directory; the result must be absolute.
+func expandPath(value string) (string, string) {
+	if value == "" {
+		return "", "is empty"
+	}
+	if value == "~" || strings.HasPrefix(value, "~/") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", "cannot expand ~"
+		}
+		value = filepath.Join(home, strings.TrimPrefix(value, "~"))
+	}
+	if !filepath.IsAbs(value) {
+		return "", "is not an absolute path"
+	}
+	return filepath.Clean(value), ""
+}
+
+// combineProblems joins non-empty problem fragments so a bad repo list does not
+// hide a bad path entry.
+func combineProblems(problems ...string) string {
+	kept := make([]string, 0, len(problems))
+	for _, problem := range problems {
+		if problem != "" {
+			kept = append(kept, problem)
+		}
+	}
+	return strings.Join(kept, "; ")
 }
 
 // expectEOF rejects trailing JSON after the config object, which json.Decoder

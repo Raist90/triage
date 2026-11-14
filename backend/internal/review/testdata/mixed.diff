@@ -1,0 +1,28 @@
+diff --git a/backend/internal/service/charge.go b/backend/internal/service/charge.go
+index 1111111..2222222 100644
+--- a/backend/internal/service/charge.go
++++ b/backend/internal/service/charge.go
+@@ -10,6 +10,8 @@ func Charge(ctx context.Context, req Request) error {
+ 	if req.Key == "" {
+ 		return ErrMissingKey
+ 	}
++	// Retry with a fresh key per attempt.
++	req.Key = req.Key + "-retry"
+ 	return charge(ctx, req)
+ }
+diff --git a/deploy/values.yaml b/deploy/values.yaml
+index 3333333..4444444 100644
+--- a/deploy/values.yaml
++++ b/deploy/values.yaml
+@@ -1,3 +1,4 @@
+ replicaCount: 2
+ image:
+   tag: 1.4.0
++  pullPolicy: Always
+diff --git a/bun.lock b/bun.lock
+index 5555555..6666666 100644
+--- a/bun.lock
++++ b/bun.lock
+@@ -1,2 +1,2 @@
+-  "lockfileVersion": 0,
++  "lockfileVersion": 1,
