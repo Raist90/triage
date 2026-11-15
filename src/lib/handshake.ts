@@ -10,15 +10,14 @@ let pending: Promise<Handshake> | null = null;
  * Prod: the Tauri `handshake` command.
  *
  * Memoized: the port and token never change for the life of an app session.
+ * A failed attempt is not memoized, so Retry can recover once the server is up.
  */
 export function getHandshake(): Promise<Handshake> {
-  pending ??= resolveHandshake();
+  pending ??= resolveHandshake().catch((error: unknown) => {
+    pending = null;
+    throw error;
+  });
   return pending;
-}
-
-/** Clears the memoized handshake so the next call re-reads it. */
-export function resetHandshake(): void {
-  pending = null;
 }
 
 async function resolveHandshake(): Promise<Handshake> {
