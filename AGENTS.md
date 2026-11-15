@@ -89,7 +89,7 @@ make dev                    # backend + frontend (browser), Ctrl-C stops both
 make app                    # backend + Tauri desktop shell, Ctrl-C stops both
 make backend                # Go sidecar only
 make frontend               # Vite only
-make check                  # typecheck + lint + go build/vet
+make check                  # typecheck + lint + go build/vet + verify-api
 make test                   # Go tests
 make api                    # regenerate openapi.json + src/lib/generated
 make verify-api             # fail when the committed contract is stale

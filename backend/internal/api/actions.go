@@ -215,6 +215,11 @@ func (s *Server) cancelAction(_ context.Context, in *actionInput) (*actionOutput
 // handleActionStream serves GET .../actions/{actionID}/stream as SSE. The
 // response is JSON lines prefixed with `data: `, one event per blank line.
 func (s *Server) handleActionStream(w http.ResponseWriter, r *http.Request) {
+	owner, repo := r.PathValue("owner"), r.PathValue("repo")
+	if !repoSegmentPattern.MatchString(owner) || !repoSegmentPattern.MatchString(repo) {
+		writeError(w, http.StatusBadRequest, codeBadRequest, "repo must be owner/name")
+		return
+	}
 	number, ok := parseNumber(r.PathValue("number"))
 	if !ok {
 		writeError(w, http.StatusBadRequest, codeBadRequest, "number must be a positive integer")
@@ -222,7 +227,7 @@ func (s *Server) handleActionStream(w http.ResponseWriter, r *http.Request) {
 	}
 	in := &actionInput{
 		PRPath: PRPath{
-			RepoPath: RepoPath{Owner: r.PathValue("owner"), Repo: r.PathValue("repo")},
+			RepoPath: RepoPath{Owner: owner, Repo: repo},
 			Number:   number,
 		},
 		ActionID: r.PathValue("actionID"),

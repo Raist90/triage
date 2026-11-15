@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"regexp"
 
 	"github.com/Raist90/triage/backend/internal/diff"
 	"github.com/Raist90/triage/backend/internal/github"
@@ -14,6 +15,10 @@ type RepoPath struct {
 	Owner string `path:"owner" pattern:"^[A-Za-z0-9_.-]+$" doc:"Repository owner"`
 	Repo  string `path:"repo" pattern:"^[A-Za-z0-9_.-]+$" doc:"Repository name"`
 }
+
+// repoSegmentPattern is the same expression the owner and repo tags carry. The
+// hand-written SSE route validates through it because it bypasses Huma's tags.
+var repoSegmentPattern = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
 
 // PRPath adds the pull request number.
 type PRPath struct {

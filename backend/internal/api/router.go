@@ -66,7 +66,44 @@ func NewServer(cfg config.Config, c *cache.Cache, gh *github.Client, runner *act
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	s.api(mux)
-	return cors(s.requireToken(mux))
+	return cors(s.requireToken(s.withNotFound(mux)))
+}
+
+// withNotFound answers paths no operation registered with the shared error
+// envelope, since net/http renders those as plain text. A catch-all "/" pattern
+// would swallow the 405 ServeMux already computes for a known path, so the path
+// is probed against every registered pattern instead.
+func (s *Server) withNotFound(mux *http.ServeMux) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !pathKnown(mux, r) {
+			writeError(w, http.StatusNotFound, codeNotFound, "route not found")
+			return
+		}
+		mux.ServeHTTP(w, r)
+	})
+}
+
+// probeMethods covers every method any route uses. A DELETE-only route is known
+// only through its own method, so one probe method is not enough.
+var probeMethods = []string{
+	http.MethodGet,
+	http.MethodPost,
+	http.MethodDelete,
+	http.MethodPut,
+	http.MethodPatch,
+}
+
+// pathKnown reports whether any registered pattern matches the request path,
+// whatever the method, so a wrong method still reaches ServeMux's 405. The probe
+// carries no body: ServeMux only reads the method and URL.
+func pathKnown(mux *http.ServeMux, r *http.Request) bool {
+	for _, method := range probeMethods {
+		probe := &http.Request{Method: method, URL: r.URL, Host: r.Host, Header: http.Header{}}
+		if _, pattern := mux.Handler(probe); pattern != "" {
+			return true
+		}
+	}
+	return false
 }
 
 // OpenAPI returns the generated document. It registers the same operations as

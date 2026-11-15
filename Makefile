@@ -41,10 +41,11 @@ app: ## run backend + Tauri desktop shell
 	trap 'kill -- -$$backend 2>/dev/null' EXIT INT TERM; \
 	$(BUN) run tauri dev
 
-check: ## typecheck, lint, go build + vet
+check: ## typecheck, lint, go build + vet, contract freshness
 	$(BUN) run typecheck
 	$(BUN) run lint
 	cd backend && $(GO) build ./... && $(GO) vet ./...
+	@$(MAKE) --no-print-directory verify-api
 
 test: ## run Go tests
 	cd backend && $(GO) test ./...

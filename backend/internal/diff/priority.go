@@ -55,7 +55,7 @@ var changeWeights = map[string]float64{
 	"reordered": 0.25,
 }
 
-// Prioritize fills Review for every file. It runs even when sem is missing:
+// Prioritize fills FileReview for every file. It runs even when sem is missing:
 // the fallback ranks by churn so the sidebar still has a useful default order.
 func Prioritize(files []File) {
 	touchedBy := make(map[string]map[int]struct{})
