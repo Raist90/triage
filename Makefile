@@ -6,7 +6,7 @@ ESLINT_CACHE := node_modules/.cache/eslint
 
 .DEFAULT_GOAL := help
 
-.PHONY: help install backend frontend dev app check test fix build clean api spec types verify-api
+.PHONY: help install backend frontend dev app check test test-frontend test-backend fix build clean api spec types verify-api
 
 help: ## show available targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "  %-10s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -54,7 +54,12 @@ check: verify-api ## typecheck, lint, go build + vet, contract freshness
 	wait $$p3 || status=1; \
 	exit $$status
 
-test: ## run Go tests
+test: test-frontend test-backend ## run frontend and Go tests
+
+test-frontend: ## run frontend tests
+	$(BUN) run test
+
+test-backend: ## run Go tests
 	cd backend && $(GO) test ./...
 
 fix: ## ESLint --fix + Prettier write

@@ -57,6 +57,7 @@ src/                     React app
   lib/generated/         OpenAPI-generated TypeScript contract, never hand-edited
   lib/types.ts           app-facing facade over the generated types
   stores/                Zustand stores
+  test/                  Bun test setup, render helper, contract fixtures
 backend/                 Go module (github.com/Raist90/triage/backend)
   cmd/triage-server/      main: config, handshake, HTTP server
   internal/api/          HTTP routes + request/response types
@@ -90,7 +91,7 @@ make app                    # backend + Tauri desktop shell, Ctrl-C stops both
 make backend                # Go sidecar only
 make frontend               # Vite only
 make check                  # typecheck + lint + go build/vet + verify-api
-make test                   # Go tests
+make test                   # frontend + Go tests
 make api                    # regenerate openapi.json + src/lib/generated
 make verify-api             # fail when the committed contract is stale
 make fix                    # ESLint --fix + Prettier write
@@ -107,6 +108,8 @@ bun run tauri dev           # desktop app (also needs the Go server, see below)
 bun run dev                 # frontend only, browser
 bun run backend:dev         # run the Go sidecar on its own
 bun run typecheck           # tsc --noEmit
+bun run test                # frontend tests (Bun + happy-dom)
+bun test --watch src        # frontend tests in watch mode
 bun run lint                # ESLint + Prettier check
 bun run fix                 # ESLint --fix + Prettier write (do this before finishing)
 cd backend && go build ./... && go vet ./...
@@ -116,15 +119,18 @@ cd backend && go test ./...
 Rules:
 
 - Prefer `make dev` / `make app`; they start and stop both processes together.
-- Run `bun run fix` and `bun run typecheck` after frontend changes, and
-  `go build ./... && go vet ./... && go test ./...` after Go changes.
+- Run `bun run fix`, `bun run typecheck` and `bun run test` after frontend
+  changes, and `go build ./... && go vet ./... && go test ./...` after Go changes.
 - `bun run lint` and `make check` cache ESLint results in
   `node_modules/.cache/eslint`. The cache does not track `src/index.css`, which
   the Tailwind rules read, so `make clean` after editing theme tokens if a class
   warning looks stale (`make check` drops the cache when the CSS is newer).
 - After any change to a request or response type, run `make api` and commit
   `openapi.json` plus `src/lib/generated`.
-- The frontend has no test runner. `make test` covers the Go packages only.
+- Frontend tests use Bun's built-in runner with happy-dom and Testing Library.
+  `src/test/setup.ts` registers the DOM; `src/test/fixtures.ts` builds contract
+  objects. Test behavior, not source text, and mock `src/lib/api` per file when
+  a component fetches data.
 - Never add a package without a reason; prefer stdlib and hand-rolled code.
 - Do not read or print `.env` contents during development; tokens are the user's.
 - Do not commit `.env`.
