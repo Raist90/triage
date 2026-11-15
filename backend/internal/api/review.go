@@ -25,93 +25,77 @@ var (
 	applyMu sync.Mutex
 )
 
-// handlePatchApply applies one finding's patch to the review worktree. The
+// applyFindingPatch applies one finding's patch to the review worktree. The
 // client sends a finding id only; the patch text never leaves the server.
-func (s *Server) handlePatchApply(w http.ResponseWriter, r *http.Request, owner, repo, rawNumber, actionID, findingID string) {
-	if r.Method != http.MethodPost {
-		writeError(w, http.StatusMethodNotAllowed, codeMethodNotAllowed, "only POST is allowed")
-		return
-	}
-	number, action, tracked, ok := s.resolveAction(w, owner, repo, rawNumber, actionID)
-	if !ok {
-		return
+func (s *Server) applyFindingPatch(ctx context.Context, in *patchInput) (*patchOutput, error) {
+	action, tracked, err := s.resolveAction(&actionInput{PRPath: in.PRPath, ActionID: in.ActionID})
+	if err != nil {
+		return nil, err
 	}
 	if action.Kind != actions.KindReview {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "only review actions carry patches")
-		return
+		return nil, errorf(http.StatusBadRequest, codeBadRequest, "only review actions carry patches")
 	}
-	if !findingIDPattern.MatchString(findingID) {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "invalid finding id")
-		return
+	if !findingIDPattern.MatchString(in.FindingID) {
+		return nil, errorf(http.StatusBadRequest, codeBadRequest, "invalid finding id")
 	}
 
-	pr, err := s.prMetadata(r, owner, repo, number, false)
+	pr, err := s.prMetadata(ctx, in.Owner, in.Repo, in.Number, false)
 	if err != nil {
-		s.writeProviderError(w, err)
-		return
+		return nil, s.providerError(err)
 	}
 	if pr.HeadSHA == "" {
-		writeError(w, http.StatusBadGateway, codeGitHub, "GitHub did not report the head commit")
-		return
+		return nil, errorf(http.StatusBadGateway, codeGitHub, "GitHub did not report the head commit")
 	}
 
 	// The allowlist is computed from the same cached diff the review was built
 	// from, so a patch can only touch files this pull request changes.
-	unified, err := s.loadDiff(r.Context(), owner, repo, number, false)
+	unified, err := s.loadDiff(ctx, in.Owner, in.Repo, in.Number, false)
 	if err != nil {
-		s.writeProviderError(w, err)
-		return
+		return nil, s.providerError(err)
 	}
 	files := diff.Parse(unified)
 
 	applyMu.Lock()
 	defer applyMu.Unlock()
 
-	artifact, found := s.artifacts.Get(tracked.Owner, tracked.Name, number, pr.HeadSHA, action.ID)
+	artifact, found := s.artifacts.Get(tracked.Owner, tracked.Name, in.Number, pr.HeadSHA, action.ID)
 	if !found {
-		if _, stale := s.artifacts.Latest(tracked.Owner, tracked.Name, number, action.ID); stale {
-			writeError(w, http.StatusConflict, codeReviewStale, "This review is from an older commit. Re-run it.")
-			return
+		if _, stale := s.artifacts.Latest(tracked.Owner, tracked.Name, in.Number, action.ID); stale {
+			return nil, errorf(http.StatusConflict, codeReviewStale, "This review is from an older commit. Re-run it.")
 		}
-		writeError(w, http.StatusNotFound, codeNotFound, "review artifact not found")
-		return
+		return nil, errorf(http.StatusNotFound, codeNotFound, "review artifact not found")
 	}
 
-	finding := findFinding(artifact, findingID)
+	finding := findFinding(artifact, in.FindingID)
 	if finding == nil {
-		writeError(w, http.StatusNotFound, codeNotFound, "finding not found")
-		return
+		return nil, errorf(http.StatusNotFound, codeNotFound, "finding not found")
 	}
 	// Idempotent: the stored timestamp wins, nothing is applied twice.
 	if finding.AppliedAt != nil {
-		writeJSON(w, http.StatusOK, patchApplyResponse{OK: true, AppliedAt: *finding.AppliedAt, Worktree: artifact.Worktree})
-		return
+		return &patchOutput{Body: patchApplyResponse{OK: true, AppliedAt: *finding.AppliedAt, Worktree: artifact.Worktree}}, nil
 	}
 	if finding.Patch == "" {
-		writeError(w, http.StatusUnprocessableEntity, codePatchConflict, "This finding has no patch.")
-		return
+		return nil, errorf(http.StatusUnprocessableEntity, codePatchConflict, "This finding has no patch.")
 	}
 	if info, statErr := os.Stat(artifact.Worktree); artifact.Worktree == "" || statErr != nil || !info.IsDir() {
-		writeError(w, http.StatusConflict, codeWorktreeMissing, "The worktree is gone. Re-run the review.")
-		return
+		return nil, errorf(http.StatusConflict, codeWorktreeMissing, "The worktree is gone. Re-run the review.")
 	}
 
-	if err := review.ApplyPatch(r.Context(), artifact.Worktree, finding.Patch, files); err != nil {
+	if err := review.ApplyPatch(ctx, artifact.Worktree, finding.Patch, files); err != nil {
 		switch {
 		case errors.Is(err, review.ErrPatchConflict):
-			writeError(w, http.StatusUnprocessableEntity, codePatchConflict, "The patch no longer applies. Re-run the review.")
+			return nil, errorf(http.StatusUnprocessableEntity, codePatchConflict, "The patch no longer applies. Re-run the review.")
 		case errors.Is(err, review.ErrPatchRejected):
-			writeError(w, http.StatusUnprocessableEntity, codePatchConflict, "This finding has no applicable patch.")
+			return nil, errorf(http.StatusUnprocessableEntity, codePatchConflict, "This finding has no applicable patch.")
 		default:
 			s.logger.Error("patch apply failed", "err", err)
-			writeError(w, http.StatusInternalServerError, codeInternal, "Applying the patch failed")
+			return nil, errorf(http.StatusInternalServerError, codeInternal, "Applying the patch failed")
 		}
-		return
 	}
 
 	now := time.Now().UTC()
-	updated, err := s.artifacts.Update(tracked.Owner, tracked.Name, number, artifact.SHA, action.ID, func(candidate *actions.Artifact) error {
-		record := findFinding(candidate, findingID)
+	updated, err := s.artifacts.Update(tracked.Owner, tracked.Name, in.Number, artifact.SHA, action.ID, func(candidate *actions.Artifact) error {
+		record := findFinding(candidate, in.FindingID)
 		if record == nil {
 			return actions.ErrNotFound
 		}
@@ -124,15 +108,14 @@ func (s *Server) handlePatchApply(w http.ResponseWriter, r *http.Request, owner,
 		// The patch is on disk but the record is not. Say so instead of
 		// pretending the retry will be a no-op.
 		s.logger.Error("recording the applied patch failed", "err", err)
-		writeError(w, http.StatusInternalServerError, codeInternal, "The patch applied but could not be recorded")
-		return
+		return nil, errorf(http.StatusInternalServerError, codeInternal, "The patch applied but could not be recorded")
 	}
 
 	appliedAt := now
-	if stored := findFinding(updated, findingID); stored != nil && stored.AppliedAt != nil {
+	if stored := findFinding(updated, in.FindingID); stored != nil && stored.AppliedAt != nil {
 		appliedAt = *stored.AppliedAt
 	}
-	writeJSON(w, http.StatusOK, patchApplyResponse{OK: true, AppliedAt: appliedAt, Worktree: updated.Worktree})
+	return &patchOutput{Body: patchApplyResponse{OK: true, AppliedAt: appliedAt, Worktree: updated.Worktree}}, nil
 }
 
 func findFinding(artifact *actions.Artifact, id string) *review.Finding {

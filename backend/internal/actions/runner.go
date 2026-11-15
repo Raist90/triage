@@ -86,7 +86,7 @@ type Job struct {
 	Repo      string    `json:"repo,omitempty"`
 	Number    int       `json:"number,omitempty"`
 	SHA       string    `json:"sha"`
-	Status    string    `json:"status"`
+	Status    string    `json:"status" enum:"queued,preparing,running,validating,done,failed,canceled" doc:"Job lifecycle state"`
 	StartedAt time.Time `json:"startedAt"`
 	Error     string    `json:"error,omitempty"`
 }

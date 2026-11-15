@@ -2,42 +2,40 @@ package api
 
 import (
 	"net/http"
-	"net/http/httptest"
-	"strings"
 	"testing"
 )
 
-func TestHandleCommentsRejectsInvalidPayloads(t *testing.T) {
+func TestCommentsRejectInvalidPayloads(t *testing.T) {
+	handler := testHandler(t)
 	valid := `{"body":"ok","path":"main.go","line":3,"side":"RIGHT","commitId":"abc"}`
 
 	cases := []struct {
 		name   string
 		method string
 		body   string
+		status int
 	}{
-		{name: "empty body", method: http.MethodPost, body: `{"body":" ","path":"main.go","line":3,"side":"RIGHT","commitId":"abc"}`},
-		{name: "missing path", method: http.MethodPost, body: `{"body":"ok","path":"","line":3,"side":"RIGHT","commitId":"abc"}`},
-		{name: "bad line", method: http.MethodPost, body: `{"body":"ok","path":"main.go","line":0,"side":"RIGHT","commitId":"abc"}`},
-		{name: "bad side", method: http.MethodPost, body: `{"body":"ok","path":"main.go","line":3,"side":"MIDDLE","commitId":"abc"}`},
-		{name: "missing commit", method: http.MethodPost, body: `{"body":"ok","path":"main.go","line":3,"side":"RIGHT","commitId":""}`},
-		{name: "unknown field", method: http.MethodPost, body: `{"body":"ok","path":"main.go","line":3,"side":"RIGHT","commitId":"abc","extra":1}`},
-		{name: "wrong method", method: http.MethodDelete, body: valid},
+		{name: "empty body", method: http.MethodPost, body: `{"body":" ","path":"main.go","line":3,"side":"RIGHT","commitId":"abc"}`, status: http.StatusBadRequest},
+		{name: "missing path", method: http.MethodPost, body: `{"body":"ok","path":"","line":3,"side":"RIGHT","commitId":"abc"}`, status: http.StatusBadRequest},
+		{name: "bad line", method: http.MethodPost, body: `{"body":"ok","path":"main.go","line":0,"side":"RIGHT","commitId":"abc"}`, status: http.StatusBadRequest},
+		{name: "bad side", method: http.MethodPost, body: `{"body":"ok","path":"main.go","line":3,"side":"MIDDLE","commitId":"abc"}`, status: http.StatusUnprocessableEntity},
+		{name: "missing commit", method: http.MethodPost, body: `{"body":"ok","path":"main.go","line":3,"side":"RIGHT","commitId":""}`, status: http.StatusBadRequest},
+		{name: "wrong method", method: http.MethodDelete, body: valid, status: http.StatusMethodNotAllowed},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			request := httptest.NewRequest(tc.method, "/pr/o/r/1/comments", strings.NewReader(tc.body))
-			recorder := httptest.NewRecorder()
-			(&Server{}).handleComments(recorder, request, "o", "r", "1")
-
-			if recorder.Code != http.StatusBadRequest && recorder.Code != http.StatusMethodNotAllowed {
-				t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+			recorder := serve(handler, tc.method, "/pr/o/r/1/comments", tc.body)
+			if recorder.Code != tc.status {
+				t.Fatalf("status = %d, want %d (body %s)", recorder.Code, tc.status, recorder.Body.String())
 			}
 		})
 	}
 }
 
-func TestHandleCommentDeleteRejectsInvalidInput(t *testing.T) {
+func TestCommentDeleteRejectsInvalidInput(t *testing.T) {
+	handler := testHandler(t)
+
 	cases := []struct {
 		name   string
 		method string
@@ -45,34 +43,40 @@ func TestHandleCommentDeleteRejectsInvalidInput(t *testing.T) {
 		status int
 	}{
 		{name: "wrong method", method: http.MethodGet, rawID: "12", status: http.StatusMethodNotAllowed},
-		{name: "bad id", method: http.MethodDelete, rawID: "nope", status: http.StatusBadRequest},
-		{name: "zero id", method: http.MethodDelete, rawID: "0", status: http.StatusBadRequest},
+		{name: "bad id", method: http.MethodDelete, rawID: "nope", status: http.StatusUnprocessableEntity},
+		{name: "zero id", method: http.MethodDelete, rawID: "0", status: http.StatusUnprocessableEntity},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			request := httptest.NewRequest(tc.method, "/pr/o/r/1/comments/"+tc.rawID, nil)
-			recorder := httptest.NewRecorder()
-			(&Server{}).handleCommentDelete(recorder, request, "o", "r", "1", tc.rawID)
+			recorder := serve(handler, tc.method, "/pr/o/r/1/comments/"+tc.rawID, "")
 			if recorder.Code != tc.status {
-				t.Fatalf("status = %d, want %d", recorder.Code, tc.status)
+				t.Fatalf("status = %d, want %d (body %s)", recorder.Code, tc.status, recorder.Body.String())
 			}
 		})
 	}
 }
 
-func TestHandleCommentsRejectsBadRepoOrNumber(t *testing.T) {
-	request := httptest.NewRequest(http.MethodGet, "/pr/bad/1/comments", nil)
-	recorder := httptest.NewRecorder()
-	(&Server{}).handleComments(recorder, request, "bad", "", "1")
-	if recorder.Code != http.StatusBadRequest {
-		t.Fatalf("repo status = %d", recorder.Code)
+func TestCommentsRejectBadRepoOrNumber(t *testing.T) {
+	handler := testHandler(t)
+
+	cases := []struct {
+		name   string
+		path   string
+		status int
+	}{
+		{name: "bad number", path: "/pr/o/r/nope/comments", status: http.StatusUnprocessableEntity},
+		{name: "zero number", path: "/pr/o/r/0/comments", status: http.StatusUnprocessableEntity},
+		{name: "bad owner", path: "/pr/o%20x/r/1/comments", status: http.StatusUnprocessableEntity},
+		{name: "short path", path: "/pr/o/r/comments", status: http.StatusUnprocessableEntity},
 	}
 
-	request = httptest.NewRequest(http.MethodGet, "/pr/o/r/nope/comments", nil)
-	recorder = httptest.NewRecorder()
-	(&Server{}).handleComments(recorder, request, "o", "r", "nope")
-	if recorder.Code != http.StatusBadRequest {
-		t.Fatalf("number status = %d", recorder.Code)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder := serve(handler, http.MethodGet, tc.path, "")
+			if recorder.Code != tc.status {
+				t.Fatalf("status = %d, want %d (body %s)", recorder.Code, tc.status, recorder.Body.String())
+			}
+		})
 	}
 }

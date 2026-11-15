@@ -1,9 +1,8 @@
 package api
 
 import (
-	"encoding/json"
+	"context"
 	"errors"
-	"io"
 	"net/http"
 	"strings"
 
@@ -13,120 +12,63 @@ import (
 // maxPRStateBody caps the two small action payloads.
 const maxPRStateBody = 8 << 10
 
-// handlePRDraft serves POST /pr/{owner}/{repo}/{number}/draft.
-func (s *Server) handlePRDraft(w http.ResponseWriter, r *http.Request, owner, repo, rawNumber string) {
-	if r.Method != http.MethodPost {
-		writeError(w, http.StatusMethodNotAllowed, codeMethodNotAllowed, "only POST is allowed")
-		return
-	}
-	number, ok := parsePRTarget(w, owner, repo, rawNumber)
-	if !ok {
-		return
+// setPRDraft serves POST /pr/{owner}/{repo}/{number}/draft.
+func (s *Server) setPRDraft(ctx context.Context, in *draftInput) (*okOutput, error) {
+	if in.Body.Draft == nil {
+		return nil, errorf(http.StatusBadRequest, codeBadRequest, `body must be {"draft": true|false}`)
 	}
 
-	var request draftRequest
-	decoder := json.NewDecoder(io.LimitReader(r.Body, maxPRStateBody))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&request); err != nil || request.Draft == nil {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "body must be {\"draft\": true|false}")
-		return
-	}
-
-	err := s.github.SetDraft(r.Context(), owner, repo, number, *request.Draft)
+	err := s.github.SetDraft(ctx, in.Owner, in.Repo, in.Number, *in.Body.Draft)
 	// Drop the cached detail even on failure: a rejected toggle still means the
 	// cached draft state may be stale.
-	s.invalidatePR(owner, repo, number)
+	s.invalidatePR(in.Owner, in.Repo, in.Number)
 	if err != nil {
-		s.writePRStateError(w, err)
-		return
+		return nil, s.prStateError(err)
 	}
 
-	writeJSON(w, http.StatusOK, prStateResponse{OK: true})
+	return &okOutput{Body: okResponse{OK: true}}, nil
 }
 
-// handlePRClose serves POST /pr/{owner}/{repo}/{number}/close. Closing needs no
-// body: the request itself is the whole intent, and the UI confirms first.
-func (s *Server) handlePRClose(w http.ResponseWriter, r *http.Request, owner, repo, rawNumber string) {
-	if r.Method != http.MethodPost {
-		writeError(w, http.StatusMethodNotAllowed, codeMethodNotAllowed, "only POST is allowed")
-		return
-	}
-	number, ok := parsePRTarget(w, owner, repo, rawNumber)
-	if !ok {
-		return
-	}
-
-	err := s.github.ClosePR(r.Context(), owner, repo, number)
+// closePR serves POST /pr/{owner}/{repo}/{number}/close. Closing needs no body:
+// the request itself is the whole intent, and the UI confirms first.
+func (s *Server) closePR(ctx context.Context, in *prTargetInput) (*okOutput, error) {
+	err := s.github.ClosePR(ctx, in.Owner, in.Repo, in.Number)
 	// Drop the cached detail even on failure so a rejected close cannot leave a
 	// stale open state behind.
-	s.invalidatePR(owner, repo, number)
+	s.invalidatePR(in.Owner, in.Repo, in.Number)
 	if err != nil {
-		s.writePRStateError(w, err)
-		return
+		return nil, s.prStateError(err)
 	}
 
-	writeJSON(w, http.StatusOK, prStateResponse{OK: true})
+	return &okOutput{Body: okResponse{OK: true}}, nil
 }
 
-// handlePRMerge serves POST /pr/{owner}/{repo}/{number}/merge.
-func (s *Server) handlePRMerge(w http.ResponseWriter, r *http.Request, owner, repo, rawNumber string) {
-	if r.Method != http.MethodPost {
-		writeError(w, http.StatusMethodNotAllowed, codeMethodNotAllowed, "only POST is allowed")
-		return
-	}
-	number, ok := parsePRTarget(w, owner, repo, rawNumber)
-	if !ok {
-		return
+// mergePR serves POST /pr/{owner}/{repo}/{number}/merge.
+func (s *Server) mergePR(ctx context.Context, in *mergeInput) (*okOutput, error) {
+	if strings.ToLower(strings.TrimSpace(in.Body.Method)) != "squash" {
+		return nil, errorf(http.StatusBadRequest, codeBadRequest, "method must be squash")
 	}
 
-	var request mergeRequest
-	decoder := json.NewDecoder(io.LimitReader(r.Body, maxPRStateBody))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&request); err != nil {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "invalid merge body")
-		return
-	}
-	if strings.ToLower(strings.TrimSpace(request.Method)) != "squash" {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "method must be squash")
-		return
-	}
-
-	err := s.github.MergeSquash(r.Context(), owner, repo, number, strings.TrimSpace(request.SHA))
+	err := s.github.MergeSquash(ctx, in.Owner, in.Repo, in.Number, strings.TrimSpace(in.Body.SHA))
 	// A rejected merge often means the head moved, so refresh the cached detail
 	// even when GitHub refuses the action.
-	s.invalidatePR(owner, repo, number)
+	s.invalidatePR(in.Owner, in.Repo, in.Number)
 	if err != nil {
-		s.writePRStateError(w, err)
-		return
+		return nil, s.prStateError(err)
 	}
 
-	writeJSON(w, http.StatusOK, prStateResponse{OK: true})
+	return &okOutput{Body: okResponse{OK: true}}, nil
 }
 
-// parsePRTarget validates the shared path parts, writing the error itself.
-func parsePRTarget(w http.ResponseWriter, owner, repo, rawNumber string) (int, bool) {
-	if !repoPattern.MatchString(owner + "/" + repo) {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "repo must be owner/name")
-		return 0, false
-	}
-	number, err := parseNumber(rawNumber)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "number must be a positive integer")
-		return 0, false
-	}
-	return number, true
-}
-
-// writePRStateError turns GitHub's merge and draft validation failures into a
+// prStateError turns GitHub's merge and draft validation failures into a
 // conflict, keeping the provider message so the user sees why the action failed.
-func (s *Server) writePRStateError(w http.ResponseWriter, err error) {
+func (s *Server) prStateError(err error) error {
 	var apiErr *gql.APIError
 	if errors.As(err, &apiErr) {
 		switch apiErr.Status {
 		case http.StatusMethodNotAllowed, http.StatusConflict, http.StatusUnprocessableEntity:
-			writeError(w, http.StatusConflict, codeConflict, apiErr.Message)
-			return
+			return errorf(http.StatusConflict, codeConflict, apiErr.Message)
 		}
 	}
-	s.writeProviderError(w, err)
+	return s.providerError(err)
 }

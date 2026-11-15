@@ -11,14 +11,14 @@ import (
 // rest of the line.
 type Span struct {
 	Text string `json:"text"`
-	Kind string `json:"kind,omitempty"`
+	Kind string `json:"kind,omitempty" enum:"keyword,string,number,comment,type,func,variable,tag,property,builtin" doc:"Syntax category used for coloring"`
 	Emph bool   `json:"emph,omitempty"`
 }
 
 // Line is one rendered row of a hunk. OldNumber and NewNumber are zero when the
 // line does not exist on that side.
 type Line struct {
-	Kind      string `json:"kind"`
+	Kind      string `json:"kind" enum:"context,add,del" doc:"Row kind in the unified diff"`
 	OldNumber int    `json:"oldNumber,omitempty"`
 	NewNumber int    `json:"newNumber,omitempty"`
 	Text      string `json:"text"`

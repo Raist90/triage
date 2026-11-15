@@ -2,12 +2,12 @@ package api
 
 import (
 	"net/http"
-	"net/http/httptest"
-	"strings"
 	"testing"
 )
 
-func TestHandlePRDraftRejectsInvalidPayloads(t *testing.T) {
+func TestPRDraftRejectsInvalidPayloads(t *testing.T) {
+	handler := testHandler(t)
+
 	cases := []struct {
 		name   string
 		method string
@@ -16,23 +16,22 @@ func TestHandlePRDraftRejectsInvalidPayloads(t *testing.T) {
 	}{
 		{name: "wrong method", method: http.MethodGet, body: `{"draft":true}`, status: http.StatusMethodNotAllowed},
 		{name: "empty body", method: http.MethodPost, body: ``, status: http.StatusBadRequest},
-		{name: "missing draft", method: http.MethodPost, body: `{}`, status: http.StatusBadRequest},
-		{name: "unknown field", method: http.MethodPost, body: `{"draft":true,"extra":1}`, status: http.StatusBadRequest},
+		{name: "missing draft", method: http.MethodPost, body: `{}`, status: http.StatusUnprocessableEntity},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			request := httptest.NewRequest(tc.method, "/pr/o/r/1/draft", strings.NewReader(tc.body))
-			recorder := httptest.NewRecorder()
-			(&Server{}).handlePRDraft(recorder, request, "o", "r", "1")
+			recorder := serve(handler, tc.method, "/pr/o/r/1/draft", tc.body)
 			if recorder.Code != tc.status {
-				t.Fatalf("status = %d, want %d", recorder.Code, tc.status)
+				t.Fatalf("status = %d, want %d (body %s)", recorder.Code, tc.status, recorder.Body.String())
 			}
 		})
 	}
 }
 
-func TestHandlePRMergeRejectsInvalidPayloads(t *testing.T) {
+func TestPRMergeRejectsInvalidPayloads(t *testing.T) {
+	handler := testHandler(t)
+
 	cases := []struct {
 		name   string
 		method string
@@ -41,78 +40,68 @@ func TestHandlePRMergeRejectsInvalidPayloads(t *testing.T) {
 	}{
 		{name: "wrong method", method: http.MethodGet, body: `{"method":"squash"}`, status: http.StatusMethodNotAllowed},
 		{name: "empty body", method: http.MethodPost, body: ``, status: http.StatusBadRequest},
-		{name: "unsupported method", method: http.MethodPost, body: `{"method":"merge"}`, status: http.StatusBadRequest},
-		{name: "missing method", method: http.MethodPost, body: `{"sha":"abc"}`, status: http.StatusBadRequest},
-		{name: "unknown field", method: http.MethodPost, body: `{"method":"squash","extra":1}`, status: http.StatusBadRequest},
+		{name: "unsupported method", method: http.MethodPost, body: `{"method":"merge","sha":"abc"}`, status: http.StatusBadRequest},
+		{name: "missing method", method: http.MethodPost, body: `{"sha":"abc"}`, status: http.StatusUnprocessableEntity},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			request := httptest.NewRequest(tc.method, "/pr/o/r/1/merge", strings.NewReader(tc.body))
-			recorder := httptest.NewRecorder()
-			(&Server{}).handlePRMerge(recorder, request, "o", "r", "1")
+			recorder := serve(handler, tc.method, "/pr/o/r/1/merge", tc.body)
 			if recorder.Code != tc.status {
-				t.Fatalf("status = %d, want %d", recorder.Code, tc.status)
+				t.Fatalf("status = %d, want %d (body %s)", recorder.Code, tc.status, recorder.Body.String())
 			}
 		})
 	}
 }
 
-func TestHandlePRCloseRejectsInvalidRequests(t *testing.T) {
+func TestPRCloseRejectsInvalidRequests(t *testing.T) {
+	handler := testHandler(t)
+
 	cases := []struct {
 		name   string
 		method string
-		status int
 	}{
-		{name: "wrong method", method: http.MethodGet, status: http.StatusMethodNotAllowed},
-		{name: "delete method", method: http.MethodDelete, status: http.StatusMethodNotAllowed},
+		{name: "wrong method", method: http.MethodGet},
+		{name: "delete method", method: http.MethodDelete},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			request := httptest.NewRequest(tc.method, "/pr/o/r/1/close", nil)
-			recorder := httptest.NewRecorder()
-			(&Server{}).handlePRClose(recorder, request, "o", "r", "1")
-			if recorder.Code != tc.status {
-				t.Fatalf("status = %d, want %d", recorder.Code, tc.status)
+			recorder := serve(handler, tc.method, "/pr/o/r/1/close", "")
+			if recorder.Code != http.StatusMethodNotAllowed {
+				t.Fatalf("status = %d, want %d (body %s)", recorder.Code, http.StatusMethodNotAllowed, recorder.Body.String())
 			}
 		})
 	}
 }
 
-func TestHandlePRStateRejectsBadRepoOrNumber(t *testing.T) {
+func TestPRStateRejectsBadRepoOrNumber(t *testing.T) {
+	handler := testHandler(t)
+
 	cases := []struct {
 		name   string
-		owner  string
-		repo   string
-		number string
+		target string
+		status int
 	}{
-		{name: "bad repo", owner: "bad", repo: "", number: "1"},
-		{name: "bad number", owner: "o", repo: "r", number: "nope"},
-		{name: "zero number", owner: "o", repo: "r", number: "0"},
+		{name: "bad repo", target: "/pr/o%20x/r/1", status: http.StatusUnprocessableEntity},
+		{name: "bad number", target: "/pr/o/r/nope", status: http.StatusUnprocessableEntity},
+		{name: "zero number", target: "/pr/o/r/0", status: http.StatusUnprocessableEntity},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			draftRequest := httptest.NewRequest(http.MethodPost, "/pr/o/r/1/draft", strings.NewReader(`{"draft":true}`))
-			draftRecorder := httptest.NewRecorder()
-			(&Server{}).handlePRDraft(draftRecorder, draftRequest, tc.owner, tc.repo, tc.number)
-			if draftRecorder.Code != http.StatusBadRequest {
-				t.Fatalf("draft status = %d, want 400", draftRecorder.Code)
-			}
-
-			mergeRequest := httptest.NewRequest(http.MethodPost, "/pr/o/r/1/merge", strings.NewReader(`{"method":"squash"}`))
-			mergeRecorder := httptest.NewRecorder()
-			(&Server{}).handlePRMerge(mergeRecorder, mergeRequest, tc.owner, tc.repo, tc.number)
-			if mergeRecorder.Code != http.StatusBadRequest {
-				t.Fatalf("merge status = %d, want 400", mergeRecorder.Code)
-			}
-
-			closeRequest := httptest.NewRequest(http.MethodPost, "/pr/o/r/1/close", nil)
-			closeRecorder := httptest.NewRecorder()
-			(&Server{}).handlePRClose(closeRecorder, closeRequest, tc.owner, tc.repo, tc.number)
-			if closeRecorder.Code != http.StatusBadRequest {
-				t.Fatalf("close status = %d, want 400", closeRecorder.Code)
+			for _, route := range []struct {
+				path string
+				body string
+			}{
+				{path: "/draft", body: `{"draft":true}`},
+				{path: "/merge", body: `{"method":"squash"}`},
+				{path: "/close", body: ""},
+			} {
+				recorder := serve(handler, http.MethodPost, tc.target+route.path, route.body)
+				if recorder.Code != tc.status {
+					t.Fatalf("%s status = %d, want %d (body %s)", route.path, recorder.Code, tc.status, recorder.Body.String())
+				}
 			}
 		})
 	}

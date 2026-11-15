@@ -4,12 +4,12 @@ import (
 	"math"
 )
 
-// Review is the deterministic focus score for one file. It is a ranking hint,
+// FileReview is the deterministic focus score for one file. It is a ranking hint,
 // not a verdict: the signals explain why the file rose to the top, and the score
 // keeps the sidebar stable across renders.
-type Review struct {
+type FileReview struct {
 	Score   int           `json:"score"`
-	Band    string        `json:"band"`
+	Band    string        `json:"band" enum:"high,medium,low" doc:"Focus band derived from the score"`
 	Changes ChangeCounts  `json:"changes"`
 	Signals ReviewSignals `json:"signals"`
 }
@@ -98,8 +98,8 @@ func Prioritize(files []File) {
 	}
 }
 
-func reviewFile(file File, index int, touchedBy map[string]map[int]struct{}) *Review {
-	review := &Review{Band: bandLow}
+func reviewFile(file File, index int, touchedBy map[string]map[int]struct{}) *FileReview {
+	review := &FileReview{Band: bandLow}
 	points := 0.0
 	cosmetic := 0
 
@@ -207,7 +207,7 @@ func isRewrite(change SemanticChange) bool {
 // renameRipples counts other changed files that mention the old entity name.
 // A rename that only touches one file is local churn; one that ripples across
 // files is where review attention pays off.
-func renameRipples(change SemanticChange, index int, touchedBy map[string]map[int]struct{}, review *Review) int {
+func renameRipples(change SemanticChange, index int, touchedBy map[string]map[int]struct{}, review *FileReview) int {
 	name := change.OldEntityName
 	if name == "" && (change.ChangeType == "renamed" || change.ChangeType == "moved") {
 		name = change.EntityName

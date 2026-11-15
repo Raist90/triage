@@ -1,9 +1,8 @@
 package api
 
 import (
-	"encoding/json"
+	"context"
 	"errors"
-	"io"
 	"net/http"
 	"strings"
 
@@ -15,63 +14,36 @@ import (
 // maxReviewBody caps one review comment; GitHub's limit is 65536 characters.
 const maxReviewBody = 64 << 10
 
-// handleReview serves POST /pr/{owner}/{repo}/{number}/review.
-func (s *Server) handleReview(w http.ResponseWriter, r *http.Request, owner, repo, rawNumber string) {
-	if r.Method != http.MethodPost {
-		writeError(w, http.StatusMethodNotAllowed, codeMethodNotAllowed, "only POST is allowed")
-		return
-	}
-	if !repoPattern.MatchString(owner + "/" + repo) {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "repo must be owner/name")
-		return
-	}
-	number, err := parseNumber(rawNumber)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "number must be a positive integer")
-		return
-	}
-
-	var request reviewRequest
-	decoder := json.NewDecoder(io.LimitReader(r.Body, maxReviewBody))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&request); err != nil {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "invalid review body")
-		return
-	}
-
-	event := strings.ToUpper(strings.TrimSpace(request.Event))
+// submitReview serves POST /pr/{owner}/{repo}/{number}/review.
+func (s *Server) submitReview(ctx context.Context, in *reviewInput) (*okOutput, error) {
+	event := strings.ToUpper(strings.TrimSpace(in.Body.Event))
 	if !github.ValidateReviewEvent(event) {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "event must be APPROVE, REQUEST_CHANGES or COMMENT")
-		return
+		return nil, errorf(http.StatusBadRequest, codeBadRequest, "event must be APPROVE, REQUEST_CHANGES or COMMENT")
 	}
-	body := strings.TrimSpace(request.Body)
+	body := strings.TrimSpace(in.Body.Body)
 	if len(body) > maxReviewBody {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "review comment is too long")
-		return
+		return nil, errorf(http.StatusBadRequest, codeBadRequest, "review comment is too long")
 	}
 	if body == "" && event != github.ReviewApprove {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "a comment is required to request changes or comment")
-		return
+		return nil, errorf(http.StatusBadRequest, codeBadRequest, "a comment is required to request changes or comment")
 	}
 
-	if err := s.github.SubmitReview(r.Context(), owner, repo, number, event, body); err != nil {
-		s.writeReviewError(w, err)
-		return
+	if err := s.github.SubmitReview(ctx, in.Owner, in.Repo, in.Number, event, body); err != nil {
+		return nil, s.reviewError(err)
 	}
 
-	s.invalidatePR(owner, repo, number)
-	writeJSON(w, http.StatusOK, reviewResponse{OK: true})
+	s.invalidatePR(in.Owner, in.Repo, in.Number)
+	return &okOutput{Body: okResponse{OK: true}}, nil
 }
 
-// writeReviewError maps GitHub's validation failures (e.g. approving your own
-// PR) to 400 instead of a misleading 502.
-func (s *Server) writeReviewError(w http.ResponseWriter, err error) {
+// reviewError maps GitHub's validation failures (e.g. approving your own PR) to
+// 400 instead of a misleading 502.
+func (s *Server) reviewError(err error) error {
 	var apiErr *gql.APIError
 	if errors.As(err, &apiErr) && apiErr.Status == http.StatusUnprocessableEntity {
-		writeError(w, http.StatusBadRequest, codeBadRequest, apiErr.Message)
-		return
+		return errorf(http.StatusBadRequest, codeBadRequest, apiErr.Message)
 	}
-	s.writeProviderError(w, err)
+	return s.providerError(err)
 }
 
 // invalidatePR drops the cached detail and every list tab that could show this

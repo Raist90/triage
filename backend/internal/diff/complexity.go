@@ -14,7 +14,7 @@ const (
 // once a file holds a few entities and would dominate every PR.
 type Complexity struct {
 	Score       int    `json:"score"`
-	Band        string `json:"band"`
+	Band        string `json:"band" enum:"high,medium,low" doc:"Review effort band derived from the score"`
 	SourceFiles int    `json:"sourceFiles"`
 	Changes     int    `json:"changes"`
 	Deletes     int    `json:"deletes"`

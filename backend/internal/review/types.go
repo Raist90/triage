@@ -63,8 +63,8 @@ type Verdict struct {
 // fix.
 type Finding struct {
 	ID             string     `json:"id"`
-	Severity       Severity   `json:"severity"`
-	Category       Category   `json:"category"`
+	Severity       Severity   `json:"severity" enum:"blocking,warning,nitpick,praise" doc:"How serious the finding is"`
+	Category       Category   `json:"category" enum:"risk,design,architecture,conventions,tests" doc:"What kind of problem it is"`
 	Title          string     `json:"title"`
 	Claim          string     `json:"claim"`
 	Suggestion     string     `json:"suggestion,omitempty"`
@@ -85,7 +85,7 @@ type Finding struct {
 // without rerunning the review.
 type DroppedFinding struct {
 	Title          string   `json:"title"`
-	Severity       Severity `json:"severity"`
+	Severity       Severity `json:"severity" enum:"blocking,warning,nitpick,praise"`
 	File           string   `json:"file"`
 	Line           int      `json:"line,omitempty"`
 	Evidence       string   `json:"evidence,omitempty"`
