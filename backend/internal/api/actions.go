@@ -82,53 +82,39 @@ func (s *Server) findAction(actionID string) (config.Action, bool) {
 	return config.Action{}, false
 }
 
-// handleAction serves POST/GET /pr/{owner}/{repo}/{n}/actions/{actionID}.
-func (s *Server) handleAction(w http.ResponseWriter, r *http.Request, owner, repo, rawNumber, actionID string) {
-	switch r.Method {
-	case http.MethodPost:
-		s.handleActionRun(w, r, owner, repo, rawNumber, actionID)
-	case http.MethodGet:
-		s.handleActionStatus(w, r, owner, repo, rawNumber, actionID)
-	default:
-		writeError(w, http.StatusMethodNotAllowed, codeMethodNotAllowed, "only GET and POST are allowed")
-	}
-}
-
-func (s *Server) handleActionRun(w http.ResponseWriter, r *http.Request, owner, repo, rawNumber, actionID string) {
-	number, action, tracked, ok := s.resolveAction(w, owner, repo, rawNumber, actionID)
-	if !ok {
-		return
+// runAction serves POST /pr/{owner}/{repo}/{n}/actions/{actionID}. It returns
+// the current artifact when there is one, otherwise 202 with the started job.
+func (s *Server) runAction(ctx context.Context, in *actionInput) (*actionRunOutput, error) {
+	action, tracked, err := s.resolveAction(in)
+	if err != nil {
+		return nil, err
 	}
 
 	// A run is user-initiated: bypass the TTLs so the artifact is keyed by the
 	// real head SHA and the diff matches it.
-	pr, err := s.prMetadata(r, owner, repo, number, true)
+	pr, err := s.prMetadata(ctx, in.Owner, in.Repo, in.Number, true)
 	if err != nil {
-		s.writeProviderError(w, err)
-		return
+		return nil, s.providerError(err)
 	}
 	if pr.HeadSHA == "" {
-		s.writeActionError(w, actions.ErrNoHead)
-		return
+		return nil, s.actionError(actions.ErrNoHead)
 	}
 
 	// Second click with a current artifact: no fetch, no spawn.
-	if artifact, found := s.artifacts.Get(owner, repo, number, pr.HeadSHA, action.ID); found &&
+	if artifact, found := s.artifacts.Get(in.Owner, in.Repo, in.Number, pr.HeadSHA, action.ID); found &&
 		artifact.Model == action.Model && artifact.PromptVersion == actions.PromptVersionFor(action) {
-		writeJSON(w, http.StatusOK, actionResponse{Artifact: artifact})
-		return
+		return &actionRunOutput{Status: http.StatusOK, Body: actionResponse{Artifact: artifact}}, nil
 	}
 
-	unified, err := s.loadDiff(r.Context(), owner, repo, number, true)
+	unified, err := s.loadDiff(ctx, in.Owner, in.Repo, in.Number, true)
 	if err != nil {
-		s.writeProviderError(w, err)
-		return
+		return nil, s.providerError(err)
 	}
 
 	request := actions.Request{
 		Owner:         tracked.Owner,
 		Name:          tracked.Name,
-		Number:        number,
+		Number:        in.Number,
 		ActionID:      action.ID,
 		SHA:           pr.HeadSHA,
 		BaseBranch:    pr.BaseBranch,
@@ -140,12 +126,12 @@ func (s *Server) handleActionRun(w http.ResponseWriter, r *http.Request, owner, 
 	if action.Kind == actions.KindReview {
 		request.Kind = action.Kind
 		request.Prepare = func(ctx context.Context) (actions.Prepared, error) {
-			return s.prepareReview(ctx, tracked, number, pr, unified)
+			return s.prepareReview(ctx, tracked, in.Number, pr, unified)
 		}
 		if s.worktrees != nil {
 			request.Cleanup = func(ctx context.Context) {
-				if err := s.worktrees.Remove(ctx, tracked, number); err != nil {
-					s.logger.Warn("worktree cleanup failed", "repo", tracked.Owner+"/"+tracked.Name, "number", number, "err", err)
+				if err := s.worktrees.Remove(ctx, tracked, in.Number); err != nil {
+					s.logger.Warn("worktree cleanup failed", "repo", tracked.Owner+"/"+tracked.Name, "number", in.Number, "err", err)
 				}
 			}
 		}
@@ -153,26 +139,25 @@ func (s *Server) handleActionRun(w http.ResponseWriter, r *http.Request, owner, 
 
 	result, err := s.runner.Start(request)
 	if err != nil {
-		s.writeActionError(w, err)
-		return
+		return nil, s.actionError(err)
 	}
 
 	response := actionResponse{Job: &result.Job}
 	if result.Artifact != nil {
 		response.Artifact = result.Artifact
-		writeJSON(w, http.StatusOK, response)
-		return
+		return &actionRunOutput{Status: http.StatusOK, Body: response}, nil
 	}
-	writeJSON(w, http.StatusAccepted, response)
+	return &actionRunOutput{Status: http.StatusAccepted, Body: response}, nil
 }
 
-func (s *Server) handleActionStatus(w http.ResponseWriter, r *http.Request, owner, repo, rawNumber, actionID string) {
-	number, action, tracked, ok := s.resolveAction(w, owner, repo, rawNumber, actionID)
-	if !ok {
-		return
+// getAction serves GET /pr/{owner}/{repo}/{n}/actions/{actionID}.
+func (s *Server) getAction(ctx context.Context, in *actionInput) (*actionOutput, error) {
+	action, tracked, err := s.resolveAction(in)
+	if err != nil {
+		return nil, err
 	}
 
-	key := actions.JobKey(tracked.Owner, tracked.Name, number, action.ID)
+	key := actions.JobKey(tracked.Owner, tracked.Name, in.Number, action.ID)
 	response := actionResponse{}
 	if job, found := s.runner.Status(key); found {
 		response.Job = &job
@@ -181,7 +166,7 @@ func (s *Server) handleActionStatus(w http.ResponseWriter, r *http.Request, owne
 	// The PR's current head is authoritative for staleness. Fall back to the
 	// job SHA when GitHub metadata is unavailable.
 	sha := ""
-	if pr, err := s.prMetadata(r, owner, repo, number, false); err == nil {
+	if pr, err := s.prMetadata(ctx, in.Owner, in.Repo, in.Number, false); err == nil {
 		sha = pr.HeadSHA
 	}
 	if sha == "" && response.Job != nil {
@@ -195,56 +180,66 @@ func (s *Server) handleActionStatus(w http.ResponseWriter, r *http.Request, owne
 		}
 	}
 	if response.Artifact == nil && sha != "" {
-		if artifact, found := s.artifacts.Get(tracked.Owner, tracked.Name, number, sha, action.ID); found {
+		if artifact, found := s.artifacts.Get(tracked.Owner, tracked.Name, in.Number, sha, action.ID); found {
 			response.Artifact = artifact
 		}
 	}
 	if response.Artifact == nil {
-		if artifact, found := s.artifacts.Latest(tracked.Owner, tracked.Name, number, action.ID); found {
+		if artifact, found := s.artifacts.Latest(tracked.Owner, tracked.Name, in.Number, action.ID); found {
 			response.Artifact = artifact
 			response.Stale = artifact.SHA != sha
 		}
 	}
 
 	if response.Job == nil && response.Artifact == nil {
-		writeError(w, http.StatusNotFound, codeNotFound, "action has not run")
-		return
+		return nil, errorf(http.StatusNotFound, codeNotFound, "action has not run")
 	}
-	writeJSON(w, http.StatusOK, response)
+	return &actionOutput{Body: response}, nil
 }
 
-func (s *Server) handleActionCancel(w http.ResponseWriter, r *http.Request, owner, repo, rawNumber, actionID string) {
-	if r.Method != http.MethodPost {
-		writeError(w, http.StatusMethodNotAllowed, codeMethodNotAllowed, "only POST is allowed")
-		return
+// cancelAction serves POST .../actions/{actionID}/cancel.
+func (s *Server) cancelAction(_ context.Context, in *actionInput) (*actionOutput, error) {
+	action, tracked, err := s.resolveAction(in)
+	if err != nil {
+		return nil, err
 	}
-	number, action, tracked, ok := s.resolveAction(w, owner, repo, rawNumber, actionID)
-	if !ok {
-		return
-	}
-	key := actions.JobKey(tracked.Owner, tracked.Name, number, action.ID)
+	key := actions.JobKey(tracked.Owner, tracked.Name, in.Number, action.ID)
 	s.runner.Cancel(key)
 	job, found := s.runner.Status(key)
 	if !found {
-		writeError(w, http.StatusNotFound, codeNotFound, "action has not run")
-		return
+		return nil, errorf(http.StatusNotFound, codeNotFound, "action has not run")
 	}
-	writeJSON(w, http.StatusOK, actionResponse{Job: &job})
+	return &actionOutput{Body: actionResponse{Job: &job}}, nil
 }
 
 // handleActionStream serves GET .../actions/{actionID}/stream as SSE. The
 // response is JSON lines prefixed with `data: `, one event per blank line.
-func (s *Server) handleActionStream(w http.ResponseWriter, r *http.Request, owner, repo, rawNumber, actionID string) {
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, codeMethodNotAllowed, "only GET is allowed")
+func (s *Server) handleActionStream(w http.ResponseWriter, r *http.Request) {
+	owner, repo := r.PathValue("owner"), r.PathValue("repo")
+	if !repoSegmentPattern.MatchString(owner) || !repoSegmentPattern.MatchString(repo) {
+		writeError(w, http.StatusBadRequest, codeBadRequest, "repo must be owner/name")
 		return
 	}
-	number, action, tracked, ok := s.resolveAction(w, owner, repo, rawNumber, actionID)
+	number, ok := parseNumber(r.PathValue("number"))
 	if !ok {
+		writeError(w, http.StatusBadRequest, codeBadRequest, "number must be a positive integer")
+		return
+	}
+	in := &actionInput{
+		PRPath: PRPath{
+			RepoPath: RepoPath{Owner: owner, Repo: repo},
+			Number:   number,
+		},
+		ActionID: r.PathValue("actionID"),
+	}
+
+	action, tracked, err := s.resolveAction(in)
+	if err != nil {
+		s.writeActionStreamError(w, err)
 		return
 	}
 
-	key := actions.JobKey(tracked.Owner, tracked.Name, number, action.ID)
+	key := actions.JobKey(tracked.Owner, tracked.Name, in.Number, action.ID)
 	events, done, unsubscribe, found := s.runner.Subscribe(key)
 	if !found {
 		writeError(w, http.StatusNotFound, codeNotFound, "action is not running")
@@ -330,40 +325,27 @@ func eventPayload(event actions.Event) string {
 	return string(data)
 }
 
-// resolveAction validates the route and returns the action plus the tracked
-// repo. It writes the error envelope itself when it returns false.
-func (s *Server) resolveAction(w http.ResponseWriter, owner, repo, rawNumber, actionID string) (int, config.Action, config.Repo, bool) {
-	if !repoPattern.MatchString(owner + "/" + repo) {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "repo must be owner/name")
-		return 0, config.Action{}, config.Repo{}, false
-	}
-	number, err := parseNumber(rawNumber)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "number must be a positive integer")
-		return 0, config.Action{}, config.Repo{}, false
-	}
-	if !actions.ValidActionID(actionID) {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "invalid action")
-		return 0, config.Action{}, config.Repo{}, false
+// resolveAction validates the action id and returns the action plus the tracked
+// repo.
+func (s *Server) resolveAction(in *actionInput) (config.Action, config.Repo, error) {
+	if !actions.ValidActionID(in.ActionID) {
+		return config.Action{}, config.Repo{}, errorf(http.StatusBadRequest, codeBadRequest, "invalid action")
 	}
 	if s.runner == nil || !s.runner.Available() {
-		writeError(w, http.StatusServiceUnavailable, actions.CodeClaudeUnavailable, "Claude Code CLI not found")
-		return 0, config.Action{}, config.Repo{}, false
+		return config.Action{}, config.Repo{}, errorf(http.StatusServiceUnavailable, actions.CodeClaudeUnavailable, "Claude Code CLI not found")
 	}
-	action, ok := s.findAction(actionID)
+	action, ok := s.findAction(in.ActionID)
 	if !ok {
-		writeError(w, http.StatusNotFound, codeNotFound, "unknown action")
-		return 0, config.Action{}, config.Repo{}, false
+		return config.Action{}, config.Repo{}, errorf(http.StatusNotFound, codeNotFound, "unknown action")
 	}
-	tracked, ok := s.findRepo(owner, repo)
+	tracked, ok := s.findRepo(in.Owner, in.Repo)
 	if !ok {
-		writeError(w, http.StatusBadRequest, actions.CodeRepoNotConfigured, "repository is not tracked")
-		return 0, config.Action{}, config.Repo{}, false
+		return config.Action{}, config.Repo{}, errorf(http.StatusBadRequest, actions.CodeRepoNotConfigured, "repository is not tracked")
 	}
-	return number, action, tracked, true
+	return action, tracked, nil
 }
 
-func (s *Server) writeActionError(w http.ResponseWriter, err error) {
+func (s *Server) actionError(err error) error {
 	code, message := actions.CodeOf(err)
 	status := http.StatusInternalServerError
 	switch code {
@@ -381,16 +363,26 @@ func (s *Server) writeActionError(w http.ResponseWriter, err error) {
 	if status >= 500 {
 		s.logger.Error("action request failed", "code", code, "message", message)
 	}
-	writeError(w, status, code, message)
+	return errorf(status, code, message)
+}
+
+// writeActionStreamError writes an envelope error for the hand-written SSE
+// route, which has no Huma context to return an error to.
+func (s *Server) writeActionStreamError(w http.ResponseWriter, err error) {
+	if apiErr, ok := err.(*apiError); ok {
+		writeError(w, apiErr.GetStatus(), apiErr.ErrorEnvelope.Error.Code, apiErr.Error())
+		return
+	}
+	writeError(w, http.StatusInternalServerError, codeInternal, "The stream request failed")
 }
 
 // prMetadata reads PR detail through the same cache as the detail route.
-func (s *Server) prMetadata(r *http.Request, owner, repo string, number int, refresh bool) (github.PR, error) {
+func (s *Server) prMetadata(ctx context.Context, owner, repo string, number int, refresh bool) (github.PR, error) {
 	vars := prVars{Owner: owner, Repo: repo, Number: number}
 
 	var pr github.PR
 	err := s.loadCached(prDetailRoute, vars, s.cfg.Cache.GraphQL, refresh, &pr, func() error {
-		fetched, err := s.github.GetPR(r.Context(), owner, repo, number)
+		fetched, err := s.github.GetPR(ctx, owner, repo, number)
 		if err != nil {
 			return err
 		}
@@ -398,6 +390,24 @@ func (s *Server) prMetadata(r *http.Request, owner, repo string, number int, ref
 		return nil
 	})
 	return pr, err
+}
+
+// parseNumber validates the number path segment for the hand-written SSE route.
+func parseNumber(raw string) (int, bool) {
+	number := 0
+	for _, r := range raw {
+		if r < '0' || r > '9' {
+			return 0, false
+		}
+		number = number*10 + int(r-'0')
+		if number > 1<<30 {
+			return 0, false
+		}
+	}
+	if number <= 0 {
+		return 0, false
+	}
+	return number, true
 }
 
 func equalFold(a, b string) bool {

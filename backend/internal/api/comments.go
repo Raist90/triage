@@ -1,10 +1,8 @@
 package api
 
 import (
-	"encoding/json"
-	"io"
+	"context"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/Raist90/triage/backend/internal/cache"
@@ -13,34 +11,13 @@ import (
 
 const maxCommentPath = 4096
 
-// handleComments serves GET and POST /pr/{owner}/{repo}/{number}/comments.
-func (s *Server) handleComments(w http.ResponseWriter, r *http.Request, owner, repo, rawNumber string) {
-	if !repoPattern.MatchString(owner + "/" + repo) {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "repo must be owner/name")
-		return
-	}
-	number, err := parseNumber(rawNumber)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "number must be a positive integer")
-		return
-	}
-
-	switch r.Method {
-	case http.MethodGet:
-		s.handleCommentsList(w, r, owner, repo, number)
-	case http.MethodPost:
-		s.handleCommentCreate(w, r, owner, repo, number)
-	default:
-		writeError(w, http.StatusMethodNotAllowed, codeMethodNotAllowed, "only GET and POST are allowed")
-	}
-}
-
-func (s *Server) handleCommentsList(w http.ResponseWriter, r *http.Request, owner, repo string, number int) {
-	vars := prVars{Owner: owner, Repo: repo, Number: number}
+// listComments serves GET /pr/{owner}/{repo}/{number}/comments.
+func (s *Server) listComments(ctx context.Context, in *commentsInput) (*commentsOutput, error) {
+	vars := prVars{Owner: in.Owner, Repo: in.Repo, Number: in.Number}
 
 	var result commentsResponse
-	err := s.loadCached("pr-comments", vars, s.cfg.Cache.REST, isRefresh(r), &result, func() error {
-		comments, err := s.github.ListReviewComments(r.Context(), owner, repo, number)
+	err := s.loadCached("pr-comments", vars, s.cfg.Cache.REST, in.Refresh, &result, func() error {
+		comments, err := s.github.ListReviewComments(ctx, in.Owner, in.Repo, in.Number)
 		if err != nil {
 			return err
 		}
@@ -48,99 +25,64 @@ func (s *Server) handleCommentsList(w http.ResponseWriter, r *http.Request, owne
 		return nil
 	})
 	if err != nil {
-		s.writeProviderError(w, err)
-		return
+		return nil, s.providerError(err)
 	}
 	if result.Comments == nil {
 		result.Comments = []github.InlineComment{}
 	}
-	writeJSON(w, http.StatusOK, result)
+	return &commentsOutput{Body: result}, nil
 }
 
-func (s *Server) handleCommentCreate(w http.ResponseWriter, r *http.Request, owner, repo string, number int) {
-	var request commentRequest
-	decoder := json.NewDecoder(io.LimitReader(r.Body, maxReviewBody))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&request); err != nil {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "invalid comment body")
-		return
-	}
-
-	body := strings.TrimSpace(request.Body)
+// createComment serves POST /pr/{owner}/{repo}/{number}/comments.
+func (s *Server) createComment(ctx context.Context, in *commentInput) (*okOutput, error) {
+	body := strings.TrimSpace(in.Body.Body)
 	if body == "" {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "a comment is required")
-		return
+		return nil, errorf(http.StatusBadRequest, codeBadRequest, "a comment is required")
 	}
 	if len(body) > maxReviewBody {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "comment is too long")
-		return
+		return nil, errorf(http.StatusBadRequest, codeBadRequest, "comment is too long")
 	}
-	path := strings.TrimSpace(request.Path)
+	path := strings.TrimSpace(in.Body.Path)
 	if path == "" || len(path) > maxCommentPath {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "path is required")
-		return
+		return nil, errorf(http.StatusBadRequest, codeBadRequest, "path is required")
 	}
-	if request.Line <= 0 {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "line must be a positive integer")
-		return
+	if in.Body.Line <= 0 {
+		return nil, errorf(http.StatusBadRequest, codeBadRequest, "line must be a positive integer")
 	}
-	side := strings.ToUpper(strings.TrimSpace(request.Side))
+	side := strings.ToUpper(strings.TrimSpace(in.Body.Side))
 	if side != github.CommentSideRight && side != github.CommentSideLeft {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "side must be RIGHT or LEFT")
-		return
+		return nil, errorf(http.StatusBadRequest, codeBadRequest, "side must be RIGHT or LEFT")
 	}
-	commitID := strings.TrimSpace(request.CommitID)
+	commitID := strings.TrimSpace(in.Body.CommitID)
 	if commitID == "" {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "commitId is required")
-		return
+		return nil, errorf(http.StatusBadRequest, codeBadRequest, "commitId is required")
 	}
 
-	err := s.github.CreateReviewComment(r.Context(), owner, repo, number, github.NewInlineComment{
+	err := s.github.CreateReviewComment(ctx, in.Owner, in.Repo, in.Number, github.NewInlineComment{
 		Body:     body,
 		Path:     path,
-		Line:     request.Line,
+		Line:     in.Body.Line,
 		Side:     side,
 		CommitID: commitID,
 	})
 	if err != nil {
-		s.writeReviewError(w, err)
-		return
+		return nil, s.reviewError(err)
 	}
 
-	s.invalidateComments(owner, repo, number)
-	s.invalidatePR(owner, repo, number)
-	writeJSON(w, http.StatusOK, commentResponse{OK: true})
+	s.invalidateComments(in.Owner, in.Repo, in.Number)
+	s.invalidatePR(in.Owner, in.Repo, in.Number)
+	return &okOutput{Body: okResponse{OK: true}}, nil
 }
 
-// handleCommentDelete serves DELETE /pr/{owner}/{repo}/{number}/comments/{id}.
-func (s *Server) handleCommentDelete(w http.ResponseWriter, r *http.Request, owner, repo, rawNumber, rawID string) {
-	if r.Method != http.MethodDelete {
-		writeError(w, http.StatusMethodNotAllowed, codeMethodNotAllowed, "only DELETE is allowed")
-		return
-	}
-	if !repoPattern.MatchString(owner + "/" + repo) {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "repo must be owner/name")
-		return
-	}
-	number, err := parseNumber(rawNumber)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "number must be a positive integer")
-		return
-	}
-	commentID, err := strconv.ParseInt(rawID, 10, 64)
-	if err != nil || commentID <= 0 {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "comment id must be a positive integer")
-		return
+// deleteComment serves DELETE /pr/{owner}/{repo}/{number}/comments/{commentID}.
+func (s *Server) deleteComment(ctx context.Context, in *deleteCommentInput) (*okOutput, error) {
+	if err := s.github.DeleteReviewComment(ctx, in.Owner, in.Repo, in.CommentID); err != nil {
+		return nil, s.reviewError(err)
 	}
 
-	if err := s.github.DeleteReviewComment(r.Context(), owner, repo, commentID); err != nil {
-		s.writeReviewError(w, err)
-		return
-	}
-
-	s.invalidateComments(owner, repo, number)
-	s.invalidatePR(owner, repo, number)
-	writeJSON(w, http.StatusOK, commentResponse{OK: true})
+	s.invalidateComments(in.Owner, in.Repo, in.Number)
+	s.invalidatePR(in.Owner, in.Repo, in.Number)
+	return &okOutput{Body: okResponse{OK: true}}, nil
 }
 
 // invalidateComments drops the cached inline-comment list for one PR.

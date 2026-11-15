@@ -5,9 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"regexp"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/Raist90/triage/backend/internal/cache"
@@ -15,10 +12,6 @@ import (
 	"github.com/Raist90/triage/backend/internal/github"
 	"github.com/Raist90/triage/backend/internal/gql"
 )
-
-// repoPattern keeps path and query values to characters GitHub allows in an
-// owner/name pair.
-var repoPattern = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
 
 // prVars is the cache-key shape shared by every per-PR route. Field names are
 // part of the key, so they must never change without bumping the route.
@@ -39,39 +32,26 @@ type listVars struct {
 	Repos []string `json:"repos"`
 }
 
-// handlePRs serves GET /prs?tab=mine&repo=owner/name&refresh=1.
-func (s *Server) handlePRs(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, codeMethodNotAllowed, "only GET is allowed")
-		return
-	}
-
-	tab := r.URL.Query().Get("tab")
-	if !github.ValidateTab(tab) {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "tab must be one of mine, review, all")
-		return
-	}
-
-	repo := r.URL.Query().Get("repo")
-	if repo != "" && !repoPattern.MatchString(repo) {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "repo must be owner/name")
-		return
+// getPRs serves GET /prs?tab=mine&repo=owner/name&refresh=1.
+func (s *Server) getPRs(ctx context.Context, in *prListInput) (*prListOutput, error) {
+	if !github.ValidateTab(in.Tab) {
+		return nil, errorf(http.StatusBadRequest, codeBadRequest, "tab must be one of mine, review, all")
 	}
 
 	repos := make([]string, 0, len(s.cfg.Repos))
-	if repo != "" {
-		repos = append(repos, repo)
+	if in.Repo != "" {
+		repos = append(repos, in.Repo)
 	} else {
 		for _, tracked := range s.cfg.Repos {
 			repos = append(repos, tracked.Owner+"/"+tracked.Name)
 		}
 	}
 
-	vars := listVars{Tab: tab, Repo: repo, Repos: repos}
+	vars := listVars{Tab: in.Tab, Repo: in.Repo, Repos: repos}
 
 	var result github.ListResult
-	err := s.loadCached("prs", vars, s.cfg.Cache.GraphQL, isRefresh(r), &result, func() error {
-		fetched, err := s.github.ListPRs(r.Context(), tab, repo, repos)
+	err := s.loadCached("prs", vars, s.cfg.Cache.GraphQL, in.Refresh, &result, func() error {
+		fetched, err := s.github.ListPRs(ctx, in.Tab, in.Repo, repos)
 		if err != nil {
 			return err
 		}
@@ -79,71 +59,19 @@ func (s *Server) handlePRs(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 	if err != nil {
-		s.writeProviderError(w, err)
-		return
+		return nil, s.providerError(err)
 	}
-	writeJSON(w, http.StatusOK, result)
+	return &prListOutput{Body: result}, nil
 }
 
-// handlePR serves /pr/{owner}/{repo}/{number} plus its /diff, /review,
-// /comments and /actions/{id}[/stream|/cancel] routes.
-func (s *Server) handlePR(w http.ResponseWriter, r *http.Request) {
-	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/pr/"), "/")
-	switch {
-	case len(parts) == 3:
-		if r.Method != http.MethodGet {
-			writeError(w, http.StatusMethodNotAllowed, codeMethodNotAllowed, "only GET is allowed")
-			return
-		}
-		s.handlePRDetail(w, r, parts[0], parts[1], parts[2])
-	case len(parts) == 4 && parts[3] == "review":
-		s.handleReview(w, r, parts[0], parts[1], parts[2])
-	case len(parts) == 4 && parts[3] == "comments":
-		s.handleComments(w, r, parts[0], parts[1], parts[2])
-	case len(parts) == 4 && parts[3] == "draft":
-		s.handlePRDraft(w, r, parts[0], parts[1], parts[2])
-	case len(parts) == 4 && parts[3] == "merge":
-		s.handlePRMerge(w, r, parts[0], parts[1], parts[2])
-	case len(parts) == 4 && parts[3] == "close":
-		s.handlePRClose(w, r, parts[0], parts[1], parts[2])
-	case len(parts) == 5 && parts[3] == "comments":
-		s.handleCommentDelete(w, r, parts[0], parts[1], parts[2], parts[4])
-	case len(parts) == 4 && parts[3] == "diff":
-		if r.Method != http.MethodGet {
-			writeError(w, http.StatusMethodNotAllowed, codeMethodNotAllowed, "only GET is allowed")
-			return
-		}
-		s.handlePRDiff(w, r, parts[0], parts[1], parts[2])
-	case len(parts) == 5 && parts[3] == "actions":
-		s.handleAction(w, r, parts[0], parts[1], parts[2], parts[4])
-	case len(parts) == 6 && parts[3] == "actions" && parts[5] == "stream":
-		s.handleActionStream(w, r, parts[0], parts[1], parts[2], parts[4])
-	case len(parts) == 6 && parts[3] == "actions" && parts[5] == "cancel":
-		s.handleActionCancel(w, r, parts[0], parts[1], parts[2], parts[4])
-	case len(parts) == 7 && parts[3] == "actions" && parts[5] == "patches":
-		s.handlePatchApply(w, r, parts[0], parts[1], parts[2], parts[4], parts[6])
-	default:
-		writeError(w, http.StatusNotFound, codeNotFound, "route not found")
-	}
-}
-
-func (s *Server) handlePRDetail(w http.ResponseWriter, r *http.Request, owner, repo, rawNumber string) {
-	if !repoPattern.MatchString(owner + "/" + repo) {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "repo must be owner/name")
-		return
-	}
-	number, err := parseNumber(rawNumber)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "number must be a positive integer")
-		return
-	}
-
-	vars := prVars{Owner: owner, Repo: repo, Number: number}
+// getPR serves GET /pr/{owner}/{repo}/{number}.
+func (s *Server) getPR(ctx context.Context, in *prDetailInput) (*prDetailOutput, error) {
+	vars := prVars{Owner: in.Owner, Repo: in.Repo, Number: in.Number}
 
 	var pr github.PR
 	// v5 adds mergeability and whether squash merge is allowed.
-	err = s.loadCached(prDetailRoute, vars, s.cfg.Cache.GraphQL, isRefresh(r), &pr, func() error {
-		fetched, err := s.github.GetPR(r.Context(), owner, repo, number)
+	err := s.loadCached(prDetailRoute, vars, s.cfg.Cache.GraphQL, in.Refresh, &pr, func() error {
+		fetched, err := s.github.GetPR(ctx, in.Owner, in.Repo, in.Number)
 		if err != nil {
 			return err
 		}
@@ -151,29 +79,18 @@ func (s *Server) handlePRDetail(w http.ResponseWriter, r *http.Request, owner, r
 		return nil
 	})
 	if err != nil {
-		s.writeProviderError(w, err)
-		return
+		return nil, s.providerError(err)
 	}
-	writeJSON(w, http.StatusOK, prDetailResponse{PR: pr})
+	return &prDetailOutput{Body: prDetailResponse{PR: pr}}, nil
 }
 
-func (s *Server) handlePRDiff(w http.ResponseWriter, r *http.Request, owner, repo, rawNumber string) {
-	if !repoPattern.MatchString(owner + "/" + repo) {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "repo must be owner/name")
-		return
-	}
-	number, err := parseNumber(rawNumber)
+// getPRDiff serves GET /pr/{owner}/{repo}/{number}/diff.
+func (s *Server) getPRDiff(ctx context.Context, in *diffInput) (*diffOutput, error) {
+	body, err := s.loadDiff(ctx, in.Owner, in.Repo, in.Number, in.Refresh)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "number must be a positive integer")
-		return
+		return nil, s.providerError(err)
 	}
-
-	body, err := s.loadDiff(r.Context(), owner, repo, number, isRefresh(r))
-	if err != nil {
-		s.writeProviderError(w, err)
-		return
-	}
-	writeDiff(w, r, body)
+	return &diffOutput{Body: buildDiffResponse(ctx, body)}, nil
 }
 
 // loadDiff returns the raw unified diff, cached by ETag. A refresh revalidates
@@ -218,6 +135,32 @@ func (s *Server) loadDiff(ctx context.Context, owner, repo string, number int, r
 	return body, nil
 }
 
+// buildDiffResponse parses the unified diff, annotates it with sem where
+// available and ranks the files for review.
+func buildDiffResponse(ctx context.Context, body []byte) diff.Response {
+	files := diff.Parse(body)
+	report, available := diff.Semantic(ctx, body)
+	for index := range files {
+		files[index].Kinds = diff.Kinds(files[index].Path)
+		files[index].Semantic = report.Changes[files[index].Path]
+		if !files[index].Binary {
+			files[index].Hunks = diff.BuildHunksFor(files[index].Path, files[index].Patch)
+			diff.Highlight(files[index].Path, files[index].Hunks)
+		}
+	}
+	diff.Prioritize(files)
+	response := diff.Response{
+		Files:             files,
+		SemanticAvailable: available,
+		Complexity:        diff.ComplexityFor(files),
+	}
+	if available {
+		summary := report.Summary
+		response.SemanticSummary = &summary
+	}
+	return response
+}
+
 // loadCached returns a fresh cached JSON body or fetches and stores one.
 // Cache failures are logged and never fail the request.
 func (s *Server) loadCached(route string, vars any, ttl time.Duration, refresh bool, out any, fetch func() error) error {
@@ -250,62 +193,23 @@ func (s *Server) loadCached(route string, vars any, ttl time.Duration, refresh b
 	return nil
 }
 
-// writeProviderError maps provider failures to safe API envelopes. Provider
-// bodies and tokens never reach the webview.
-func (s *Server) writeProviderError(w http.ResponseWriter, err error) {
+// providerError maps provider failures to safe API envelopes. Provider bodies
+// and tokens never reach the webview.
+func (s *Server) providerError(err error) error {
 	var apiErr *gql.APIError
 	if errors.As(err, &apiErr) {
 		if apiErr.Status == http.StatusNotFound {
-			writeError(w, http.StatusNotFound, codeNotFound, apiErr.Message)
-			return
+			return errorf(http.StatusNotFound, codeNotFound, apiErr.Message)
 		}
 		s.logger.Warn("github request failed", "message", apiErr.Message, "status", apiErr.Status)
-		writeError(w, http.StatusBadGateway, codeGitHub, apiErr.Message)
-		return
+		return errorf(http.StatusBadGateway, codeGitHub, apiErr.Message)
 	}
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		// The webview went away; there is no one to answer.
-		return
+		// The webview went away; the response is never read.
+		return errorf(http.StatusGatewayTimeout, codeGitHub, "GitHub request canceled")
 	}
 	s.logger.Error("github request failed", "err", err)
-	writeError(w, http.StatusBadGateway, codeGitHub, "GitHub request failed")
-}
-
-func isRefresh(r *http.Request) bool {
-	value := r.URL.Query().Get("refresh")
-	return value == "1" || value == "true"
-}
-
-func parseNumber(raw string) (int, error) {
-	number, err := strconv.Atoi(raw)
-	if err != nil || number <= 0 {
-		return 0, errors.New("invalid number")
-	}
-	return number, nil
-}
-
-func writeDiff(w http.ResponseWriter, r *http.Request, body []byte) {
-	files := diff.Parse(body)
-	report, available := diff.Semantic(r.Context(), body)
-	for index := range files {
-		files[index].Kinds = diff.Kinds(files[index].Path)
-		files[index].Semantic = report.Changes[files[index].Path]
-		if !files[index].Binary {
-			files[index].Hunks = diff.BuildHunksFor(files[index].Path, files[index].Patch)
-			diff.Highlight(files[index].Path, files[index].Hunks)
-		}
-	}
-	diff.Prioritize(files)
-	response := diff.Response{
-		Files:             files,
-		SemanticAvailable: available,
-		Complexity:        diff.ComplexityFor(files),
-	}
-	if available {
-		summary := report.Summary
-		response.SemanticSummary = &summary
-	}
-	writeJSON(w, http.StatusOK, response)
+	return errorf(http.StatusBadGateway, codeGitHub, "GitHub request failed")
 }
 
 // encodeRawDiff stores a non-JSON diff as a JSON string so the cache entry

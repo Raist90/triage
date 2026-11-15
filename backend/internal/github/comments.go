@@ -32,7 +32,7 @@ type InlineComment struct {
 	Line         int    `json:"line,omitempty"`
 	OriginalLine int    `json:"originalLine,omitempty"`
 	StartLine    int    `json:"startLine,omitempty"`
-	Side         string `json:"side,omitempty"`
+	Side         string `json:"side,omitempty" enum:"RIGHT,LEFT" doc:"Diff side the line belongs to"`
 	CommitID     string `json:"commitID"`
 	InReplyToID  int64  `json:"inReplyToID,omitempty"`
 	Outdated     bool   `json:"outdated,omitempty"`

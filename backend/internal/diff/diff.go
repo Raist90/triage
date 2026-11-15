@@ -16,7 +16,7 @@ const semTimeout = 8 * time.Second
 type File struct {
 	Path      string           `json:"path"`
 	OldPath   string           `json:"oldPath,omitempty"`
-	Status    string           `json:"status"`
+	Status    string           `json:"status" enum:"added,removed,modified,renamed" doc:"What happened to the file"`
 	Additions int              `json:"additions"`
 	Deletions int              `json:"deletions"`
 	Patch     string           `json:"patch"`
@@ -24,7 +24,7 @@ type File struct {
 	Binary    bool             `json:"binary"`
 	Kinds     []string         `json:"kinds,omitempty"`
 	Semantic  []SemanticChange `json:"semantic,omitempty"`
-	Review    *Review          `json:"review,omitempty"`
+	Review    *FileReview      `json:"review,omitempty"`
 }
 
 // SemanticChange is one entity sem reported as changed. Line ranges let the UI

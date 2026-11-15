@@ -48,7 +48,12 @@ func main() {
 
 func run(logger *slog.Logger) error {
 	handshakePath := flag.String("handshake-file", "", "write the handshake JSON to this path (mode 0600) and remove it on shutdown")
+	dumpOpenAPI := flag.Bool("openapi", false, "print the OpenAPI document to stdout and exit; binds nothing and reads no config")
 	flag.Parse()
+
+	if *dumpOpenAPI {
+		return printOpenAPI()
+	}
 
 	token, err := newToken()
 	if err != nil {
@@ -158,6 +163,21 @@ func run(logger *slog.Logger) error {
 	runner.Shutdown()
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		return fmt.Errorf("shutdown: %w", err)
+	}
+	return nil
+}
+
+// printOpenAPI writes the generated contract to stdout. It registers the same
+// routes as the running server with nil dependencies, so it binds no port and
+// reads no config file, token or provider credentials.
+func printOpenAPI() error {
+	server := api.NewServer(config.Default(), nil, nil, nil, nil, nil, "", nil)
+	data, err := json.MarshalIndent(server.OpenAPI(), "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode openapi: %w", err)
+	}
+	if _, err := os.Stdout.Write(append(data, '\n')); err != nil {
+		return fmt.Errorf("write openapi: %w", err)
 	}
 	return nil
 }

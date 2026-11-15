@@ -1,0 +1,2787 @@
+{
+  "components": {
+    "schemas": {
+      "ActionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact": {
+            "$ref": "#/components/schemas/Artifact"
+          },
+          "job": {
+            "$ref": "#/components/schemas/Job"
+          },
+          "stale": {
+            "description": "The artifact was produced for an older commit",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "ActionView": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "explain",
+              "review"
+            ],
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "ApiError": {
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorBody"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "type": "object"
+      },
+      "Artifact": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "markdown": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "promptVersion": {
+            "type": "string"
+          },
+          "review": {
+            "$ref": "#/components/schemas/Review"
+          },
+          "sha": {
+            "type": "string"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/Usage"
+          },
+          "worktree": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "model",
+          "sha",
+          "promptVersion",
+          "createdAt",
+          "markdown",
+          "usage"
+        ],
+        "type": "object"
+      },
+      "ChangeCounts": {
+        "additionalProperties": false,
+        "properties": {
+          "added": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "cosmetic": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "deleted": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "modified": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "moved": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "ClearedResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "cleared": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cleared"
+        ],
+        "type": "object"
+      },
+      "Comment": {
+        "additionalProperties": false,
+        "properties": {
+          "author": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "kind": {
+            "description": "What the timeline entry is",
+            "enum": [
+              "comment",
+              "review",
+              "verdict"
+            ],
+            "type": "string"
+          },
+          "line": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "path": {
+            "type": "string"
+          },
+          "state": {
+            "description": "Verdict state, e.g. approved or changes_requested",
+            "type": "string"
+          }
+        },
+        "required": [
+          "author",
+          "body",
+          "createdAt",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "CommentRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "commitId": {
+            "description": "Head commit the comment anchors to",
+            "type": "string"
+          },
+          "line": {
+            "description": "Line in the file the comment anchors to",
+            "format": "int64",
+            "type": "integer"
+          },
+          "path": {
+            "description": "File path in the pull request diff",
+            "type": "string"
+          },
+          "side": {
+            "description": "Diff side the line belongs to",
+            "enum": [
+              "RIGHT",
+              "LEFT"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "body",
+          "path",
+          "line",
+          "side",
+          "commitId"
+        ],
+        "type": "object"
+      },
+      "CommentsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "comments": {
+            "items": {
+              "$ref": "#/components/schemas/InlineComment"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "comments"
+        ],
+        "type": "object"
+      },
+      "Complexity": {
+        "additionalProperties": false,
+        "properties": {
+          "band": {
+            "description": "Review effort band derived from the score",
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ],
+            "type": "string"
+          },
+          "changes": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "deletes": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "rewrites": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "ripples": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "score": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "sourceFiles": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "score",
+          "band",
+          "sourceFiles",
+          "changes",
+          "deletes",
+          "rewrites"
+        ],
+        "type": "object"
+      },
+      "ConfigResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/ActionView"
+            },
+            "type": "array"
+          },
+          "actionsReason": {
+            "description": "Why the action list is empty, when it is",
+            "type": "string"
+          },
+          "configError": {
+            "description": "Set when the config file could not be read or parsed",
+            "type": "string"
+          },
+          "configPath": {
+            "description": "Absolute path of the config file the server read",
+            "type": "string"
+          },
+          "linear": {
+            "$ref": "#/components/schemas/LinearConfig"
+          },
+          "repos": {
+            "items": {
+              "$ref": "#/components/schemas/RepoView"
+            },
+            "type": "array"
+          },
+          "tabs": {
+            "items": {
+              "$ref": "#/components/schemas/TabConfig"
+            },
+            "type": "array"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserConfig"
+          }
+        },
+        "required": [
+          "user",
+          "repos",
+          "tabs",
+          "linear",
+          "actions",
+          "configPath"
+        ],
+        "type": "object"
+      },
+      "DraftRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "draft": {
+            "description": "true to move back to draft, false to mark ready",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "draft"
+        ],
+        "type": "object"
+      },
+      "DroppedFinding": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string"
+          },
+          "guideline": {
+            "type": "string"
+          },
+          "guidelineQuote": {
+            "type": "string"
+          },
+          "line": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "blocking",
+              "warning",
+              "nitpick",
+              "praise"
+            ],
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "severity",
+          "file",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "ErrorBody": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "description": "Stable machine-readable code the webview maps to copy",
+            "type": "string"
+          },
+          "message": {
+            "description": "Human-readable message, safe to show",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "type": "object"
+      },
+      "File": {
+        "additionalProperties": false,
+        "properties": {
+          "additions": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "binary": {
+            "type": "boolean"
+          },
+          "deletions": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "hunks": {
+            "items": {
+              "$ref": "#/components/schemas/Hunk"
+            },
+            "type": "array"
+          },
+          "kinds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "oldPath": {
+            "type": "string"
+          },
+          "patch": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "review": {
+            "$ref": "#/components/schemas/FileReview"
+          },
+          "semantic": {
+            "items": {
+              "$ref": "#/components/schemas/SemanticChange"
+            },
+            "type": "array"
+          },
+          "status": {
+            "description": "What happened to the file",
+            "enum": [
+              "added",
+              "removed",
+              "modified",
+              "renamed"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "status",
+          "additions",
+          "deletions",
+          "patch",
+          "binary"
+        ],
+        "type": "object"
+      },
+      "FileReview": {
+        "additionalProperties": false,
+        "properties": {
+          "band": {
+            "description": "Focus band derived from the score",
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ],
+            "type": "string"
+          },
+          "changes": {
+            "$ref": "#/components/schemas/ChangeCounts"
+          },
+          "score": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "signals": {
+            "$ref": "#/components/schemas/ReviewSignals"
+          }
+        },
+        "required": [
+          "score",
+          "band",
+          "changes",
+          "signals"
+        ],
+        "type": "object"
+      },
+      "Finding": {
+        "additionalProperties": false,
+        "properties": {
+          "anchored": {
+            "type": "boolean"
+          },
+          "appliedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "category": {
+            "description": "What kind of problem it is",
+            "enum": [
+              "risk",
+              "design",
+              "architecture",
+              "conventions",
+              "tests"
+            ],
+            "type": "string"
+          },
+          "claim": {
+            "type": "string"
+          },
+          "endLine": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "entity": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string"
+          },
+          "guideline": {
+            "type": "string"
+          },
+          "guidelineQuote": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "line": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "patch": {
+            "type": "string"
+          },
+          "severity": {
+            "description": "How serious the finding is",
+            "enum": [
+              "blocking",
+              "warning",
+              "nitpick",
+              "praise"
+            ],
+            "type": "string"
+          },
+          "suggestion": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "severity",
+          "category",
+          "title",
+          "claim",
+          "file",
+          "line",
+          "anchored"
+        ],
+        "type": "object"
+      },
+      "Hunk": {
+        "additionalProperties": false,
+        "properties": {
+          "header": {
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/Line"
+            },
+            "type": "array"
+          },
+          "newCount": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "newStart": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "oldCount": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "oldStart": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "section": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "header",
+          "oldStart",
+          "oldCount",
+          "newStart",
+          "newCount",
+          "lines"
+        ],
+        "type": "object"
+      },
+      "InlineComment": {
+        "additionalProperties": false,
+        "properties": {
+          "author": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "commitID": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "inReplyToID": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "line": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "originalLine": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "outdated": {
+            "type": "boolean"
+          },
+          "path": {
+            "type": "string"
+          },
+          "side": {
+            "description": "Diff side the line belongs to",
+            "enum": [
+              "RIGHT",
+              "LEFT"
+            ],
+            "type": "string"
+          },
+          "startLine": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "author",
+          "body",
+          "createdAt",
+          "path",
+          "commitID"
+        ],
+        "type": "object"
+      },
+      "Job": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "number": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "repo": {
+            "type": "string"
+          },
+          "sha": {
+            "type": "string"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "description": "Job lifecycle state",
+            "enum": [
+              "queued",
+              "preparing",
+              "running",
+              "validating",
+              "done",
+              "failed",
+              "canceled"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "sha",
+          "status",
+          "startedAt"
+        ],
+        "type": "object"
+      },
+      "Line": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "description": "Row kind in the unified diff",
+            "enum": [
+              "context",
+              "add",
+              "del"
+            ],
+            "type": "string"
+          },
+          "newNumber": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "oldNumber": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "spans": {
+            "items": {
+              "$ref": "#/components/schemas/Span"
+            },
+            "type": "array"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "text"
+        ],
+        "type": "object"
+      },
+      "LinearConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "teamKeys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "teamKeys"
+        ],
+        "type": "object"
+      },
+      "ListResult": {
+        "additionalProperties": false,
+        "properties": {
+          "prs": {
+            "items": {
+              "$ref": "#/components/schemas/PR"
+            },
+            "type": "array"
+          },
+          "viewer": {
+            "$ref": "#/components/schemas/Viewer"
+          }
+        },
+        "required": [
+          "viewer",
+          "prs"
+        ],
+        "type": "object"
+      },
+      "MergeRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "method": {
+            "description": "Only squash is supported",
+            "type": "string"
+          },
+          "sha": {
+            "description": "Head commit the user reviewed",
+            "type": "string"
+          }
+        },
+        "required": [
+          "method",
+          "sha"
+        ],
+        "type": "object"
+      },
+      "OkResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "type": "object"
+      },
+      "PR": {
+        "additionalProperties": false,
+        "properties": {
+          "additions": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "author": {
+            "type": "string"
+          },
+          "baseBranch": {
+            "type": "string"
+          },
+          "branch": {
+            "type": "string"
+          },
+          "changedFiles": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "checkStatus": {
+            "description": "Rolled-up CI state",
+            "enum": [
+              "success",
+              "failure",
+              "pending",
+              "expected",
+              "error",
+              "none"
+            ],
+            "type": "string"
+          },
+          "comments": {
+            "description": "Conversation timeline, detail responses only",
+            "items": {
+              "$ref": "#/components/schemas/Comment"
+            },
+            "type": "array"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "deletions": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "description": {
+            "description": "Pull request body, markdown",
+            "type": "string"
+          },
+          "headSHA": {
+            "type": "string"
+          },
+          "isDraft": {
+            "type": "boolean"
+          },
+          "mergeStateStatus": {
+            "description": "GitHub's detailed merge state, e.g. clean or blocked",
+            "type": "string"
+          },
+          "mergeable": {
+            "description": "Whether GitHub can merge the pull request",
+            "enum": [
+              "mergeable",
+              "conflicting",
+              "unknown"
+            ],
+            "type": "string"
+          },
+          "number": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "repo": {
+            "type": "string"
+          },
+          "reviewState": {
+            "description": "Review decision on the pull request",
+            "enum": [
+              "approved",
+              "changes_requested",
+              "review_required",
+              "none"
+            ],
+            "type": "string"
+          },
+          "squashMergeAllowed": {
+            "description": "False when the repo disables squash merges",
+            "type": "boolean"
+          },
+          "state": {
+            "description": "GitHub pull request state, lowercased",
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "viewerCanApprove": {
+            "type": "boolean"
+          },
+          "viewerLogin": {
+            "type": "string"
+          },
+          "viewerReview": {
+            "description": "The viewer's latest review, when they have one",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "title",
+          "url",
+          "author",
+          "repo",
+          "headSHA",
+          "branch",
+          "baseBranch",
+          "checkStatus",
+          "reviewState",
+          "state",
+          "description",
+          "additions",
+          "deletions",
+          "changedFiles",
+          "updatedAt",
+          "isDraft",
+          "squashMergeAllowed"
+        ],
+        "type": "object"
+      },
+      "PatchApplyResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "appliedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "worktree": {
+            "description": "Worktree the patch was applied to",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
+          "appliedAt",
+          "worktree"
+        ],
+        "type": "object"
+      },
+      "PrDetailResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "pr": {
+            "$ref": "#/components/schemas/PR"
+          }
+        },
+        "required": [
+          "pr"
+        ],
+        "type": "object"
+      },
+      "RepoReviewView": {
+        "additionalProperties": false,
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "reason": {
+            "description": "Why review is unavailable, when it is",
+            "type": "string"
+          }
+        },
+        "required": [
+          "available"
+        ],
+        "type": "object"
+      },
+      "RepoView": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "review": {
+            "$ref": "#/components/schemas/RepoReviewView"
+          }
+        },
+        "required": [
+          "owner",
+          "name",
+          "actions",
+          "review"
+        ],
+        "type": "object"
+      },
+      "Response": {
+        "additionalProperties": false,
+        "properties": {
+          "complexity": {
+            "$ref": "#/components/schemas/Complexity"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/File"
+            },
+            "type": "array"
+          },
+          "semanticAvailable": {
+            "type": "boolean"
+          },
+          "semanticSummary": {
+            "$ref": "#/components/schemas/SemanticSummary"
+          }
+        },
+        "required": [
+          "files",
+          "semanticAvailable"
+        ],
+        "type": "object"
+      },
+      "Review": {
+        "additionalProperties": false,
+        "properties": {
+          "dropped": {
+            "items": {
+              "$ref": "#/components/schemas/DroppedFinding"
+            },
+            "type": "array"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/Finding"
+            },
+            "type": "array"
+          },
+          "omitted": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "unverified": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "unverifiedBlocking": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/Verdict"
+          }
+        },
+        "required": [
+          "verdict",
+          "findings"
+        ],
+        "type": "object"
+      },
+      "ReviewRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "description": "Review comment. Optional only for APPROVE.",
+            "type": "string"
+          },
+          "event": {
+            "description": "APPROVE, REQUEST_CHANGES or COMMENT",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event",
+          "body"
+        ],
+        "type": "object"
+      },
+      "ReviewSignals": {
+        "additionalProperties": false,
+        "properties": {
+          "cosmeticOnly": {
+            "type": "boolean"
+          },
+          "deletes": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "moduleOnly": {
+            "type": "boolean"
+          },
+          "noTests": {
+            "type": "boolean"
+          },
+          "renameRipples": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "rewrites": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "SemanticChange": {
+        "additionalProperties": false,
+        "properties": {
+          "changeType": {
+            "type": "string"
+          },
+          "cosmetic": {
+            "type": "boolean"
+          },
+          "endLine": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "entityName": {
+            "type": "string"
+          },
+          "entityType": {
+            "type": "string"
+          },
+          "oldEndLine": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "oldEntityName": {
+            "type": "string"
+          },
+          "oldFilePath": {
+            "type": "string"
+          },
+          "oldStartLine": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "startLine": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "changeType",
+          "entityType",
+          "entityName"
+        ],
+        "type": "object"
+      },
+      "SemanticSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "added": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "binary": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "deleted": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "fileCount": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "modified": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "moved": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "orphan": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "renamed": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "reordered": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "total": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "fileCount",
+          "added",
+          "modified",
+          "deleted",
+          "moved",
+          "renamed",
+          "reordered",
+          "orphan",
+          "binary",
+          "total"
+        ],
+        "type": "object"
+      },
+      "Span": {
+        "additionalProperties": false,
+        "properties": {
+          "emph": {
+            "type": "boolean"
+          },
+          "kind": {
+            "description": "Syntax category used for coloring",
+            "enum": [
+              "keyword",
+              "string",
+              "number",
+              "comment",
+              "type",
+              "func",
+              "variable",
+              "tag",
+              "property",
+              "builtin"
+            ],
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "type": "object"
+      },
+      "TabConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "type": "object"
+      },
+      "Usage": {
+        "additionalProperties": false,
+        "properties": {
+          "inputTokens": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "outputTokens": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalCostUsd": {
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "inputTokens",
+          "outputTokens",
+          "totalCostUsd"
+        ],
+        "type": "object"
+      },
+      "UserConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "login": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "login",
+          "name"
+        ],
+        "type": "object"
+      },
+      "Verdict": {
+        "additionalProperties": false,
+        "properties": {
+          "overridden": {
+            "type": "boolean"
+          },
+          "safeToMerge": {
+            "type": "boolean"
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "safeToMerge",
+          "summary"
+        ],
+        "type": "object"
+      },
+      "Viewer": {
+        "additionalProperties": false,
+        "properties": {
+          "login": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "login",
+          "name"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Local sidecar API for the Triage desktop app. Bearer token required on every route except GET /health.",
+    "title": "Triage",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/artifacts/clear": {
+      "post": {
+        "operationId": "clear-artifacts",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClearedResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Delete stored Explain and Review artifacts",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/cache/invalidate": {
+      "post": {
+        "operationId": "invalidate-cache",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClearedResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Clear every cached provider response",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/config": {
+      "get": {
+        "operationId": "get-config",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Webview-safe configuration",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "description": "The only route that does not require the bearer token.",
+        "operationId": "health",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Liveness probe",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/pr/{owner}/{repo}/{number}": {
+      "get": {
+        "operationId": "get-pr",
+        "parameters": [
+          {
+            "description": "Repository owner",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "Repository owner",
+              "pattern": "^[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Repository name",
+            "in": "path",
+            "name": "repo",
+            "required": true,
+            "schema": {
+              "description": "Repository name",
+              "pattern": "^[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Pull request number",
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "description": "Pull request number",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Bypass the cached response",
+            "explode": false,
+            "in": "query",
+            "name": "refresh",
+            "schema": {
+              "description": "Bypass the cached response",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "One pull request with metadata and conversation",
+        "tags": [
+          "prs"
+        ]
+      }
+    },
+    "/pr/{owner}/{repo}/{number}/actions/{actionID}": {
+      "get": {
+        "operationId": "get-action",
+        "parameters": [
+          {
+            "description": "Repository owner",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "Repository owner",
+              "pattern": "^[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Repository name",
+            "in": "path",
+            "name": "repo",
+            "required": true,
+            "schema": {
+              "description": "Repository name",
+              "pattern": "^[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Pull request number",
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "description": "Pull request number",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Action id from GET /config",
+            "in": "path",
+            "name": "actionID",
+            "required": true,
+            "schema": {
+              "description": "Action id from GET /config",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Current job and artifact for one action",
+        "tags": [
+          "actions"
+        ]
+      },
+      "post": {
+        "description": "Returns 200 with an existing artifact, or 202 with the started job.",
+        "operationId": "run-action",
+        "parameters": [
+          {
+            "description": "Repository owner",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "Repository owner",
+              "pattern": "^[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Repository name",
+            "in": "path",
+            "name": "repo",
+            "required": true,
+            "schema": {
+              "description": "Repository name",
+              "pattern": "^[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Pull request number",
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "description": "Pull request number",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Action id from GET /config",
+            "in": "path",
+            "name": "actionID",
+            "required": true,
+            "schema": {
+              "description": "Action id from GET /config",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Gateway Timeout"
+          }
+        },
+        "summary": "Start Explain or Review, or return the current artifact",
+        "tags": [
+          "actions"
+        ]
+      }
+    },
+    "/pr/{owner}/{repo}/{number}/actions/{actionID}/cancel": {
+      "post": {
+        "operationId": "cancel-action",
+        "parameters": [
+          {
+            "description": "Repository owner",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "Repository owner",
+              "pattern": "^[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Repository name",
+            "in": "path",
+            "name": "repo",
+            "required": true,
+            "schema": {
+              "description": "Repository name",
+              "pattern": "^[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Pull request number",
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "description": "Pull request number",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Action id from GET /config",
+            "in": "path",
+            "name": "actionID",
+            "required": true,
+            "schema": {
+              "description": "Action id from GET /config",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Cancel the running job",
+        "tags": [
+          "actions"
+        ]
+      }
+    },
+    "/pr/{owner}/{repo}/{number}/actions/{actionID}/patches/{findingID}": {
+      "post": {
+        "operationId": "apply-finding-patch",
+        "parameters": [
+          {
+            "description": "Repository owner",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "Repository owner",
+              "pattern": "^[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Repository name",
+            "in": "path",
+            "name": "repo",
+            "required": true,
+            "schema": {
+              "description": "Repository name",
+              "pattern": "^[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Pull request number",
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "description": "Pull request number",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Action id from GET /config",
+            "in": "path",
+            "name": "actionID",
+            "required": true,
+            "schema": {
+              "description": "Action id from GET /config",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Finding id from the review artifact",
+            "in": "path",
+            "name": "findingID",
+            "required": true,
+            "schema": {
+              "description": "Finding id from the review artifact",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatchApplyResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Apply one review finding's patch to the worktree",
+        "tags": [
+          "actions"
+        ]
+      }
+    },
+    "/pr/{owner}/{repo}/{number}/close": {
+      "post": {
+        "operationId": "close-pr",
+        "parameters": [
+          {
+            "description": "Repository owner",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "Repository owner",
+              "pattern": "^[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Repository name",
+            "in": "path",
+            "name": "repo",
+            "required": true,
+            "schema": {
+              "description": "Repository name",
+              "pattern": "^[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Pull request number",
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "description": "Pull request number",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Close your own pull request without merging",
+        "tags": [
+          "prs"
+        ]
+      }
+    },
+    "/pr/{owner}/{repo}/{number}/comments": {
+      "get": {
+        "operationId": "list-comments",
+        "parameters": [
+          {
+            "description": "Repository owner",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "Repository owner",
+              "pattern": "^[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Repository name",
+            "in": "path",
+            "name": "repo",
+            "required": true,
+            "schema": {
+              "description": "Repository name",
+              "pattern": "^[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Pull request number",
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "description": "Pull request number",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Bypass the cached response",
+            "explode": false,
+            "in": "query",
+            "name": "refresh",
+            "schema": {
+              "description": "Bypass the cached response",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentsResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Inline review comments anchored in the diff",
+        "tags": [
+          "comments"
+        ]
+      },
+      "post": {
+        "operationId": "create-comment",
+        "parameters": [
+          {
+            "description": "Repository owner",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "Repository owner",
+              "pattern": "^[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Repository name",
+            "in": "path",
+            "name": "repo",
+            "required": true,
+            "schema": {
+              "description": "Repository name",
+              "pattern": "^[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Pull request number",
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "description": "Pull request number",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Post one inline review comment",
+        "tags": [
+          "comments"
+        ]
+      }
+    },
+    "/pr/{owner}/{repo}/{number}/comments/{commentID}": {
+      "delete": {
+        "operationId": "delete-comment",
+        "parameters": [
+          {
+            "description": "Repository owner",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "Repository owner",
+              "pattern": "^[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Repository name",
+            "in": "path",
+            "name": "repo",
+            "required": true,
+            "schema": {
+              "description": "Repository name",
+              "pattern": "^[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Pull request number",
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "description": "Pull request number",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Inline comment id",
+            "in": "path",
+            "name": "commentID",
+            "required": true,
+            "schema": {
+              "description": "Inline comment id",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Delete your own inline review comment",
+        "tags": [
+          "comments"
+        ]
+      }
+    },
+    "/pr/{owner}/{repo}/{number}/diff": {
+      "get": {
+        "operationId": "get-pr-diff",
+        "parameters": [
+          {
+            "description": "Repository owner",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "Repository owner",
+              "pattern": "^[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Repository name",
+            "in": "path",
+            "name": "repo",
+            "required": true,
+            "schema": {
+              "description": "Repository name",
+              "pattern": "^[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Pull request number",
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "description": "Pull request number",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Bypass the cached diff",
+            "explode": false,
+            "in": "query",
+            "name": "refresh",
+            "schema": {
+              "description": "Bypass the cached diff",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Per-file unified diff with semantic annotations",
+        "tags": [
+          "prs"
+        ]
+      }
+    },
+    "/pr/{owner}/{repo}/{number}/draft": {
+      "post": {
+        "operationId": "set-pr-draft",
+        "parameters": [
+          {
+            "description": "Repository owner",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "Repository owner",
+              "pattern": "^[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Repository name",
+            "in": "path",
+            "name": "repo",
+            "required": true,
+            "schema": {
+              "description": "Repository name",
+              "pattern": "^[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Pull request number",
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "description": "Pull request number",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Toggle draft state on your own pull request",
+        "tags": [
+          "prs"
+        ]
+      }
+    },
+    "/pr/{owner}/{repo}/{number}/merge": {
+      "post": {
+        "operationId": "merge-pr",
+        "parameters": [
+          {
+            "description": "Repository owner",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "Repository owner",
+              "pattern": "^[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Repository name",
+            "in": "path",
+            "name": "repo",
+            "required": true,
+            "schema": {
+              "description": "Repository name",
+              "pattern": "^[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Pull request number",
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "description": "Pull request number",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MergeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Squash merge your own pull request",
+        "tags": [
+          "prs"
+        ]
+      }
+    },
+    "/pr/{owner}/{repo}/{number}/review": {
+      "post": {
+        "operationId": "submit-review",
+        "parameters": [
+          {
+            "description": "Repository owner",
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "Repository owner",
+              "pattern": "^[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Repository name",
+            "in": "path",
+            "name": "repo",
+            "required": true,
+            "schema": {
+              "description": "Repository name",
+              "pattern": "^[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Pull request number",
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "description": "Pull request number",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Approve, request changes or comment on a pull request",
+        "tags": [
+          "prs"
+        ]
+      }
+    },
+    "/prs": {
+      "get": {
+        "operationId": "list-prs",
+        "parameters": [
+          {
+            "description": "mine, review, or all",
+            "explode": false,
+            "in": "query",
+            "name": "tab",
+            "schema": {
+              "description": "mine, review, or all",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Limit the list to one owner/name repo",
+            "explode": false,
+            "in": "query",
+            "name": "repo",
+            "schema": {
+              "description": "Limit the list to one owner/name repo",
+              "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Bypass the cached response",
+            "explode": false,
+            "in": "query",
+            "name": "refresh",
+            "schema": {
+              "description": "Bypass the cached response",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List pull requests for one tab",
+        "tags": [
+          "prs"
+        ]
+      }
+    },
+    "/worktrees/clear": {
+      "post": {
+        "operationId": "clear-worktrees",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClearedResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Delete review worktrees and prune registrations",
+        "tags": [
+          "system"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "description": "Loopback sidecar; the real port is chosen at startup and sent in the handshake.",
+      "url": "http://127.0.0.1"
+    }
+  ]
+}

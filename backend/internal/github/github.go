@@ -49,19 +49,19 @@ type PR struct {
 	HeadSHA     string `json:"headSHA"`
 	Branch      string `json:"branch"`
 	BaseBranch  string `json:"baseBranch"`
-	CheckStatus string `json:"checkStatus"`
-	ReviewState string `json:"reviewState"`
+	CheckStatus string `json:"checkStatus" enum:"success,failure,pending,expected,error,none" doc:"Rolled-up CI state"`
+	ReviewState string `json:"reviewState" enum:"approved,changes_requested,review_required,none" doc:"Review decision on the pull request"`
 	// ViewerReview is the viewer's latest review on the PR ("approved",
 	// "changes_requested", ...). Detail responses only.
-	ViewerReview string `json:"viewerReview,omitempty"`
+	ViewerReview string `json:"viewerReview,omitempty" doc:"The viewer's latest review, when they have one"`
 	// ViewerLogin is the authenticated GitHub login. Detail responses only; the
 	// diff UI uses it to show delete controls on the viewer's own comments.
 	ViewerLogin string `json:"viewerLogin,omitempty"`
 	// ViewerCanApprove is false for the author's own PR, where GitHub rejects
 	// an approval. Detail responses only.
 	ViewerCanApprove bool   `json:"viewerCanApprove,omitempty"`
-	State            string `json:"state"`
-	Description      string `json:"description"`
+	State            string `json:"state" doc:"GitHub pull request state, lowercased"`
+	Description      string `json:"description" doc:"Pull request body, markdown"`
 	Additions        int    `json:"additions"`
 	Deletions        int    `json:"deletions"`
 	ChangedFiles     int    `json:"changedFiles"`
@@ -71,10 +71,10 @@ type PR struct {
 	// Mergeable and MergeStateStatus are detail responses only. GitHub computes
 	// mergeability asynchronously, so Mergeable can be "unknown" for a moment
 	// after the head or draft state changes.
-	Mergeable          string    `json:"mergeable,omitempty"`
-	MergeStateStatus   string    `json:"mergeStateStatus,omitempty"`
-	SquashMergeAllowed bool      `json:"squashMergeAllowed"`
-	Comments           []Comment `json:"comments,omitempty"`
+	Mergeable          string    `json:"mergeable,omitempty" enum:"mergeable,conflicting,unknown" doc:"Whether GitHub can merge the pull request"`
+	MergeStateStatus   string    `json:"mergeStateStatus,omitempty" doc:"GitHub's detailed merge state, e.g. clean or blocked"`
+	SquashMergeAllowed bool      `json:"squashMergeAllowed" doc:"False when the repo disables squash merges"`
+	Comments           []Comment `json:"comments,omitempty" doc:"Conversation timeline, detail responses only"`
 }
 
 // Comment is one entry in a PR's conversation: an issue comment, a review
@@ -84,8 +84,8 @@ type Comment struct {
 	Author    string `json:"author"`
 	Body      string `json:"body"`
 	CreatedAt string `json:"createdAt"`
-	Kind      string `json:"kind"`
-	State     string `json:"state,omitempty"`
+	Kind      string `json:"kind" enum:"comment,review,verdict" doc:"What the timeline entry is"`
+	State     string `json:"state,omitempty" doc:"Verdict state, e.g. approved or changes_requested"`
 	Path      string `json:"path,omitempty"`
 	Line      int    `json:"line,omitempty"`
 }

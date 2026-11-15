@@ -12,6 +12,15 @@ import (
 	"github.com/Raist90/triage/backend/internal/config"
 	"github.com/Raist90/triage/backend/internal/github"
 	"github.com/Raist90/triage/backend/internal/worktree"
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
+)
+
+// apiTitle and apiVersion identify the generated OpenAPI document. Bump the
+// version when the response shapes change; the spec is committed and diffed.
+const (
+	apiTitle   = "Triage"
+	apiVersion = "0.1.0"
 )
 
 // allowedOrigins are the only origins the webview can use: the Vite dev server
@@ -56,85 +65,89 @@ func NewServer(cfg config.Config, c *cache.Cache, gh *github.Client, runner *act
 // routing.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/health", s.handleHealth)
-	mux.HandleFunc("/config", s.handleConfig)
-	mux.HandleFunc("/cache/invalidate", s.handleCacheInvalidate)
-	mux.HandleFunc("/artifacts/clear", s.handleArtifactsClear)
-	mux.HandleFunc("/worktrees/clear", s.handleWorktreesClear)
-	mux.HandleFunc("/prs", s.handlePRs)
-	mux.HandleFunc("/pr/", s.handlePR)
-	mux.HandleFunc("/", s.handleNotFound)
-	return cors(s.requireToken(mux))
+	s.api(mux)
+	return cors(s.requireToken(s.withNotFound(mux)))
 }
 
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, codeMethodNotAllowed, "only GET is allowed")
-		return
-	}
-	writeJSON(w, http.StatusOK, healthResponse{OK: true})
+// withNotFound answers paths no operation registered with the shared error
+// envelope, since net/http renders those as plain text. A catch-all "/" pattern
+// would swallow the 405 ServeMux already computes for a known path, so the path
+// is probed against every registered pattern instead.
+func (s *Server) withNotFound(mux *http.ServeMux) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !pathKnown(mux, r) {
+			writeError(w, http.StatusNotFound, codeNotFound, "route not found")
+			return
+		}
+		mux.ServeHTTP(w, r)
+	})
 }
 
-func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, codeMethodNotAllowed, "only GET is allowed")
-		return
-	}
-	writeJSON(w, http.StatusOK, s.configView(r.Context()))
+// probeMethods covers every method any route uses. A DELETE-only route is known
+// only through its own method, so one probe method is not enough.
+var probeMethods = []string{
+	http.MethodGet,
+	http.MethodPost,
+	http.MethodDelete,
+	http.MethodPut,
+	http.MethodPatch,
 }
 
-func (s *Server) handleArtifactsClear(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		writeError(w, http.StatusMethodNotAllowed, codeMethodNotAllowed, "only POST is allowed")
-		return
+// pathKnown reports whether any registered pattern matches the request path,
+// whatever the method, so a wrong method still reaches ServeMux's 405. The probe
+// carries no body: ServeMux only reads the method and URL.
+func pathKnown(mux *http.ServeMux, r *http.Request) bool {
+	for _, method := range probeMethods {
+		probe := &http.Request{Method: method, URL: r.URL, Host: r.Host, Header: http.Header{}}
+		if _, pattern := mux.Handler(probe); pattern != "" {
+			return true
+		}
 	}
-	if s.runner == nil {
-		writeError(w, http.StatusServiceUnavailable, codeInternal, "actions are not configured")
-		return
-	}
-	cleared, err := s.runner.ClearArtifacts()
-	if err != nil {
-		s.logger.Error("artifact clear failed", "err", err)
-		writeError(w, http.StatusInternalServerError, codeInternal, "failed to clear artifacts")
-		return
-	}
-	writeJSON(w, http.StatusOK, artifactsClearResponse{Cleared: cleared})
+	return false
 }
 
-func (s *Server) handleWorktreesClear(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		writeError(w, http.StatusMethodNotAllowed, codeMethodNotAllowed, "only POST is allowed")
-		return
-	}
-	if s.worktrees == nil {
-		writeError(w, http.StatusServiceUnavailable, codeInternal, "worktrees are not configured")
-		return
-	}
-	cleared, err := s.worktrees.Clear(r.Context(), s.cfg.Repos)
-	if err != nil {
-		s.logger.Error("worktree clear failed", "err", err)
-		writeError(w, http.StatusInternalServerError, codeInternal, "failed to clear worktrees")
-		return
-	}
-	writeJSON(w, http.StatusOK, worktreesClearResponse{Cleared: cleared})
+// OpenAPI returns the generated document. It registers the same operations as
+// Handler and binds nothing, so `triage-server -openapi` can dump the contract
+// without a port, a token or a config file.
+func (s *Server) OpenAPI() *huma.OpenAPI {
+	return s.api(http.NewServeMux()).OpenAPI()
 }
 
-func (s *Server) handleCacheInvalidate(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		writeError(w, http.StatusMethodNotAllowed, codeMethodNotAllowed, "only POST is allowed")
-		return
-	}
-	cleared, err := s.cache.Clear()
-	if err != nil {
-		s.logger.Error("cache invalidation failed", "err", err)
-		writeError(w, http.StatusInternalServerError, codeCache, "failed to clear cache")
-		return
-	}
-	writeJSON(w, http.StatusOK, cacheInvalidateResponse{Cleared: cleared})
-}
+// api builds the Huma instance on top of the given mux.
+func (s *Server) api(mux *http.ServeMux) huma.API {
+	// Every operation returns the same envelope, so Huma's error model is
+	// replaced globally before the API is built. The schema follows the type
+	// newError returns.
+	huma.NewError = newError
 
-func (s *Server) handleNotFound(w http.ResponseWriter, r *http.Request) {
-	writeError(w, http.StatusNotFound, codeNotFound, "route not found")
+	// The webview treats slices as arrays, never null. Go nil slices marshal as
+	// null, so every handler that returns a list allocates it.
+	huma.DefaultArrayNullable = false
+
+	cfg := huma.DefaultConfig(apiTitle, apiVersion)
+	cfg.Info.Description = "Local sidecar API for the Triage desktop app. Bearer token required on every route except GET /health."
+	// The port is chosen at startup, so the server is described generically.
+	cfg.Servers = []*huma.Server{{
+		URL:         "http://127.0.0.1",
+		Description: "Loopback sidecar; the real port is chosen at startup and sent in the handshake.",
+	}}
+	// The document is generated by `triage-server -openapi`, never served. No
+	// runtime docs, schemas or spec routes.
+	cfg.OpenAPIPath = ""
+	cfg.DocsPath = ""
+	cfg.SchemasPath = ""
+	// Drop Huma's $schema property and Link transformer; the webview does not
+	// use either, and they add noise to every generated type.
+	cfg.CreateHooks = nil
+
+	api := humago.New(mux, cfg)
+
+	s.registerRoutes(api)
+	// The SSE stream is written by hand: Huma's response model cannot describe
+	// long-lived frames, and the webview parses them itself.
+	mux.HandleFunc("GET /pr/{owner}/{repo}/{number}/actions/{actionID}/stream", s.handleActionStream)
+
+	return api
 }
 
 // requireToken enforces the bearer token on every route except GET /health. It

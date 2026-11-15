@@ -5,13 +5,25 @@ HANDSHAKE := $(HOME)/.triage/dev-handshake.json
 
 .DEFAULT_GOAL := help
 
-.PHONY: help install backend frontend dev app check test fix build clean
+.PHONY: help install backend frontend dev app check test fix build clean api spec types verify-api
 
 help: ## show available targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "  %-10s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 install: ## install frontend dependencies
 	$(BUN) install
+
+api: spec types ## regenerate openapi.json and the frontend types
+
+spec: ## regenerate openapi.json from the Go routes
+	$(BUN) run api:spec
+
+types: ## regenerate src/lib/generated from openapi.json
+	$(BUN) run api:types
+
+verify-api: ## fail when openapi.json or generated types are stale
+	$(BUN) run api
+	@git diff --exit-code openapi.json src/lib/generated
 
 backend: ## run the Go sidecar on its own
 	$(BUN) run backend:dev
@@ -29,10 +41,11 @@ app: ## run backend + Tauri desktop shell
 	trap 'kill -- -$$backend 2>/dev/null' EXIT INT TERM; \
 	$(BUN) run tauri dev
 
-check: ## typecheck, lint, go build + vet
+check: ## typecheck, lint, go build + vet, contract freshness
 	$(BUN) run typecheck
 	$(BUN) run lint
 	cd backend && $(GO) build ./... && $(GO) vet ./...
+	@$(MAKE) --no-print-directory verify-api
 
 test: ## run Go tests
 	cd backend && $(GO) test ./...

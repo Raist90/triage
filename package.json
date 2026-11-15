@@ -12,7 +12,10 @@
     "lint": "eslint .",
     "fix": "eslint . --fix",
     "format": "prettier --write .",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "api:spec": "cd backend && go run ./cmd/triage-server -openapi > ../openapi.json",
+    "api:types": "openapi-ts",
+    "api": "bun run api:spec && bun run api:types"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.107.1",
@@ -29,6 +32,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@hey-api/openapi-ts": "0.99.0",
     "@tailwindcss/vite": "^4.3.5",
     "@tauri-apps/cli": "^2",
     "@types/node": "^26.6.6",

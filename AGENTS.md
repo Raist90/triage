@@ -53,7 +53,9 @@ src/                     React app
   index.css              Tailwind entry + theme tokens
   components/            presentational components
   features/              prs/, settings/, linear/ (queries, hooks, views)
-  lib/                   api client, utils, types
+  lib/                   api client, utils
+  lib/generated/         OpenAPI-generated TypeScript contract, never hand-edited
+  lib/types.ts           app-facing facade over the generated types
   stores/                Zustand stores
 backend/                 Go module (github.com/Raist90/triage/backend)
   cmd/triage-server/      main: config, handshake, HTTP server
@@ -69,6 +71,7 @@ backend/                 Go module (github.com/Raist90/triage/backend)
   internal/cache/        on-disk cache, TTL, invalidation
   internal/config/       the single source of truth for app settings
 src-tauri/               Tauri shell (Rust)
+openapi.json             generated from the Go routes by `make spec`; committed
 .env                     GITHUB_TOKEN, LINEAR_API_KEY — gitignored, never committed
 .env.example             committed, keys only, no values
 ~/.triage/config.json    user settings: repos, repoPaths, Linear teams
@@ -86,8 +89,10 @@ make dev                    # backend + frontend (browser), Ctrl-C stops both
 make app                    # backend + Tauri desktop shell, Ctrl-C stops both
 make backend                # Go sidecar only
 make frontend               # Vite only
-make check                  # typecheck + lint + go build/vet
+make check                  # typecheck + lint + go build/vet + verify-api
 make test                   # Go tests
+make api                    # regenerate openapi.json + src/lib/generated
+make verify-api             # fail when the committed contract is stale
 make fix                    # ESLint --fix + Prettier write
 make build                  # frontend bundle + Go binary
 make clean                  # remove build artifacts and dev handshake
@@ -113,6 +118,8 @@ Rules:
 - Prefer `make dev` / `make app`; they start and stop both processes together.
 - Run `bun run fix` and `bun run typecheck` after frontend changes, and
   `go build ./... && go vet ./... && go test ./...` after Go changes.
+- After any change to a request or response type, run `make api` and commit
+  `openapi.json` plus `src/lib/generated`.
 - The frontend has no test runner. `make test` covers the Go packages only.
 - Never add a package without a reason; prefer stdlib and hand-rolled code.
 - Do not read or print `.env` contents during development; tokens are the user's.
@@ -187,8 +194,10 @@ stay side by side; reviewing is the only flow that matters.
 - Zustand only for ephemeral UI state (selected repo, active tab, toggles).
   Never duplicate server data into a store.
 - API calls live in `src/lib/api.ts`; components never `fetch` directly.
-- Types mirroring Go responses live in `src/lib/types.ts` — keep them in sync when
-  the Go contract changes.
+- Types come from the generated contract. `src/lib/types.ts` re-exports them
+  under the names the app uses and keeps only what OpenAPI cannot express, such
+  as `ActionStreamEvent`. Never hand-write a response shape; change the Go type
+  and run `make api`. Never edit `src/lib/generated` by hand.
 - Components: named exports, one component per file, props typed inline or with a
   local `type`. Semantic HTML first.
 - Tailwind classes sorted by ESLint and Prettier; do not hand-order them.
@@ -204,7 +213,8 @@ stay side by side; reviewing is the only flow that matters.
 ## Go conventions
 
 - Go module in `backend/`. `go vet` clean, `gofmt` formatting.
-- Standard library `net/http` with `http.ServeMux`. No web framework.
+- Standard library `net/http` with `http.ServeMux`, routed by Huma (`humago`
+  adapter). No other web framework or router.
 - JSON in, JSON out. Errors as `{"error":{"code":"...","message":"..."}}` with
   meaningful HTTP status codes. Never leak tokens or raw provider responses.
 - GraphQL: use `internal/gql`, a tiny hand-rolled `POST` client. No GraphQL
@@ -215,6 +225,42 @@ stay side by side; reviewing is the only flow that matters.
 - One provider per package (`internal/github`, `internal/linear`); `internal/api`
   orchestrates and never talks to HTTP providers inline.
 - Personal tool, single account. Identity comes from GitHub's `viewer` query.
+
+## API contract
+
+The Go types are the contract. There is no hand-written TypeScript mirror.
+
+```
+backend/internal/api (Huma operations + response structs)
+   → openapi.json          (`make spec`)
+   → src/lib/generated     (`make types`, @hey-api/openapi-ts)
+   → src/lib/types.ts      (facade: aliases + non-OpenAPI shapes)
+```
+
+- Every route is one `huma.Register` call in `internal/api/routes.go` with a
+  typed input struct. Path patterns, numbers, enums and body fields are tags on
+  that struct; do not hand-parse path or query values in handlers.
+- Response bodies come from provider structs (`github.PR`, `diff.File`,
+  `review.Review`, `actions.Artifact`) plus the API wrappers in
+  `internal/api/types.go`. Enum tags on a field are what make the generated type
+  a union, so add `enum:"..."` when the webview narrows a value. `doc` tags
+  become JSDoc in the generated types.
+- Schema names come from the Go type name with the first letter capitalized.
+  Two types with the same name in different packages collide, so keep names
+  distinct (`diff.FileReview` vs `review.Review`) and check the generated
+  `openapi.json` diff.
+- Errors use one envelope. `apiError` in `internal/api/errors.go` implements
+  `huma.StatusError` and is installed as `huma.NewError`, so validation failures
+  and handler errors share the codes the webview already maps.
+- The SSE stream is the only hand-written route: Huma cannot describe
+  long-lived frames, so it is registered on the mux directly and the event union
+  lives in `src/lib/types.ts`.
+- The spec is generated by `triage-server -openapi`, which binds no port and
+  needs no config, token or provider credentials. Huma's own `/openapi`, `/docs`
+  and `/schemas` routes are disabled.
+- Regenerate after any request or response change, and commit both
+  `openapi.json` and `src/lib/generated`. `make verify-api` fails when they are
+  stale.
 
 ## Caching
 
