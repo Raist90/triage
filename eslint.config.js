@@ -8,7 +8,12 @@ import prettier from "eslint-plugin-prettier/recommended";
 import tailwindcss from "eslint-plugin-tailwindcss";
 
 export default defineConfig([
-  globalIgnores(["dist", "src-tauri/target", "src-tauri/gen"]),
+  globalIgnores([
+    "dist",
+    "src-tauri/target",
+    "src-tauri/gen",
+    "src/lib/generated",
+  ]),
   {
     files: ["**/*.{ts,tsx}"],
     extends: [
