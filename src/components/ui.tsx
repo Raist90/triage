@@ -88,8 +88,3 @@ export function Kbd({ children }: { children: ReactNode }) {
     </kbd>
   );
 }
-
-/** Thin rule used between content sections instead of cards. */
-export function Rule({ className }: { className?: string }) {
-  return <div className={cx("h-px w-full bg-line", className)} />;
-}

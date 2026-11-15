@@ -36,7 +36,8 @@ func TestRenderPrompt(t *testing.T) {
 }
 
 func TestArtifactStore(t *testing.T) {
-	store := NewStore(t.TempDir())
+	dir := t.TempDir()
+	store := NewStore(dir)
 	artifact := Artifact{
 		ActionID:      "explain",
 		Model:         "model-a",
@@ -78,7 +79,7 @@ func TestArtifactStore(t *testing.T) {
 	if cleared != 2 {
 		t.Fatalf("cleared = %d, want 2", cleared)
 	}
-	if _, err := os.Stat(store.Dir()); !os.IsNotExist(err) {
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
 		t.Fatalf("artifact dir still exists: %v", err)
 	}
 }

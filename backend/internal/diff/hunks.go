@@ -37,18 +37,11 @@ type Hunk struct {
 
 var hunkHeader = regexp.MustCompile(`^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)$`)
 
-// BuildHunks turns one file's patch into structured rows. It returns nil when
-// the patch has no parseable hunk, so callers fall back to the raw text.
-// Emphasis pairs lines by position; use BuildHunksFor to pick the strategy
-// from the file type.
-func BuildHunks(patch string) []Hunk {
-	return buildHunks(patch, false)
-}
-
 // BuildHunksFor builds hunks with an emphasis strategy suited to the file.
-// Markup reformats one removed line into several added ones, so those files get
-// block-level matching; code keeps positional pairing, which is precise for
-// ordinary line edits.
+// It returns nil when the patch has no parseable hunk, so callers fall back to
+// the raw text. Markup reformats one removed line into several added ones, so
+// those files get block-level matching; code keeps positional pairing, which is
+// precise for ordinary line edits.
 func BuildHunksFor(path, patch string) []Hunk {
 	return buildHunks(patch, isMarkup(path))
 }
