@@ -5,11 +5,25 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Raist90/triage/backend/internal/cache"
 	"github.com/Raist90/triage/backend/internal/github"
 )
 
 const maxCommentPath = 4096
+
+type commentsInput struct {
+	PRPath
+	Refresh bool `query:"refresh" doc:"Bypass the cached response"`
+}
+
+type commentInput struct {
+	PRPath
+	Body commentRequest
+}
+
+type deleteCommentInput struct {
+	PRPath
+	CommentID int64 `path:"commentID" minimum:"1" doc:"Inline comment id"`
+}
 
 // listComments serves GET /pr/{owner}/{repo}/{number}/comments.
 func (s *Server) listComments(ctx context.Context, in *commentsInput) (*commentsOutput, error) {
@@ -83,12 +97,4 @@ func (s *Server) deleteComment(ctx context.Context, in *deleteCommentInput) (*ok
 	s.invalidateComments(in.Owner, in.Repo, in.Number)
 	s.invalidatePR(in.Owner, in.Repo, in.Number)
 	return &okOutput{Body: okResponse{OK: true}}, nil
-}
-
-// invalidateComments drops the cached inline-comment list for one PR.
-func (s *Server) invalidateComments(owner, repo string, number int) {
-	vars := prVars{Owner: owner, Repo: repo, Number: number}
-	if key, err := cache.Key("github", "pr-comments", vars); err == nil {
-		s.invalidateKey(key)
-	}
 }

@@ -6,24 +6,21 @@ import (
 	"net/http"
 	"os"
 	"regexp"
-	"sync"
 	"time"
 
 	"github.com/Raist90/triage/backend/internal/actions"
-	"github.com/Raist90/triage/backend/internal/config"
 	"github.com/Raist90/triage/backend/internal/diff"
-	"github.com/Raist90/triage/backend/internal/github"
 	"github.com/Raist90/triage/backend/internal/review"
-	"github.com/Raist90/triage/backend/internal/worktree"
 )
 
-var (
-	// findingIDPattern keeps the path segment to the ids the server assigns.
-	findingIDPattern = regexp.MustCompile(`^F[0-9]{1,3}$`)
-	// applyMu serialises patch applies. Applies are rare, and a race between
-	// two clicks on the same finding is worse than the contention.
-	applyMu sync.Mutex
-)
+// findingIDPattern keeps the path segment to the ids the server assigns.
+var findingIDPattern = regexp.MustCompile(`^F[0-9]{1,3}$`)
+
+type patchInput struct {
+	PRPath
+	ActionID  string `path:"actionID" doc:"Action id from GET /config"`
+	FindingID string `path:"findingID" doc:"Finding id from the review artifact"`
+}
 
 // applyFindingPatch applies one finding's patch to the review worktree. The
 // client sends a finding id only; the patch text never leaves the server.
@@ -55,8 +52,8 @@ func (s *Server) applyFindingPatch(ctx context.Context, in *patchInput) (*patchO
 	}
 	files := diff.Parse(unified)
 
-	applyMu.Lock()
-	defer applyMu.Unlock()
+	s.patchMu.Lock()
+	defer s.patchMu.Unlock()
 
 	artifact, found := s.artifacts.Get(tracked.Owner, tracked.Name, in.Number, pr.HeadSHA, action.ID)
 	if !found {
@@ -128,59 +125,4 @@ func findFinding(artifact *actions.Artifact, id string) *review.Finding {
 		}
 	}
 	return nil
-}
-
-// prepareReview builds the worktree and the bounded prompt input one review
-// needs. It runs inside the job goroutine, never in the POST handler: a cold
-// fetch can take half a minute and the request returns 202 first.
-//
-// unified is the pull request's REST diff, already loaded and cached by the
-// handler. It is never refetched here, so the artifact SHA and the diff the
-// model reviews are the same commit.
-func (s *Server) prepareReview(ctx context.Context, source config.Repo, number int, pr github.PR, unified []byte) (actions.Prepared, error) {
-	if s.worktrees == nil {
-		return actions.Prepared{}, &actions.Error{Code: worktree.CodeWorktreeFailed, Message: "The worktree manager is not configured"}
-	}
-	info, err := s.worktrees.Ensure(ctx, source, number, pr.HeadSHA, pr.BaseBranch)
-	if err != nil {
-		return actions.Prepared{}, worktreeActionError(err)
-	}
-
-	// sem is an optimisation. A miss degrades to the raw diff, never to no
-	// review.
-	semantic, covered, _ := review.Semantic(ctx, info.Dir, info.BaseSHA, pr.HeadSHA)
-	guidelines := review.Guidelines(ctx, info.Dir)
-
-	files := diff.Parse(unified)
-	// sem's structured changes ground the model's output later: an entity name
-	// and its absolute line range let Sanitize snap or reject a citation. This
-	// run is separate from the markdown report because the prompt wants sem's
-	// prose report and the server wants its entity ranges.
-	report, _ := diff.Semantic(ctx, unified)
-	for index := range files {
-		files[index].Kinds = diff.Kinds(files[index].Path)
-		files[index].Semantic = report.Changes[files[index].Path]
-	}
-
-	meta := review.Meta{
-		Repo:        source.Owner + "/" + source.Name,
-		Number:      number,
-		Title:       pr.Title,
-		Branch:      pr.Branch,
-		BaseBranch:  pr.BaseBranch,
-		BaseSHA:     info.BaseSHA,
-		Description: pr.Description,
-	}
-	input := review.BuildInput(meta, semantic, covered, guidelines, files, unified)
-	return actions.Prepared{WorkDir: info.Dir, Input: input, Files: files, Guidelines: guidelines}, nil
-}
-
-// worktreeActionError maps a worktree failure onto the action envelope, keeping
-// the code the webview already knows (repo_path_missing, worktree_failed, ...).
-func worktreeActionError(err error) error {
-	var worktreeErr *worktree.Error
-	if errors.As(err, &worktreeErr) {
-		return &actions.Error{Code: worktreeErr.Code, Message: worktreeErr.Message}
-	}
-	return &actions.Error{Code: worktree.CodeWorktreeFailed, Message: "Preparing the worktree failed"}
 }

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/Raist90/triage/backend/internal/actions"
 	"github.com/Raist90/triage/backend/internal/cache"
@@ -41,6 +42,10 @@ type Server struct {
 	worktrees *worktree.Manager
 	token     [sha256.Size]byte
 	logger    *slog.Logger
+
+	// patchMu serialises finding-patch applies. Applies are rare, and a race
+	// between two clicks on the same finding is worse than the contention.
+	patchMu sync.Mutex
 }
 
 // NewServer builds the API server. token is the per-process bearer token; only
