@@ -43,7 +43,7 @@ export function Rail({
         title={repoPanelOpen ? "Hide repositories" : "Show repositories"}
         aria-label={repoPanelOpen ? "Hide repositories" : "Show repositories"}
         aria-expanded={repoPanelOpen}
-        className="mb-3 flex size-7 items-center justify-center rounded-[4px] bg-raised font-mono text-meta font-medium text-fg transition-colors hover:bg-line"
+        className="mb-3 flex size-7 items-center justify-center rounded-sm bg-raised font-mono text-meta font-medium text-fg transition-colors hover:bg-line"
       >
         T
       </button>
@@ -66,7 +66,7 @@ export function Rail({
               title={tab.label}
               onClick={() => onSelectTab(tab.id)}
               className={cx(
-                "relative flex size-9 items-center justify-center rounded-[4px] transition-colors",
+                "relative flex size-9 items-center justify-center rounded-sm transition-colors",
                 active
                   ? "bg-surface text-fg before:absolute before:inset-y-2 before:-left-1.5 before:w-0.5 before:rounded-full before:bg-accent"
                   : "text-fg-faint hover:bg-surface hover:text-fg",
@@ -84,7 +84,7 @@ export function Rail({
           onClick={onOpenSettings}
           title="Settings"
           aria-label="Settings"
-          className="flex size-9 items-center justify-center rounded-[4px] text-fg-faint transition-colors hover:bg-surface hover:text-fg"
+          className="flex size-9 items-center justify-center rounded-sm text-fg-faint transition-colors hover:bg-surface hover:text-fg"
         >
           <Settings className="size-4" aria-hidden />
         </button>

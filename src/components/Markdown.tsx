@@ -87,24 +87,24 @@ const components: Components = {
     </code>
   ),
   pre: ({ children }) => (
-    <pre className="my-4 overflow-x-auto rounded-[6px] border border-line bg-surface p-3 font-mono text-code whitespace-pre text-fg-body [&>code]:border-0 [&>code]:bg-transparent [&>code]:p-0 [&>code]:text-code">
+    <pre className="my-4 overflow-x-auto rounded-md border border-line bg-surface p-3 font-mono text-code whitespace-pre text-fg-body [&>code]:border-0 [&>code]:bg-transparent [&>code]:p-0 [&>code]:text-code">
       {children}
     </pre>
   ),
   table: ({ children }) => (
-    <div className="my-4 overflow-x-auto rounded-[6px] border border-line">
+    <div className="my-4 overflow-x-auto rounded-md border border-line">
       <table className="w-full border-collapse text-meta [&_tr:last-child>*]:border-b-0">
         {children}
       </table>
     </div>
   ),
   th: ({ children }) => (
-    <th className="border-b border-line bg-surface px-2 py-2 text-left font-medium text-fg">
+    <th className="border-b border-line bg-surface p-2 text-left font-medium text-fg">
       {children}
     </th>
   ),
   td: ({ children }) => (
-    <td className="border-b border-line px-2 py-2 align-top text-fg-body">
+    <td className="border-b border-line p-2 align-top text-fg-body">
       {children}
     </td>
   ),
@@ -121,11 +121,11 @@ const components: Components = {
       src={src}
       alt={alt ?? ""}
       loading="lazy"
-      className="my-3 max-w-full rounded-[4px] border border-line"
+      className="my-3 max-w-full rounded-sm border border-line"
     />
   ),
   details: ({ children }) => (
-    <details className="my-3 rounded-[4px] border border-line px-3 py-2">
+    <details className="my-3 rounded-sm border border-line px-3 py-2">
       {children}
     </details>
   ),
@@ -137,7 +137,7 @@ const components: Components = {
 
 export function Markdown({ children }: MarkdownProps) {
   return (
-    <div className="text-prose break-words text-fg-body">
+    <div className="text-prose wrap-break-word text-fg-body">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeRaw, rehypeSanitize]}

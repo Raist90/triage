@@ -100,7 +100,7 @@ export function DiffSidebar({
             }}
             placeholder="Filter files"
             aria-label="Filter files"
-            className="h-7 w-full rounded-[4px] border border-line bg-surface pr-8 pl-8 text-meta text-fg placeholder:text-fg-faint focus:border-line-strong focus:outline-none"
+            className="h-7 w-full rounded-sm border border-line bg-surface px-8 text-meta text-fg placeholder:text-fg-faint focus:border-line-strong focus:outline-none"
           />
           {filter ? (
             <button
@@ -163,7 +163,7 @@ export function DiffSidebar({
                 aria-pressed={hideLowPriority}
                 aria-label={`${hideLowPriority ? "Show" : "Hide"} ${lowCount} low-focus ${lowCount === 1 ? "file" : "files"}`}
                 title={`${hideLowPriority ? "Show" : "Hide"} ${lowCount} low-focus ${lowCount === 1 ? "file" : "files"}`}
-                className={`relative mt-2 inline-flex h-6 shrink-0 items-center gap-1 rounded-[4px] border px-2 text-meta font-medium transition-colors ${
+                className={`relative mt-2 inline-flex h-6 shrink-0 items-center gap-1 rounded-sm border px-2 text-meta font-medium transition-colors ${
                   hideLowPriority
                     ? "border-accent/40 text-fg after:absolute after:inset-x-1 after:bottom-0 after:h-0.5 after:rounded-full after:bg-accent"
                     : "border-line text-fg-faint hover:border-line-strong hover:text-fg"
@@ -172,7 +172,7 @@ export function DiffSidebar({
                 <span className={hideLowPriority ? "text-fg" : "text-fg-muted"}>
                   Low focus
                 </span>
-                <span className="tabular font-mono text-micro text-fg-faint">
+                <span className="font-mono text-micro text-fg-faint tabular-nums">
                   {lowCount}
                 </span>
               </button>
@@ -183,7 +183,7 @@ export function DiffSidebar({
 
       <div className="min-h-0 flex-1 overflow-y-auto py-1">
         {rows.length === 0 ? (
-          <p className="px-2 py-2 text-meta text-fg-faint">No files match.</p>
+          <p className="p-2 text-meta text-fg-faint">No files match.</p>
         ) : (
           rows.map(({ key, file }) => {
             const active = key === activeKey;
@@ -208,7 +208,7 @@ export function DiffSidebar({
                 }`}
               >
                 <span
-                  className={`w-3.5 shrink-0 rounded-[3px] border text-center font-mono text-micro leading-4 ${status.className}`}
+                  className={`w-3.5 shrink-0 rounded-[3px] border text-center font-mono text-micro/4 ${status.className}`}
                   title={file.status}
                 >
                   {status.mark}
@@ -236,7 +236,7 @@ export function DiffSidebar({
                     className={`size-1.5 shrink-0 rounded-full border ${FOCUS_DOT[band]}`}
                   />
                 ) : null}
-                <span className="tabular shrink-0 self-start pt-1 font-mono text-micro text-fg-faint">
+                <span className="shrink-0 self-start pt-1 font-mono text-micro text-fg-faint tabular-nums">
                   <span className="text-accent/80">+{file.additions}</span>
                   <span className="px-1 text-line-strong">/</span>
                   <span>−{file.deletions}</span>
@@ -254,7 +254,7 @@ export function DiffSidebar({
         )}
       </div>
 
-      <div className="tabular shrink-0 border-t border-line px-2 py-2 font-mono text-micro text-fg-faint">
+      <div className="shrink-0 border-t border-line p-2 font-mono text-micro text-fg-faint tabular-nums">
         {rows.length === totalCount && hiddenCount === 0
           ? `${totalCount} ${totalCount === 1 ? "file" : "files"}`
           : `${rows.length} of ${totalCount} files${hiddenCount > 0 ? ` · ${hiddenCount} hidden` : ""}`}
@@ -284,7 +284,7 @@ function SortButton({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`h-6 rounded-[4px] border px-2 text-meta font-medium transition-colors ${
+      className={`h-6 rounded-sm border px-2 text-meta font-medium transition-colors ${
         active
           ? "border-line-strong bg-surface text-fg"
           : "border-line text-fg-faint hover:border-line-strong hover:text-fg"
@@ -315,7 +315,7 @@ function ToggleChip({
       aria-pressed={excluded}
       aria-label={`${label}, ${count} ${filesLabel}, ${excluded ? "hidden" : "shown"}`}
       title={`${excluded ? "Show" : "Hide"} ${count} ${label.toLowerCase()} ${filesLabel}`}
-      className={`relative inline-flex h-6 shrink-0 items-center gap-1 rounded-[4px] border px-2 text-meta font-medium transition-colors ${
+      className={`relative inline-flex h-6 shrink-0 items-center gap-1 rounded-sm border px-2 text-meta font-medium transition-colors ${
         excluded
           ? "border-accent/40 text-fg after:absolute after:inset-x-1 after:bottom-0 after:h-0.5 after:rounded-full after:bg-accent"
           : "border-line text-fg-faint hover:border-line-strong hover:text-fg"
@@ -325,7 +325,7 @@ function ToggleChip({
         <EyeOff className="size-3.5 shrink-0 text-fg-muted" aria-hidden />
       ) : null}
       <span className={excluded ? "text-fg" : "text-fg-muted"}>{label}</span>
-      <span className="tabular font-mono text-micro text-fg-faint">
+      <span className="font-mono text-micro text-fg-faint tabular-nums">
         {count}
       </span>
     </button>

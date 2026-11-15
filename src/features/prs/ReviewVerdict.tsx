@@ -56,7 +56,7 @@ export function ReviewVerdict({ review }: { review: ReviewDocument }) {
           </MicroLabel>
         </span>
         {parts.length > 0 ? (
-          <span className="tabular font-mono text-meta text-fg-faint">
+          <span className="font-mono text-meta text-fg-faint tabular-nums">
             {parts.join(" · ")}
           </span>
         ) : null}

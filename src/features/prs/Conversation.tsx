@@ -96,7 +96,7 @@ export function Conversation({ pr, comments }: ConversationProps) {
     <ol className="relative max-w-[68ch]">
       <span
         aria-hidden="true"
-        className="absolute top-2 bottom-2 left-[2.5px] w-px bg-line"
+        className="absolute inset-y-2 left-[2.5px] w-px bg-line"
       />
       {entries.map((entry) => {
         const when = formatAgo(entry.createdAt);
@@ -113,7 +113,7 @@ export function Conversation({ pr, comments }: ConversationProps) {
               <span className="font-medium text-fg">{entry.author}</span>
               <span className="text-fg-faint">{actionFor(entry)}</span>
               {when ? (
-                <span className="tabular font-mono text-fg-faint">
+                <span className="font-mono text-fg-faint tabular-nums">
                   · {when}
                 </span>
               ) : null}

@@ -93,7 +93,7 @@ export function RepoFilter({ repos, selectedRepo, onSelect }: RepoFilterProps) {
               onFocus={() => setCursorOverride(index)}
               onClick={() => commit(index)}
               className={cx(
-                "flex h-7 w-full items-center gap-2 rounded-[4px] px-2 text-left text-ui transition-colors outline-none",
+                "flex h-7 w-full items-center gap-2 rounded-sm px-2 text-left text-ui transition-colors outline-none",
                 isSelected
                   ? "bg-surface text-fg"
                   : "text-fg-muted hover:bg-surface/60 hover:text-fg",

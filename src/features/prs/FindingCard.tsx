@@ -70,13 +70,13 @@ export function FindingCard({
   }, [diffFiles, finding.file, finding.line]);
 
   return (
-    <article className="rounded-[4px] border border-line">
+    <article className="rounded-sm border border-line">
       <button
         type="button"
         aria-expanded={open}
         aria-controls={bodyId}
         onClick={() => setOpen((previous) => !previous)}
-        className="flex w-full flex-col gap-1 rounded-[4px] px-3 py-3 text-left transition-colors hover:bg-surface"
+        className="flex w-full flex-col gap-1 rounded-sm p-3 text-left transition-colors hover:bg-surface"
       >
         <span className="flex w-full min-w-0 items-baseline gap-3">
           <MicroLabel
@@ -88,7 +88,7 @@ export function FindingCard({
             {finding.category}
           </span>
           <span className="ml-auto flex min-w-0 items-baseline gap-2">
-            <span className="tabular min-w-0 truncate font-mono text-meta text-fg-faint">
+            <span className="min-w-0 truncate font-mono text-meta text-fg-faint tabular-nums">
               {anchorLabel(finding)}
             </span>
             {finding.anchored ? null : (
@@ -113,11 +113,7 @@ export function FindingCard({
         <span className="text-ui font-medium text-fg">{finding.title}</span>
       </button>
 
-      <div
-        id={bodyId}
-        hidden={!open}
-        className="border-t border-line px-3 py-3"
-      >
+      <div id={bodyId} hidden={!open} className="border-t border-line p-3">
         <p className="max-w-[72ch] text-prose text-fg-body">{finding.claim}</p>
 
         {hunk ? <FindingHunk match={hunk.match} lines={hunk.lines} /> : null}
@@ -212,7 +208,7 @@ function patchLineKind(line: string): keyof typeof PATCH_LINE_CLASS {
 /** The raw patch, read-only. Colour by prefix, no syntax highlighting. */
 function PatchPreview({ patch }: { patch: string }) {
   return (
-    <div className="max-h-60 overflow-auto rounded-[4px] border border-line bg-canvas px-3 py-2">
+    <div className="max-h-60 overflow-auto rounded-sm border border-line bg-canvas px-3 py-2">
       {patch.split("\n").map((line, index) => (
         <div
           key={index}

@@ -36,7 +36,7 @@ export function Sidebar({
           onClick={onCollapse}
           title="Hide repositories"
           aria-label="Hide repositories"
-          className="flex size-7 items-center justify-center rounded-[4px] text-fg-faint transition-colors hover:bg-surface hover:text-fg"
+          className="flex size-7 items-center justify-center rounded-sm text-fg-faint transition-colors hover:bg-surface hover:text-fg"
         >
           <ChevronsLeft className="size-4" aria-hidden />
         </button>
@@ -48,7 +48,7 @@ export function Sidebar({
             {[72, 56, 64, 48].map((width) => (
               <div
                 key={width}
-                className="h-7 animate-pulse rounded-[4px] bg-surface"
+                className="h-7 animate-pulse rounded-sm bg-surface"
                 style={{ width: `${width}%` }}
               />
             ))}
@@ -56,7 +56,7 @@ export function Sidebar({
         ) : null}
 
         {configStatus === "error" ? (
-          <div className="px-2 py-2">
+          <div className="p-2">
             <p className="text-meta text-fg-faint">Config unavailable.</p>
             <Button
               variant="ghost"

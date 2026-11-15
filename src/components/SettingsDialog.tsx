@@ -100,7 +100,7 @@ export function SettingsDialog({ open, config, onClose }: SettingsDialogProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-title"
-        className="flex max-h-full w-full max-w-md flex-col overflow-hidden rounded-[6px] border border-line-strong bg-canvas"
+        className="flex max-h-full w-full max-w-md flex-col overflow-hidden rounded-md border border-line-strong bg-canvas"
       >
         <div className="flex h-11 shrink-0 items-center justify-between border-b border-line pr-1 pl-4">
           <h2 id="settings-title" className="text-ui font-medium text-fg">
@@ -109,7 +109,7 @@ export function SettingsDialog({ open, config, onClose }: SettingsDialogProps) {
           <button
             type="button"
             onClick={onClose}
-            className="flex size-7 items-center justify-center rounded-[4px] text-fg-faint transition-colors hover:bg-surface hover:text-fg"
+            className="flex size-7 items-center justify-center rounded-sm text-fg-faint transition-colors hover:bg-surface hover:text-fg"
             aria-label="Close settings"
           >
             <X className="size-4" aria-hidden />
@@ -123,7 +123,7 @@ export function SettingsDialog({ open, config, onClose }: SettingsDialogProps) {
               Repositories and Linear teams come from this file. Edit it and
               restart Triage to apply changes.
             </p>
-            <p className="mt-2 rounded-[4px] border border-line bg-surface px-3 py-2 font-mono text-meta break-all text-fg-body select-all">
+            <p className="mt-2 rounded-sm border border-line bg-surface px-3 py-2 font-mono text-meta break-all text-fg-body select-all">
               {config?.configPath ?? "…"}
             </p>
             {config?.configError ? (
@@ -146,7 +146,7 @@ export function SettingsDialog({ open, config, onClose }: SettingsDialogProps) {
 
           <section className="mt-6">
             <MicroLabel>Repositories</MicroLabel>
-            <div className="mt-2 rounded-[4px] border border-line">
+            <div className="mt-2 rounded-sm border border-line">
               {(config?.repos ?? []).map((repo) => (
                 <div
                   key={`${repo.owner}/${repo.name}`}

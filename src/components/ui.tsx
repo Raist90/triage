@@ -23,7 +23,7 @@ export function Button({
     <button
       type={type}
       className={cx(
-        "inline-flex shrink-0 items-center gap-2 rounded-[4px] px-2 py-1 text-meta whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+        "inline-flex shrink-0 items-center gap-2 rounded-sm px-2 py-1 text-meta whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-50",
         BUTTON_VARIANT[variant],
         className,
       )}
@@ -52,7 +52,7 @@ export function IconButton({
       aria-label={label}
       aria-pressed={active || undefined}
       className={cx(
-        "relative inline-flex size-7 shrink-0 items-center justify-center rounded-[4px] text-fg-faint transition-colors hover:bg-surface hover:text-fg disabled:cursor-not-allowed disabled:opacity-50",
+        "relative inline-flex size-7 shrink-0 items-center justify-center rounded-sm text-fg-faint transition-colors hover:bg-surface hover:text-fg disabled:cursor-not-allowed disabled:opacity-50",
         active &&
           "text-fg after:absolute after:inset-x-1 after:bottom-0 after:h-0.5 after:rounded-full after:bg-accent",
         className,

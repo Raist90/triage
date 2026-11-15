@@ -17,7 +17,7 @@ export function ClaudeActionButton({
         type="button"
         onClick={controller.cancel}
         title="Cancel"
-        className="flex shrink-0 items-center gap-2 rounded-[4px] px-2 py-1 text-meta text-accent transition-colors hover:bg-surface"
+        className="flex shrink-0 items-center gap-2 rounded-sm px-2 py-1 text-meta text-accent transition-colors hover:bg-surface"
       >
         <X className="size-4 animate-pulse" aria-hidden />
         {action.label}…
@@ -29,7 +29,7 @@ export function ClaudeActionButton({
     <button
       type="button"
       onClick={controller.run}
-      className="flex shrink-0 items-center gap-2 rounded-[4px] px-2 py-1 text-meta text-fg-muted transition-colors hover:bg-surface hover:text-fg"
+      className="flex shrink-0 items-center gap-2 rounded-sm px-2 py-1 text-meta text-fg-muted transition-colors hover:bg-surface hover:text-fg"
     >
       <Sparkles className="size-4" aria-hidden />
       {action.label}
@@ -55,9 +55,11 @@ export function ClaudeActionPanel({
         <div className="mb-2 flex items-center gap-2 font-mono text-meta text-fg-faint">
           <span>{artifact.model}</span>
           <span aria-hidden>·</span>
-          <span className="tabular">{formatRelative(artifact.createdAt)}</span>
+          <span className="tabular-nums">
+            {formatRelative(artifact.createdAt)}
+          </span>
           <span aria-hidden>·</span>
-          <span className="tabular">
+          <span className="tabular-nums">
             ${artifact.usage.totalCostUsd.toFixed(2)}
           </span>
         </div>

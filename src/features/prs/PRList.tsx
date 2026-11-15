@@ -192,7 +192,7 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
               <span className="shrink-0 text-fg-faint" aria-hidden="true">
                 ·
               </span>
-              <span className="tabular shrink-0 text-meta text-fg-faint">
+              <span className="shrink-0 text-meta text-fg-faint tabular-nums">
                 {isLoading
                   ? "Loading…"
                   : isFiltered
@@ -229,7 +229,7 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
                 }}
                 placeholder="Search pull requests"
                 aria-label="Search pull requests"
-                className="h-7 w-full rounded-[4px] border border-line bg-surface pr-7 pl-7 text-meta text-fg placeholder:text-fg-faint focus:border-line-strong focus:outline-none"
+                className="h-7 w-full rounded-sm border border-line bg-surface px-7 text-meta text-fg placeholder:text-fg-faint focus:border-line-strong focus:outline-none"
               />
               {filters.query ? (
                 <button
@@ -305,7 +305,7 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
                 type="button"
                 onClick={() => removeChip(chip)}
                 aria-label={`Remove filter: ${chip.label}`}
-                className="inline-flex h-6 shrink-0 items-center gap-1 rounded-[4px] border border-line px-1.5 text-meta text-fg-body transition-colors hover:border-line-strong hover:text-fg"
+                className="inline-flex h-6 shrink-0 items-center gap-1 rounded-sm border border-line px-1.5 text-meta text-fg-body transition-colors hover:border-line-strong hover:text-fg"
               >
                 <span
                   className={
@@ -345,10 +345,10 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
             {Array.from({ length: 8 }, (_, index) => (
               <div
                 key={index}
-                className="flex h-[52px] flex-col justify-center gap-2 border-b border-line px-3"
+                className="flex h-13 flex-col justify-center gap-2 border-b border-line px-3"
               >
-                <div className="h-3 w-2/3 animate-pulse rounded-[4px] bg-surface" />
-                <div className="h-2.5 w-1/3 animate-pulse rounded-[4px] bg-surface" />
+                <div className="h-3 w-2/3 animate-pulse rounded-sm bg-surface" />
+                <div className="h-2.5 w-1/3 animate-pulse rounded-sm bg-surface" />
               </div>
             ))}
           </div>

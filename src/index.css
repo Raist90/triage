@@ -68,6 +68,11 @@
   --text-code: 12px;
   --text-code--line-height: 20px;
 
+  /* Radii stay on the Tailwind scale, declared in px so ESLint maps
+     rounded-[4px] and rounded-[6px] onto rounded-sm and rounded-md. */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+
   /* Detail sits next to the list only when it has room. */
   --breakpoint-cockpit: 1180px;
 }
@@ -83,11 +88,6 @@
     @apply bg-canvas font-sans text-ui text-fg antialiased;
     /* macOS overlay titlebar: no rubber-banding behind the chrome. */
     overscroll-behavior: none;
-  }
-
-  /* Numeric data (counts, times, stats) aligns in every panel. */
-  .tabular {
-    font-variant-numeric: tabular-nums;
   }
 
   /* Mono is identity data and diff code: ligatures shift glyphs across the

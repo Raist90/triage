@@ -203,7 +203,7 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
         <button
           type="button"
           onClick={closeDetail}
-          className="flex items-center gap-2 rounded-[4px] px-2 py-1 text-meta text-fg-muted transition-colors hover:bg-surface hover:text-fg"
+          className="flex items-center gap-2 rounded-sm px-2 py-1 text-meta text-fg-muted transition-colors hover:bg-surface hover:text-fg"
         >
           <ArrowLeft className="size-4" aria-hidden />
           Back
@@ -238,7 +238,7 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
               onClick={() => void openExternal(pr.url)}
               title="Open on GitHub"
               aria-label="Open on GitHub"
-              className="flex size-7 shrink-0 items-center justify-center rounded-[4px] text-fg-faint transition-colors hover:bg-surface hover:text-fg"
+              className="flex size-7 shrink-0 items-center justify-center rounded-sm text-fg-faint transition-colors hover:bg-surface hover:text-fg"
             >
               <ExternalLink className="size-4" aria-hidden />
             </button>
@@ -287,7 +287,7 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
 
                 <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-meta text-fg-faint">
                   <span className="text-fg-muted">{pr.author}</span>
-                  <span className="tabular">
+                  <span className="tabular-nums">
                     updated {formatRelative(pr.updatedAt)}
                   </span>
                   <span className="font-mono">
@@ -301,7 +301,7 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
                       withLabel
                     />
                   </span>
-                  <span className="tabular font-mono">
+                  <span className="font-mono tabular-nums">
                     <span className="text-accent">+{pr.additions}</span>
                     <span className="px-1 text-line-strong">/</span>
                     <span className="text-danger">−{pr.deletions}</span>
@@ -335,7 +335,7 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
                     >
                       {item.label}
                       {typeof item.count === "number" ? (
-                        <span className="tabular font-mono text-fg-faint">
+                        <span className="font-mono text-fg-faint tabular-nums">
                           {item.count}
                         </span>
                       ) : null}
@@ -352,7 +352,7 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
                 className={
                   activeTab === "diff"
                     ? "flex min-h-0 flex-1 flex-col outline-none"
-                    : "min-h-0 flex-1 overflow-y-auto px-4 py-4 outline-none"
+                    : "min-h-0 flex-1 overflow-y-auto p-4 outline-none"
                 }
               >
                 {activeTab === "conversation" ? (
@@ -373,21 +373,21 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
                     {diffQuery.isPending ? (
                       <div
                         aria-hidden="true"
-                        className="m-3 rounded-[6px] border border-line"
+                        className="m-3 rounded-md border border-line"
                       >
                         {Array.from({ length: 4 }, (_, index) => (
                           <div
                             key={index}
-                            className="border-b border-line px-3 py-3 last:border-b-0"
+                            className="border-b border-line p-3 last:border-b-0"
                           >
-                            <div className="h-3 w-1/2 animate-pulse rounded-[4px] bg-surface" />
+                            <div className="h-3 w-1/2 animate-pulse rounded-sm bg-surface" />
                           </div>
                         ))}
                       </div>
                     ) : diffQuery.isError ? (
                       <div
                         role="alert"
-                        className="m-3 rounded-[6px] border border-line p-3 text-meta text-fg-faint"
+                        className="m-3 rounded-md border border-line p-3 text-meta text-fg-faint"
                       >
                         <p className="text-fg-muted">Can’t load the diff.</p>
                         <p className="mt-1">{describeError(diffQuery.error)}</p>
@@ -466,7 +466,7 @@ function ContextRail({ pr, diff }: { pr: PR; diff?: PRDiffResponse }) {
   return (
     <aside
       aria-label="Pull request context"
-      className="hidden w-[272px] shrink-0 flex-col gap-4 overflow-y-auto border-l border-line px-4 py-3 min-[1400px]:flex"
+      className="hidden w-68 shrink-0 flex-col gap-4 overflow-y-auto border-l border-line px-4 py-3 min-[1400px]:flex"
     >
       <section>
         <MicroLabel>Checks</MicroLabel>
@@ -484,7 +484,7 @@ function ContextRail({ pr, diff }: { pr: PR; diff?: PRDiffResponse }) {
 
       <section>
         <MicroLabel>Change</MicroLabel>
-        <p className="tabular mt-2 font-mono text-meta text-fg-muted">
+        <p className="mt-2 font-mono text-meta text-fg-muted tabular-nums">
           <span className="text-accent">+{pr.additions}</span>
           <span className="px-1 text-line-strong">/</span>
           <span className="text-danger">−{pr.deletions}</span>
@@ -572,7 +572,7 @@ function ComplexityMeter({ complexity }: { complexity: Complexity }) {
         <span aria-hidden="true" className="text-meta text-fg-muted">
           {complexity.band}
           <span className="px-1 text-line-strong">·</span>
-          <span className="tabular font-mono">{complexity.score}</span>
+          <span className="font-mono tabular-nums">{complexity.score}</span>
         </span>
       </div>
       {lines.map((line) => (
@@ -603,12 +603,12 @@ function StateTag({ label, merged }: { label: string; merged?: boolean }) {
 
 function DetailSkeleton() {
   return (
-    <div aria-hidden="true" className="px-4 py-4">
-      <div className="h-5 w-2/3 animate-pulse rounded-[4px] bg-surface" />
-      <div className="mt-3 h-3 w-1/3 animate-pulse rounded-[4px] bg-surface" />
-      <div className="mt-6 h-3 w-1/2 animate-pulse rounded-[4px] bg-surface" />
-      <div className="mt-3 h-3 w-2/3 animate-pulse rounded-[4px] bg-surface" />
-      <div className="mt-3 h-3 w-1/2 animate-pulse rounded-[4px] bg-surface" />
+    <div aria-hidden="true" className="p-4">
+      <div className="h-5 w-2/3 animate-pulse rounded-sm bg-surface" />
+      <div className="mt-3 h-3 w-1/3 animate-pulse rounded-sm bg-surface" />
+      <div className="mt-6 h-3 w-1/2 animate-pulse rounded-sm bg-surface" />
+      <div className="mt-3 h-3 w-2/3 animate-pulse rounded-sm bg-surface" />
+      <div className="mt-3 h-3 w-1/2 animate-pulse rounded-sm bg-surface" />
     </div>
   );
 }

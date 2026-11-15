@@ -20,7 +20,7 @@ export function FindingGroup({
     <section aria-label={`${severity} findings`}>
       <div className="flex items-baseline gap-2">
         <MicroLabel>{severity}</MicroLabel>
-        <span className="tabular font-mono text-meta text-fg-faint">
+        <span className="font-mono text-meta text-fg-faint tabular-nums">
           {findings.length}
         </span>
       </div>

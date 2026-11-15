@@ -155,7 +155,7 @@ export function ReviewTab({
         <p className="mt-2 text-prose text-fg-muted">
           Add this to {configFile}, then restart:
         </p>
-        <pre className="mt-2 overflow-x-auto rounded-[4px] border border-line bg-surface px-3 py-2 font-mono text-meta text-fg-body select-all">
+        <pre className="mt-2 overflow-x-auto rounded-sm border border-line bg-surface px-3 py-2 font-mono text-meta text-fg-body select-all">
           {`  "repoPaths": { "${repo}": "/path/to/clone" }`}
         </pre>
         {unavailableReason ? (
@@ -190,10 +190,7 @@ export function ReviewTab({
       </div>
 
       {error ? (
-        <div
-          role="alert"
-          className="rounded-[4px] border border-line px-3 py-2"
-        >
+        <div role="alert" className="rounded-sm border border-line px-3 py-2">
           <p className="text-prose text-danger">{error}</p>
           <Button variant="outline" onClick={controller.run} className="mt-2">
             Retry
@@ -248,11 +245,11 @@ export function ReviewTab({
             <div className="mb-2 flex items-center gap-2 font-mono text-meta text-fg-faint">
               <span>{artifact.model}</span>
               <span aria-hidden>·</span>
-              <span className="tabular">
+              <span className="tabular-nums">
                 {formatRelative(artifact.createdAt)}
               </span>
               <span aria-hidden>·</span>
-              <span className="tabular">
+              <span className="tabular-nums">
                 ${artifact.usage.totalCostUsd.toFixed(2)}
               </span>
             </div>
@@ -389,15 +386,12 @@ function StageRow({
 
 function ReviewSkeleton() {
   return (
-    <div aria-hidden="true" className="rounded-[6px] border border-line">
+    <div aria-hidden="true" className="rounded-md border border-line">
       {Array.from({ length: 3 }, (_, index) => (
-        <div
-          key={index}
-          className="border-b border-line px-3 py-3 last:border-b-0"
-        >
-          <div className="h-2 w-24 animate-pulse rounded-[4px] bg-surface" />
-          <div className="mt-2 h-3 w-2/3 animate-pulse rounded-[4px] bg-surface" />
-          <div className="mt-2 h-3 w-1/2 animate-pulse rounded-[4px] bg-surface" />
+        <div key={index} className="border-b border-line p-3 last:border-b-0">
+          <div className="h-2 w-24 animate-pulse rounded-sm bg-surface" />
+          <div className="mt-2 h-3 w-2/3 animate-pulse rounded-sm bg-surface" />
+          <div className="mt-2 h-3 w-1/2 animate-pulse rounded-sm bg-surface" />
         </div>
       ))}
     </div>

@@ -451,7 +451,7 @@ export function DiffView({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-9 shrink-0 items-center justify-between gap-2 border-b border-line bg-canvas pr-1 pl-3">
-        <p className="tabular min-w-0 truncate text-meta text-fg-faint">
+        <p className="min-w-0 truncate text-meta text-fg-faint tabular-nums">
           {showSummary ? summaryText(semanticSummary!) : null}
           {highCount > 0 ? (
             <span>
@@ -552,7 +552,7 @@ export function DiffView({
         >
           {visible.length === 0 ? (
             kindFiltered.length === 0 ? (
-              <p className="border-b border-line px-3 py-3 text-meta text-fg-faint">
+              <p className="border-b border-line p-3 text-meta text-fg-faint">
                 All files are hidden by filters.{" "}
                 <button
                   type="button"
@@ -563,7 +563,7 @@ export function DiffView({
                 </button>
               </p>
             ) : (
-              <p className="border-b border-line px-3 py-3 text-meta text-fg-faint">
+              <p className="border-b border-line p-3 text-meta text-fg-faint">
                 All files are cosmetic-only.{" "}
                 <button
                   type="button"
@@ -646,7 +646,7 @@ export function DiffView({
                       {fileCommentCount === 1 ? "comment" : "comments"}
                     </span>
                   ) : null}
-                  <span className="tabular ml-auto shrink-0 pl-2 font-mono text-meta text-fg-faint">
+                  <span className="ml-auto shrink-0 pl-2 font-mono text-meta text-fg-faint tabular-nums">
                     <span className="text-accent">+{file.additions}</span>
                     <span className="px-1 text-line-strong">/</span>
                     <span className="text-danger">−{file.deletions}</span>
@@ -911,8 +911,8 @@ function HunkRows({
     <>
       <div
         data-diff-hunk={hunkKey}
-        className={`${ROW_GRID} scroll-mt-[36px] bg-surface ${
-          flash ? "outline outline-1 -outline-offset-1 outline-accent/50" : ""
+        className={`${ROW_GRID} scroll-mt-9 bg-surface ${
+          flash ? "outline -outline-offset-1 outline-accent/50" : ""
         }`}
       >
         <span className="border-r border-line select-none" />
@@ -1030,7 +1030,7 @@ function LineRow({
         </span>
         <span className={gutter}>{line.oldNumber || ""}</span>
         <span className={gutter}>{line.newNumber || ""}</span>
-        <span className={`${codeClasses(line.kind)} pr-3 pl-3 whitespace-pre`}>
+        <span className={`${codeClasses(line.kind)} px-3 whitespace-pre`}>
           {line.spans && line.spans.length > 0
             ? line.spans.map((span, index) => (
                 <span
@@ -1109,7 +1109,7 @@ function InlineCommentRow({
       <div className="flex items-center gap-2 text-meta">
         <span className="font-medium text-fg">{comment.author}</span>
         {reply ? <span className="text-micro text-fg-faint">reply</span> : null}
-        <span className="tabular text-fg-faint">
+        <span className="text-fg-faint tabular-nums">
           {formatRelative(comment.createdAt)}
         </span>
         {canDelete && !confirming ? (
@@ -1220,7 +1220,7 @@ function CommentComposer({
         rows={3}
         autoFocus
         placeholder="Leave a comment on this line…"
-        className="w-full resize-y rounded-[4px] border border-line bg-canvas px-2 py-1.5 text-prose text-fg placeholder:text-fg-faint"
+        className="w-full resize-y rounded-sm border border-line bg-canvas px-2 py-1.5 text-prose text-fg placeholder:text-fg-faint"
       />
       <div className="mt-2 flex items-center gap-2">
         <Button
@@ -1329,7 +1329,7 @@ function ChangeAnnotation({
   return (
     <div className="flex items-center gap-2 px-3 py-1 font-sans text-meta">
       <span
-        className={`w-4 shrink-0 rounded-[3px] border text-center text-micro leading-4 ${badgeClassName(
+        className={`w-4 shrink-0 rounded-[3px] border text-center text-micro/4 ${badgeClassName(
           change,
         )}`}
         title={change.changeType}

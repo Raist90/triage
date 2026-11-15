@@ -128,7 +128,7 @@ stay side by side; reviewing is the only flow that matters.
   `text-prose` 14, `text-lead` 16, `text-title` 20, plus `text-code` 12/20.
   Weights are 400 and 500 only. `text-sm`/`text-xs`/`text-2xs` are gone.
 - **Mono = identity data.** Branch, repo, PR number, SHA, counts, file paths,
-  timestamps use `font-mono` + `tabular`. Prose and UI labels stay sans. Mono
+  timestamps use `font-mono` + `tabular-nums`. Prose and UI labels stay sans. Mono
   disables ligatures (`font-variant-ligatures: none` in `index.css`); they
   break diff span boundaries and are never useful in identity data.
 - **Color roles, not shades.** Use `canvas`, `surface`, `raised`, `line`,
@@ -140,7 +140,9 @@ stay side by side; reviewing is the only flow that matters.
 - **Spacing: 4 / 8 / 12 / 16 / 24 / 32 only.** No `py-1.5`, `py-2.5`, `gap-3.5`,
   `px-5`. Chrome heights: 44 top bar, 36 toolbar, 52 list row. Widths: 48 rail,
   208 repo panel, 340 PR list, 272 context rail.
-- **Radii:** 4px controls, 6px dialog. One focus ring (`accent` at 45%) from
+- **Radii:** `rounded-sm` controls (4px), `rounded-md` dialog (6px). Both are
+  declared in px in `@theme` so ESLint maps a `rounded-[4px]` back to the token.
+  One focus ring (`accent` at 45%) from
   `index.css`; do not re-style focus per component.
 - **Shell:** 48px rail holds the config-driven tabs (icon + tooltip, fallback
   icon for unknown IDs) and Settings. Then the repo panel, PR list, and detail.
@@ -189,7 +191,15 @@ stay side by side; reviewing is the only flow that matters.
   the Go contract changes.
 - Components: named exports, one component per file, props typed inline or with a
   local `type`. Semantic HTML first.
-- Tailwind classes sorted by Prettier; do not hand-order them.
+- Tailwind classes sorted by ESLint and Prettier; do not hand-order them.
+- Class strings are checked by `eslint-plugin-tailwindcss` against
+  `src/index.css` (`settings.tailwindcss.cssConfigPath`). It enforces class order,
+  canonical spelling (`size-7`, not `h-7 w-7`), shorthand, non-conflicting and
+  non-negative-arbitrary classes, and it flags arbitrary values that a spacing
+  utility already covers (`w-85`, not `w-[340px]`). `cx` is registered as a
+  parsed function. It reads JSX attributes and function calls only, so class
+  strings in plain module constants are unchecked. `bun run fix` applies the
+  fixes.
 
 ## Go conventions
 

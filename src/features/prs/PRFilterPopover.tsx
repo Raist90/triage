@@ -58,7 +58,7 @@ export function PRFilterPopover({
       ref={panelRef}
       role="dialog"
       aria-label="Filter pull requests"
-      className="absolute top-8 right-0 z-30 flex max-h-[min(480px,70vh)] w-64 flex-col overflow-hidden rounded-[6px] border border-line-strong bg-canvas"
+      className="absolute top-8 right-0 z-30 flex max-h-[min(480px,70vh)] w-64 flex-col overflow-hidden rounded-md border border-line-strong bg-canvas"
     >
       <div className="flex h-9 shrink-0 items-center justify-between border-b border-line pr-1 pl-3">
         <span className="text-ui font-medium text-fg">Filter</span>
@@ -136,7 +136,7 @@ export function PRFilterPopover({
         </Section>
 
         <div className="mt-1 border-t border-line pt-1">
-          <label className="flex h-7 cursor-default items-center gap-2 rounded-[4px] px-1 text-ui text-fg-body hover:bg-surface/60">
+          <label className="flex h-7 cursor-default items-center gap-2 rounded-sm px-1 text-ui text-fg-body hover:bg-surface/60">
             <input
               type="checkbox"
               checked={filters.hideDrafts}
@@ -157,7 +157,7 @@ export function PRFilterPopover({
         >
           Clear all
         </Button>
-        <span className="tabular font-mono text-micro text-fg-faint">
+        <span className="font-mono text-micro text-fg-faint tabular-nums">
           {shown} of {total}
         </span>
       </div>
@@ -252,7 +252,7 @@ function FacetRow({
   return (
     <label
       title={`${option.label} · ${option.count}`}
-      className="flex h-7 cursor-default items-center gap-2 rounded-[4px] px-1 text-ui text-fg-body hover:bg-surface/60"
+      className="flex h-7 cursor-default items-center gap-2 rounded-sm px-1 text-ui text-fg-body hover:bg-surface/60"
     >
       <input
         type="checkbox"
@@ -267,7 +267,7 @@ function FacetRow({
       >
         {option.label}
       </span>
-      <span className="tabular font-mono text-micro text-fg-faint">
+      <span className="font-mono text-micro text-fg-faint tabular-nums">
         {option.count}
       </span>
     </label>

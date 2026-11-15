@@ -117,7 +117,7 @@ export function App() {
         <section
           aria-hidden={detailFullscreen || undefined}
           className={cx(
-            "min-w-0 flex-col cockpit:w-[340px] cockpit:shrink-0 cockpit:border-r cockpit:border-line",
+            "min-w-0 flex-col cockpit:w-85 cockpit:shrink-0 cockpit:border-r cockpit:border-line",
             detailFullscreen
               ? // Hidden, not unmounted: the list keeps its cursor and scroll
                 // for when fullscreen exits.

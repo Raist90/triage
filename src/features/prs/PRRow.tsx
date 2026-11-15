@@ -47,7 +47,7 @@ export function PRRow({
         <p className="flex min-w-0 items-center gap-2 truncate text-meta text-fg-faint">
           <span className="max-w-32 truncate">{pr.repo}</span>
           <span aria-hidden="true">·</span>
-          <span className="tabular shrink-0 font-mono">#{pr.number}</span>
+          <span className="shrink-0 font-mono tabular-nums">#{pr.number}</span>
           <span aria-hidden="true">·</span>
           <span className="min-w-0 flex-1 truncate font-mono">{pr.branch}</span>
           <span aria-hidden="true">·</span>
@@ -57,7 +57,7 @@ export function PRRow({
         <div className="flex shrink-0 items-center gap-2">
           <StatusIcon kind="check" state={pr.checkStatus} />
           <StatusIcon kind="review" state={pr.reviewState} />
-          <span className="tabular w-12 text-right font-mono text-meta whitespace-nowrap text-fg-faint">
+          <span className="w-12 text-right font-mono text-meta whitespace-nowrap text-fg-faint tabular-nums">
             {formatRelative(pr.updatedAt)}
           </span>
         </div>
