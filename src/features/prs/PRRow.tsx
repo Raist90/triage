@@ -1,6 +1,7 @@
 import type { PR } from "../../lib/types";
 import { formatRelative } from "../../lib/time";
 import { StatusIcon } from "../../components/StatusBadge";
+import { StateTag } from "./StateTag";
 
 type PRRowProps = {
   pr: PR;
@@ -36,11 +37,7 @@ export function PRRow({
     >
       <div className="flex min-w-0 items-center gap-2">
         <p className="truncate text-ui font-medium text-fg">{pr.title}</p>
-        {pr.isDraft ? (
-          <span className="shrink-0 rounded-[3px] border border-line px-1 text-micro tracking-[0.06em] text-fg-faint uppercase">
-            Draft
-          </span>
-        ) : null}
+        {pr.isDraft ? <StateTag label="Draft" /> : null}
       </div>
 
       <div className="flex min-w-0 items-center justify-between gap-2">

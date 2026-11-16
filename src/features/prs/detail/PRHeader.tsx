@@ -1,8 +1,8 @@
 import { StatusIcon } from "../../../components/StatusBadge";
 import { formatRelative } from "../../../lib/time";
 import type { PR } from "../../../lib/types";
+import { StateTag } from "../StateTag";
 import { ChangeStat } from "./ChangeStat";
-import { StateTag } from "./StateTag";
 
 export function PRHeader({ pr }: { pr: PR }) {
   return (
