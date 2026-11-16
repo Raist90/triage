@@ -7,7 +7,7 @@ import type {
   PR,
   PRDiffResponse,
 } from "../lib/types";
-import type { DiffCommentsController } from "../features/prs/useDiffComments";
+import type { DiffCommentsController } from "../features/prs/diff/useDiffComments";
 
 export function makeLine(line: Partial<DiffLine> & { text: string }): DiffLine {
   return { kind: "context", ...line };

@@ -1,6 +1,5 @@
 import { create } from "zustand";
-import type { CheckState, ReviewState } from "../lib/types";
-import type { DiffFileKind } from "../features/prs/diffFile";
+import type { CheckState, DiffFileKind, ReviewState } from "../lib/types";
 
 /**
  * Ephemeral UI state only. Server data belongs to TanStack Query, never here.
