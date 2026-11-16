@@ -118,6 +118,10 @@ Rules:
 - Prefer `make dev` / `make app`; they start and stop both processes together.
 - Run `bun run fix` and `bun run typecheck` after frontend changes, and
   `go build ./... && go vet ./... && go test ./...` after Go changes.
+- `bun run lint` and `make check` cache ESLint results in
+  `node_modules/.cache/eslint`. The cache does not track `src/index.css`, which
+  the Tailwind rules read, so `make clean` after editing theme tokens if a class
+  warning looks stale (`make check` drops the cache when the CSS is newer).
 - After any change to a request or response type, run `make api` and commit
   `openapi.json` plus `src/lib/generated`.
 - The frontend has no test runner. `make test` covers the Go packages only.

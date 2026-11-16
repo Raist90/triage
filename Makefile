@@ -2,6 +2,7 @@ SHELL := /bin/sh
 BUN ?= bun
 GO ?= go
 HANDSHAKE := $(HOME)/.triage/dev-handshake.json
+ESLINT_CACHE := node_modules/.cache/eslint
 
 .DEFAULT_GOAL := help
 
@@ -41,11 +42,17 @@ app: ## run backend + Tauri desktop shell
 	trap 'kill -- -$$backend 2>/dev/null' EXIT INT TERM; \
 	$(BUN) run tauri dev
 
-check: ## typecheck, lint, go build + vet, contract freshness
-	$(BUN) run typecheck
-	$(BUN) run lint
-	cd backend && $(GO) build ./... && $(GO) vet ./...
-	@$(MAKE) --no-print-directory verify-api
+check: verify-api ## typecheck, lint, go build + vet, contract freshness
+	@set -e; \
+	if [ src/index.css -nt $(ESLINT_CACHE) ]; then rm -f $(ESLINT_CACHE); fi; \
+	$(BUN) run typecheck & p1=$$!; \
+	$(BUN) run lint & p2=$$!; \
+	(cd backend && $(GO) build ./... && $(GO) vet ./...) & p3=$$!; \
+	status=0; \
+	wait $$p1 || status=1; \
+	wait $$p2 || status=1; \
+	wait $$p3 || status=1; \
+	exit $$status
 
 test: ## run Go tests
 	cd backend && $(GO) test ./...
@@ -59,4 +66,4 @@ build: ## build frontend bundle + Go binary
 	cd backend && $(GO) build -o triage-server ./cmd/triage-server
 
 clean: ## remove build artifacts and dev handshake
-	rm -rf dist backend/triage-server $(HANDSHAKE)
+	rm -rf dist backend/triage-server $(HANDSHAKE) $(ESLINT_CACHE)
