@@ -58,6 +58,9 @@ export type CheckState = Pr["checkStatus"];
 
 export type ReviewState = Pr["reviewState"];
 
+/** File categories classified by the Go side and used by the diff filters. */
+export type DiffFileKind = "test" | "docs" | "generated";
+
 export type ReviewSeverity = Finding["severity"];
 
 /** Review actions accepted by the server. */
