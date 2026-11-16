@@ -26,67 +26,6 @@ type PRPath struct {
 	Number int `path:"number" minimum:"1" doc:"Pull request number"`
 }
 
-type prListInput struct {
-	Tab     string `query:"tab" doc:"mine, review, or all"`
-	Repo    string `query:"repo" pattern:"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" doc:"Limit the list to one owner/name repo"`
-	Refresh bool   `query:"refresh" doc:"Bypass the cached response"`
-}
-
-type prDetailInput struct {
-	PRPath
-	Refresh bool `query:"refresh" doc:"Bypass the cached response"`
-}
-
-type diffInput struct {
-	PRPath
-	Refresh bool `query:"refresh" doc:"Bypass the cached diff"`
-}
-
-type reviewInput struct {
-	PRPath
-	Body reviewRequest
-}
-
-type draftInput struct {
-	PRPath
-	Body draftRequest
-}
-
-type mergeInput struct {
-	PRPath
-	Body mergeRequest
-}
-
-type prTargetInput struct {
-	PRPath
-}
-
-type commentsInput struct {
-	PRPath
-	Refresh bool `query:"refresh" doc:"Bypass the cached response"`
-}
-
-type commentInput struct {
-	PRPath
-	Body commentRequest
-}
-
-type deleteCommentInput struct {
-	PRPath
-	CommentID int64 `path:"commentID" minimum:"1" doc:"Inline comment id"`
-}
-
-type actionInput struct {
-	PRPath
-	ActionID string `path:"actionID" doc:"Action id from GET /config"`
-}
-
-type patchInput struct {
-	PRPath
-	ActionID  string `path:"actionID" doc:"Action id from GET /config"`
-	FindingID string `path:"findingID" doc:"Finding id from the review artifact"`
-}
-
 // Output wrappers. Huma documents the Body field as the success response.
 type (
 	okOutput        struct{ Body okResponse }

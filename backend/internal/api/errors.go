@@ -87,8 +87,3 @@ func codeForStatus(status int) string {
 		return codeInternal
 	}
 }
-
-// writeError writes the envelope outside Huma, for CORS and auth middleware.
-func writeError(w http.ResponseWriter, status int, code, message string) {
-	writeJSON(w, status, ErrorEnvelope{Error: ErrorBody{Code: code, Message: message}})
-}

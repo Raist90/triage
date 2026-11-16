@@ -2,8 +2,6 @@
 package api
 
 import (
-	"encoding/json"
-	"net/http"
 	"time"
 
 	"github.com/Raist90/triage/backend/internal/actions"
@@ -100,19 +98,4 @@ type patchApplyResponse struct {
 	OK        bool      `json:"ok"`
 	AppliedAt time.Time `json:"appliedAt"`
 	Worktree  string    `json:"worktree" doc:"Worktree the patch was applied to"`
-}
-
-// writeJSON writes v as the response body. Marshaling happens before any write
-// so a failure can still produce a clean error envelope.
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	data, err := json.Marshal(v)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte(`{"error":{"code":"internal_error","message":"failed to encode response"}}`))
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_, _ = w.Write(data)
 }

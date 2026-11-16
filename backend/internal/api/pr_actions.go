@@ -12,6 +12,20 @@ import (
 // maxPRStateBody caps the two small action payloads.
 const maxPRStateBody = 8 << 10
 
+type draftInput struct {
+	PRPath
+	Body draftRequest
+}
+
+type mergeInput struct {
+	PRPath
+	Body mergeRequest
+}
+
+type prTargetInput struct {
+	PRPath
+}
+
 // setPRDraft serves POST /pr/{owner}/{repo}/{number}/draft.
 func (s *Server) setPRDraft(ctx context.Context, in *draftInput) (*okOutput, error) {
 	if in.Body.Draft == nil {

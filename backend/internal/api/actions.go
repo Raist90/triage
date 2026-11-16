@@ -2,10 +2,7 @@ package api
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/Raist90/triage/backend/internal/actions"
 	"github.com/Raist90/triage/backend/internal/config"
@@ -13,73 +10,9 @@ import (
 	"github.com/Raist90/triage/backend/internal/worktree"
 )
 
-// configView derives what the webview may know: no models, no prompts.
-func (s *Server) configView(ctx context.Context) configResponse {
-	view := configResponse{
-		User:        s.cfg.User,
-		Tabs:        s.cfg.Tabs,
-		Linear:      s.cfg.Linear,
-		Actions:     []actionView{},
-		Repos:       make([]repoView, 0, len(s.cfg.Repos)),
-		ConfigPath:  s.cfg.Source,
-		ConfigError: s.cfg.Problem,
-	}
-
-	available := s.runner != nil && s.runner.Available()
-	if available {
-		for _, action := range s.cfg.Actions.Items {
-			view.Actions = append(view.Actions, actionView{ID: action.ID, Label: action.Label, Kind: action.Kind})
-		}
-	} else {
-		view.ActionsReason = "Claude Code CLI not found"
-	}
-
-	// Explain needs only a tracked repo and the CLI. Review also needs a local
-	// checkout, so its readiness is per repo.
-	for _, repo := range s.cfg.Repos {
-		view.Repos = append(view.Repos, repoView{
-			Owner:   repo.Owner,
-			Name:    repo.Name,
-			Actions: available,
-			Review:  repoReview(ctx, s.worktrees, repo, available),
-		})
-	}
-	return view
-}
-
-// repoReview reports whether automatic review can run for one repo: the CLI must
-// be present and the configured local path must be a git repository.
-func repoReview(ctx context.Context, manager *worktree.Manager, repo config.Repo, claudeAvailable bool) repoReviewView {
-	if repo.Path == "" {
-		return repoReviewView{Available: false, Reason: "No local path configured"}
-	}
-	if manager != nil {
-		if ok, reason := worktree.Status(ctx, repo.Path); !ok {
-			return repoReviewView{Available: false, Reason: reason}
-		}
-	}
-	return repoReviewView{Available: claudeAvailable}
-}
-
-func (s *Server) findRepo(owner, name string) (config.Repo, bool) {
-	for _, repo := range s.cfg.Repos {
-		if equalFold(repo.Owner, owner) && equalFold(repo.Name, name) {
-			return repo, true
-		}
-	}
-	return config.Repo{}, false
-}
-
-func (s *Server) findAction(actionID string) (config.Action, bool) {
-	if s.runner == nil || !s.runner.Available() {
-		return config.Action{}, false
-	}
-	for _, action := range s.cfg.Actions.Items {
-		if action.ID == actionID {
-			return action, true
-		}
-	}
-	return config.Action{}, false
+type actionInput struct {
+	PRPath
+	ActionID string `path:"actionID" doc:"Action id from GET /config"`
 }
 
 // runAction serves POST /pr/{owner}/{repo}/{n}/actions/{actionID}. It returns
@@ -212,119 +145,6 @@ func (s *Server) cancelAction(_ context.Context, in *actionInput) (*actionOutput
 	return &actionOutput{Body: actionResponse{Job: &job}}, nil
 }
 
-// handleActionStream serves GET .../actions/{actionID}/stream as SSE. The
-// response is JSON lines prefixed with `data: `, one event per blank line.
-func (s *Server) handleActionStream(w http.ResponseWriter, r *http.Request) {
-	owner, repo := r.PathValue("owner"), r.PathValue("repo")
-	if !repoSegmentPattern.MatchString(owner) || !repoSegmentPattern.MatchString(repo) {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "repo must be owner/name")
-		return
-	}
-	number, ok := parseNumber(r.PathValue("number"))
-	if !ok {
-		writeError(w, http.StatusBadRequest, codeBadRequest, "number must be a positive integer")
-		return
-	}
-	in := &actionInput{
-		PRPath: PRPath{
-			RepoPath: RepoPath{Owner: owner, Repo: repo},
-			Number:   number,
-		},
-		ActionID: r.PathValue("actionID"),
-	}
-
-	action, tracked, err := s.resolveAction(in)
-	if err != nil {
-		s.writeActionStreamError(w, err)
-		return
-	}
-
-	key := actions.JobKey(tracked.Owner, tracked.Name, in.Number, action.ID)
-	events, done, unsubscribe, found := s.runner.Subscribe(key)
-	if !found {
-		writeError(w, http.StatusNotFound, codeNotFound, "action is not running")
-		return
-	}
-	defer unsubscribe()
-
-	controller := http.NewResponseController(w)
-	// A job may run for five minutes; the server-wide WriteTimeout must not
-	// cut the stream short.
-	_ = controller.SetWriteDeadline(time.Time{})
-
-	header := w.Header()
-	header.Set("Content-Type", "text/event-stream")
-	header.Set("Cache-Control", "no-store")
-	header.Set("Connection", "keep-alive")
-	header.Set("X-Accel-Buffering", "no")
-	w.WriteHeader(http.StatusOK)
-	_ = controller.Flush()
-
-	writeEvent := func(event actions.Event) bool {
-		if _, err := fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event.Type, eventPayload(event)); err != nil {
-			return false
-		}
-		return controller.Flush() == nil
-	}
-
-	for {
-		select {
-		case event := <-events:
-			if !writeEvent(event) {
-				return
-			}
-			if terminalEvent(event) {
-				return
-			}
-		case <-done:
-			for {
-				select {
-				case event := <-events:
-					if !writeEvent(event) {
-						return
-					}
-				default:
-					return
-				}
-			}
-		case <-r.Context().Done():
-			return
-		}
-	}
-}
-
-func terminalEvent(event actions.Event) bool {
-	return event.Type == "done" || event.Type == "error"
-}
-
-func eventPayload(event actions.Event) string {
-	var payload any
-	switch event.Type {
-	case "status":
-		payload = struct {
-			Status string `json:"status"`
-		}{Status: event.Status}
-	case "delta":
-		payload = struct {
-			Text string `json:"text"`
-		}{Text: event.Text}
-	case "done":
-		payload = struct {
-			Artifact *actions.Artifact `json:"artifact"`
-		}{Artifact: event.Artifact}
-	default:
-		payload = struct {
-			Code    string `json:"code"`
-			Message string `json:"message"`
-		}{Code: event.Code, Message: event.Message}
-	}
-	data, err := json.Marshal(payload)
-	if err != nil {
-		return "{}"
-	}
-	return string(data)
-}
-
 // resolveAction validates the action id and returns the action plus the tracked
 // repo.
 func (s *Server) resolveAction(in *actionInput) (config.Action, config.Repo, error) {
@@ -366,16 +186,6 @@ func (s *Server) actionError(err error) error {
 	return errorf(status, code, message)
 }
 
-// writeActionStreamError writes an envelope error for the hand-written SSE
-// route, which has no Huma context to return an error to.
-func (s *Server) writeActionStreamError(w http.ResponseWriter, err error) {
-	if apiErr, ok := err.(*apiError); ok {
-		writeError(w, apiErr.GetStatus(), apiErr.ErrorEnvelope.Error.Code, apiErr.Error())
-		return
-	}
-	writeError(w, http.StatusInternalServerError, codeInternal, "The stream request failed")
-}
-
 // prMetadata reads PR detail through the same cache as the detail route.
 func (s *Server) prMetadata(ctx context.Context, owner, repo string, number int, refresh bool) (github.PR, error) {
 	vars := prVars{Owner: owner, Repo: repo, Number: number}
@@ -390,41 +200,4 @@ func (s *Server) prMetadata(ctx context.Context, owner, repo string, number int,
 		return nil
 	})
 	return pr, err
-}
-
-// parseNumber validates the number path segment for the hand-written SSE route.
-func parseNumber(raw string) (int, bool) {
-	number := 0
-	for _, r := range raw {
-		if r < '0' || r > '9' {
-			return 0, false
-		}
-		number = number*10 + int(r-'0')
-		if number > 1<<30 {
-			return 0, false
-		}
-	}
-	if number <= 0 {
-		return 0, false
-	}
-	return number, true
-}
-
-func equalFold(a, b string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := 0; i < len(a); i++ {
-		ca, cb := a[i], b[i]
-		if 'A' <= ca && ca <= 'Z' {
-			ca += 'a' - 'A'
-		}
-		if 'A' <= cb && cb <= 'Z' {
-			cb += 'a' - 'A'
-		}
-		if ca != cb {
-			return false
-		}
-	}
-	return true
 }
