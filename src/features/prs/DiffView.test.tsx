@@ -11,6 +11,7 @@ import {
   makeCommentsController,
   makeFile,
   makeHunk,
+  makeInlineComment,
   makeLine,
 } from "../../test/fixtures";
 import type { DiffCommentsController } from "./useDiffComments";
@@ -221,5 +222,248 @@ describe("DiffView", () => {
 
     expect(screen.getByText(/@@ -1 \+1 @@/)).toBeDefined();
     expect(screen.getByText(/\+new line/)).toBeDefined();
+  });
+
+  test("k moves back, and the first file does not wrap", () => {
+    renderDiff();
+
+    fireEvent.keyDown(window, { key: "j" });
+    expect(screen.getByText("beta added")).toBeDefined();
+
+    fireEvent.keyDown(window, { key: "k" });
+    expect(screen.getByText("alpha added")).toBeDefined();
+
+    fireEvent.keyDown(window, { key: "k" });
+    expect(screen.getByText("alpha added")).toBeDefined();
+    expect(screen.queryByText("beta added")).toBeNull();
+  });
+
+  test("slash focuses the file filter", () => {
+    renderDiff();
+
+    fireEvent.keyDown(window, { key: "/" });
+
+    expect(document.activeElement).toBe(screen.getByLabelText("Filter files"));
+  });
+
+  test("focus mode can open every file and return to one at a time", () => {
+    renderDiff();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show all files" }));
+    expect(screen.getByText("alpha added")).toBeDefined();
+    expect(screen.getByText("beta added")).toBeDefined();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show one file at a time" }),
+    );
+    expect(screen.getByText("alpha added")).toBeDefined();
+    expect(screen.queryByText("beta added")).toBeNull();
+  });
+
+  test("the file header collapses and reopens its patch", () => {
+    renderDiff();
+    const section = screen.getByText("alpha added").closest("section");
+    expect(section).not.toBeNull();
+    const header = within(section!).getByRole("button", { name: /a\.ts/ });
+
+    fireEvent.click(header);
+    expect(screen.queryByText("alpha added")).toBeNull();
+
+    fireEvent.click(header);
+    expect(screen.getByText("alpha added")).toBeDefined();
+  });
+
+  test("a hidden file kind leaves the list and can be cleared again", () => {
+    const a = fileA();
+    a.kinds = ["test"];
+    renderDiff({ files: [a, fileB()] });
+    const sidebar = screen.getByLabelText("Files in this pull request");
+
+    fireEvent.click(
+      within(sidebar).getByRole("button", {
+        name: "Tests, 1 file, shown",
+      }),
+    );
+
+    expect(within(sidebar).queryByText("a.ts")).toBeNull();
+    expect(screen.queryByText("alpha added")).toBeNull();
+    expect(screen.getByText(/1 file hidden/)).toBeDefined();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    expect(within(sidebar).getByText("a.ts")).toBeDefined();
+    expect(within(sidebar).getByText("2 files")).toBeDefined();
+  });
+
+  test("cosmetic-only files are hidden by default and can be shown", () => {
+    const a = fileA();
+    a.semantic = [
+      {
+        changeType: "modified",
+        entityType: "rule",
+        entityName: ".a",
+        cosmetic: true,
+      },
+    ];
+    renderDiff({ files: [a, fileB()] });
+    const sidebar = screen.getByLabelText("Files in this pull request");
+
+    expect(within(sidebar).queryByText("a.ts")).toBeNull();
+    expect(screen.getByText(/1 cosmetic-only file/)).toBeDefined();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Hide cosmetic-only files" }),
+    );
+    expect(within(sidebar).getByText("a.ts")).toBeDefined();
+  });
+
+  test("low-focus files can be hidden and are named in the toolbar", () => {
+    const a = fileA();
+    a.review = { band: "low", score: 10, changes: {}, signals: {} };
+    const b = fileB();
+    b.review = { band: "high", score: 90, changes: {}, signals: {} };
+    renderDiff({ files: [a, b] });
+    const sidebar = screen.getByLabelText("Files in this pull request");
+
+    fireEvent.click(
+      within(sidebar).getByRole("button", {
+        name: "Hide 1 low-focus file",
+      }),
+    );
+
+    expect(within(sidebar).queryByText("a.ts")).toBeNull();
+    expect(screen.getByText(/1 low focus hidden/)).toBeDefined();
+  });
+
+  test("binary files and empty patches have their own copy", () => {
+    const binary = makeFile({
+      path: "src/logo.png",
+      binary: true,
+      hunks: [],
+    });
+    const { unmount } = renderDiff({ files: [binary] });
+    expect(screen.getByText("Binary file changed.")).toBeDefined();
+    unmount();
+
+    const empty = makeFile({ path: "src/empty.txt", hunks: [], patch: "" });
+    renderDiff({ files: [empty] });
+    expect(screen.getByText("No textual changes.")).toBeDefined();
+  });
+
+  test("unanchored semantic changes stay collapsed until asked for", () => {
+    const file = fileA();
+    file.semantic = [
+      {
+        changeType: "modified",
+        entityType: "function",
+        entityName: "orphan",
+        startLine: 50,
+        endLine: 50,
+      },
+    ];
+    renderDiff({ files: [file], semantic: true });
+
+    expect(screen.queryByText("orphan")).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", { name: /unanchored semantic change/ }),
+    );
+    expect(screen.getByText("orphan")).toBeDefined();
+  });
+
+  test("the author can delete their inline comment after confirming", async () => {
+    let removed: number | null = null;
+    const comments = makeCommentsController({
+      comments: [
+        makeInlineComment({
+          id: 7,
+          author: "viewer",
+          body: "Existing thread",
+          path: "src/a.ts",
+          line: 2,
+          side: "RIGHT",
+          commitID: headSHA,
+        }),
+      ],
+      remove: async (id) => {
+        removed = id;
+        return null;
+      },
+    });
+    renderDiff({ comments });
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete comment" }));
+
+    await waitFor(() => expect(removed).toBe(7));
+  });
+
+  test("a failed delete keeps the thread and shows the error", async () => {
+    const comments = makeCommentsController({
+      comments: [
+        makeInlineComment({
+          id: 7,
+          author: "viewer",
+          body: "Existing thread",
+          path: "src/a.ts",
+          line: 2,
+          side: "RIGHT",
+          commitID: headSHA,
+        }),
+      ],
+      remove: async () => "Could not delete",
+    });
+    renderDiff({ comments });
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete comment" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("Could not delete");
+    expect(screen.getByText("Existing thread")).toBeDefined();
+  });
+
+  test("Escape closes the composer without submitting", () => {
+    const comments = makeCommentsController({
+      submit: async () => {
+        throw new Error("must not submit");
+      },
+    });
+    renderDiff({ canComment: true, comments });
+
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "Comment on this line" })[1],
+    );
+    const composer = screen.getByPlaceholderText(
+      "Leave a comment on this line…",
+    );
+    fireEvent.change(composer, { target: { value: "Draft" } });
+    fireEvent.keyDown(composer, { key: "Escape" });
+
+    expect(
+      screen.queryByPlaceholderText("Leave a comment on this line…"),
+    ).toBeNull();
+  });
+
+  test("a failed submit keeps the composer open with the error", async () => {
+    const comments = makeCommentsController({
+      submit: async () => "Could not post",
+    });
+    renderDiff({ canComment: true, comments });
+
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "Comment on this line" })[1],
+    );
+    fireEvent.change(
+      screen.getByPlaceholderText("Leave a comment on this line…"),
+      {
+        target: { value: "Please extract this." },
+      },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Comment" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("Could not post");
+    expect(
+      screen.getByPlaceholderText("Leave a comment on this line…"),
+    ).toBeDefined();
   });
 });
