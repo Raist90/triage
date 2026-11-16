@@ -87,7 +87,7 @@ Run them from the repo root with `make`:
 | `make app`   | Go sidecar + Tauri desktop shell                  |
 | `make dev`   | Go sidecar + Vite in a browser                    |
 | `make check` | typecheck, lint, `go build`, `go vet`             |
-| `make test`  | Go tests                                          |
+| `make test`  | frontend and Go tests                             |
 | `make fix`   | ESLint `--fix` and Prettier write                 |
 | `make build` | frontend bundle and Go binary                     |
 | `make clean` | remove build artifacts and the dev handshake file |
@@ -99,6 +99,7 @@ bun run tauri dev     # desktop shell, needs the Go server running
 bun run dev           # Vite only
 bun run backend:dev   # Go sidecar only
 bun run typecheck
+bun run test          # frontend tests (Bun + happy-dom)
 bun run lint
 ```
 
