@@ -42,11 +42,6 @@ func New(dir string) *Cache {
 	return &Cache{dir: dir}
 }
 
-// Dir is the cache root.
-func (c *Cache) Dir() string {
-	return c.dir
-}
-
 // Key is the sha256 of provider + route + canonical vars JSON. Stable across
 // runs: maps marshal with sorted keys.
 func Key(provider, route string, vars any) (string, error) {

@@ -70,11 +70,6 @@ func NewStore(root string) *Store {
 	return &Store{root: root}
 }
 
-// Dir is the artifact root.
-func (s *Store) Dir() string {
-	return s.root
-}
-
 // Get reads the artifact for exactly this SHA and action.
 func (s *Store) Get(owner, repo string, number int, sha, actionID string) (*Artifact, bool) {
 	return s.read(owner, repo, number, sha, actionID)

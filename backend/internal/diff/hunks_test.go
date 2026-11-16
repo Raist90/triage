@@ -17,7 +17,7 @@ index 1111111..2222222 100644
 +// added
 \ No newline at end of file
 `
-	hunks := BuildHunks(patch)
+	hunks := BuildHunksFor("x.go", patch)
 	if len(hunks) != 1 {
 		t.Fatalf("got %d hunks, want 1", len(hunks))
 	}
@@ -46,7 +46,7 @@ index 1111111..2222222 100644
 }
 
 func TestBuildHunksOmittedCounts(t *testing.T) {
-	hunks := BuildHunks("--- a/x\n+++ b/x\n@@ -5 +5 @@\n-old\n+new\n")
+	hunks := BuildHunksFor("x.go", "--- a/x\n+++ b/x\n@@ -5 +5 @@\n-old\n+new\n")
 	if len(hunks) != 1 || hunks[0].OldCount != 1 || hunks[0].NewCount != 1 {
 		t.Fatalf("hunks = %+v", hunks)
 	}
@@ -56,7 +56,7 @@ func TestBuildHunksOmittedCounts(t *testing.T) {
 }
 
 func TestBuildHunksContentThatLooksLikeHeaders(t *testing.T) {
-	hunks := BuildHunks("--- a/x\n+++ b/x\n@@ -1,2 +1,2 @@\n--- removed\n+++ added\n")
+	hunks := BuildHunksFor("x.go", "--- a/x\n+++ b/x\n@@ -1,2 +1,2 @@\n--- removed\n+++ added\n")
 	if len(hunks) != 1 || len(hunks[0].Lines) != 2 {
 		t.Fatalf("hunks = %+v", hunks)
 	}
@@ -66,16 +66,16 @@ func TestBuildHunksContentThatLooksLikeHeaders(t *testing.T) {
 }
 
 func TestBuildHunksMalformed(t *testing.T) {
-	if hunks := BuildHunks(""); hunks != nil {
+	if hunks := BuildHunksFor("x.go", ""); hunks != nil {
 		t.Fatalf("empty patch hunks = %+v", hunks)
 	}
-	if hunks := BuildHunks("not a patch\n"); hunks != nil {
+	if hunks := BuildHunksFor("x.go", "not a patch\n"); hunks != nil {
 		t.Fatalf("garbage hunks = %+v", hunks)
 	}
 }
 
 func TestEmphasisMarksChangedWords(t *testing.T) {
-	hunks := BuildHunks("--- a/x\n+++ b/x\n@@ -1,1 +1,1 @@\n-const a = 1;\n+const a = 2;\n")
+	hunks := BuildHunksFor("x.go", "--- a/x\n+++ b/x\n@@ -1,1 +1,1 @@\n-const a = 1;\n+const a = 2;\n")
 	if len(hunks) != 1 {
 		t.Fatalf("got %d hunks", len(hunks))
 	}
@@ -95,7 +95,7 @@ func TestEmphasisMarksChangedWords(t *testing.T) {
 }
 
 func TestEmphasisMergesAdjacentChangedTokens(t *testing.T) {
-	hunks := BuildHunks("--- a/x\n+++ b/x\n@@ -1,1 +1,1 @@\n-text-[13px]\n+text-sm\n")
+	hunks := BuildHunksFor("x.go", "--- a/x\n+++ b/x\n@@ -1,1 +1,1 @@\n-text-[13px]\n+text-sm\n")
 	del, add := hunks[0].Lines[0], hunks[0].Lines[1]
 	if got := emphasized(del.Spans); got != "[13px]" {
 		t.Errorf("removal emphasis = %q, want %q", got, "[13px]")
@@ -145,14 +145,14 @@ func TestEmphasisKeepsPositionalPairingForCode(t *testing.T) {
 }
 
 func TestEmphasisSkipsHeavyRewrite(t *testing.T) {
-	hunks := BuildHunks("--- a/x\n+++ b/x\n@@ -1,1 +1,1 @@\n-aaaaaaaaaa\n+bbbbbbbbbb\n")
+	hunks := BuildHunksFor("x.go", "--- a/x\n+++ b/x\n@@ -1,1 +1,1 @@\n-aaaaaaaaaa\n+bbbbbbbbbb\n")
 	if hunks[0].Lines[0].Spans != nil || hunks[0].Lines[1].Spans != nil {
 		t.Errorf("heavy rewrite kept emphasis: %+v / %+v", hunks[0].Lines[0].Spans, hunks[0].Lines[1].Spans)
 	}
 }
 
 func TestEmphasisSkipsUnrelatedLines(t *testing.T) {
-	hunks := BuildHunks("--- a/x\n+++ b/x\n@@ -1,1 +1,1 @@\n-alpha\n+omega\n")
+	hunks := BuildHunksFor("x.go", "--- a/x\n+++ b/x\n@@ -1,1 +1,1 @@\n-alpha\n+omega\n")
 	if hunks[0].Lines[0].Spans != nil {
 		t.Errorf("unrelated removal kept emphasis: %+v", hunks[0].Lines[0].Spans)
 	}

@@ -4,7 +4,7 @@ import "testing"
 
 func TestHighlightAddsSyntaxKinds(t *testing.T) {
 	patch := "--- a/x.go\n+++ b/x.go\n@@ -1,2 +1,2 @@\n package main\n-func run() { x := 1 }\n+func run() { y := \"s\" }\n"
-	hunks := BuildHunks(patch)
+	hunks := BuildHunksFor("x.go", patch)
 	if len(hunks) != 1 {
 		t.Fatalf("got %d hunks", len(hunks))
 	}
@@ -49,7 +49,7 @@ func TestHighlightAddsWiderTokenKinds(t *testing.T) {
 	for _, test := range cases {
 		patch := "--- a/" + test.path + "\n+++ b/" + test.path +
 			"\n@@ -1,1 +1,1 @@\n " + test.line + "\n"
-		hunks := BuildHunks(patch)
+		hunks := BuildHunksFor("x.go", patch)
 		if len(hunks) != 1 || len(hunks[0].Lines) != 1 {
 			t.Fatalf("%s: got %+v", test.path, hunks)
 		}
@@ -73,7 +73,7 @@ func TestHighlightVueHTMLCommentDoesNotStartString(t *testing.T) {
 		"+    <p>ok</p>\n" +
 		"+  </section>\n" +
 		" </template>\n"
-	hunks := BuildHunks(patch)
+	hunks := BuildHunksFor("x.go", patch)
 	if len(hunks) != 1 || len(hunks[0].Lines) != 6 {
 		t.Fatalf("got %+v", hunks)
 	}
@@ -104,7 +104,7 @@ func TestHighlightVueHTMLCommentDoesNotStartString(t *testing.T) {
 
 func TestHighlightUnknownLanguage(t *testing.T) {
 	patch := "--- a/x.zzz\n+++ b/x.zzz\n@@ -1,1 +1,1 @@\n-old\n+new\n"
-	hunks := BuildHunks(patch)
+	hunks := BuildHunksFor("x.go", patch)
 	before := hunks[0].Lines[0].Spans
 	Highlight("x.zzz", hunks)
 	if spansText(hunks[0].Lines[0].Spans) != spansText(before) {
@@ -115,7 +115,7 @@ func TestHighlightUnknownLanguage(t *testing.T) {
 func TestHighlightSkipsMarkupFiles(t *testing.T) {
 	patch := "--- a/App.vue\n+++ b/App.vue\n@@ -1,1 +1,1 @@\n-const msg = 1;\n+const msg = \"hi\";\n"
 	for _, path := range []string{"index.html", "App.svelte", "README.md"} {
-		hunks := BuildHunks(patch)
+		hunks := BuildHunksFor("x.go", patch)
 		Highlight(path, hunks)
 		for _, line := range hunks[0].Lines {
 			if hasKind(line.Spans, KindString) || hasKind(line.Spans, KindKeyword) {

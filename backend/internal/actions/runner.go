@@ -159,15 +159,6 @@ func (r *Runner) Artifact(key string) (*Artifact, bool) {
 	return &artifact, true
 }
 
-// CurrentSHA returns the SHA a job is working on.
-func (r *Runner) CurrentSHA(key string) (string, bool) {
-	value, ok := r.lookup(key)
-	if !ok {
-		return "", false
-	}
-	return value.Info().SHA, true
-}
-
 // Cancel kills a running job. It reports whether a live job existed.
 func (r *Runner) Cancel(key string) bool {
 	value, ok := r.lookup(key)

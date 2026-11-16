@@ -6,14 +6,7 @@
 // Never hand-write a response shape here. Change the Go type, then run
 // `make api`.
 
-import type {
-  ActionView,
-  Artifact,
-  FileReview,
-  Finding,
-  Job,
-  Pr,
-} from "./generated";
+import type { ActionView, Artifact, Finding, Job, Pr } from "./generated";
 
 export type {
   ActionResponse,
@@ -26,7 +19,6 @@ export type {
   ConfigResponse as Config,
   DroppedFinding as ReviewDroppedFinding,
   File as DiffFile,
-  FileReview,
   Finding as ReviewFinding,
   Hunk as DiffHunk,
   InlineComment,
@@ -37,7 +29,6 @@ export type {
   OkResponse as HealthResponse,
   Pr as PR,
   PrDetailResponse as PRDetailResponse,
-  RepoReviewView as RepoReview,
   RepoView,
   Response as PRDiffResponse,
   Review as ReviewDocument,
@@ -45,9 +36,6 @@ export type {
   SemanticSummary,
   Span as DiffSpan,
   TabConfig as Tab,
-  Usage as ActionUsage,
-  UserConfig as User,
-  Verdict as ReviewVerdict,
 } from "./generated";
 
 /** Handshake payload written by `triage-server` and read by the shell. */
@@ -71,10 +59,6 @@ export type CheckState = Pr["checkStatus"];
 export type ReviewState = Pr["reviewState"];
 
 export type ReviewSeverity = Finding["severity"];
-
-export type ReviewCategory = Finding["category"];
-
-export type ReviewBand = FileReview["band"];
 
 /** Review actions accepted by the server. */
 export type ReviewEvent = "APPROVE" | "REQUEST_CHANGES" | "COMMENT";

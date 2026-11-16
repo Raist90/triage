@@ -58,7 +58,8 @@ func TestKeyCanonicalizesMapOrder(t *testing.T) {
 }
 
 func TestPutGetRoundTrip(t *testing.T) {
-	c := New(t.TempDir())
+	dir := t.TempDir()
+	c := New(dir)
 	key, err := Key("github", "viewer", nil)
 	if err != nil {
 		t.Fatalf("Key: %v", err)
@@ -83,7 +84,7 @@ func TestPutGetRoundTrip(t *testing.T) {
 		t.Fatal("FetchedAt was not set")
 	}
 
-	info, err := os.Stat(filepath.Join(c.Dir(), key+fileSuffix))
+	info, err := os.Stat(filepath.Join(dir, key+fileSuffix))
 	if err != nil {
 		t.Fatalf("stat entry: %v", err)
 	}
