@@ -74,7 +74,7 @@ export function RepoFilter({ repos, selectedRepo, onSelect }: RepoFilterProps) {
         role="listbox"
         aria-label="Repositories"
         onKeyDown={handleKeyDown}
-        className="flex flex-col gap-0"
+        className="flex flex-col gap-1"
       >
         {options.map((option, index) => {
           const isSelected = option === selectedRepo;
