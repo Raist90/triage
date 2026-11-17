@@ -93,7 +93,7 @@ export function Conversation({ pr, comments }: ConversationProps) {
   const entries = buildEntries(pr, comments);
 
   return (
-    <ol className="relative max-w-[68ch]">
+    <ol className="relative mx-auto max-w-[68ch]">
       <span
         aria-hidden="true"
         className="absolute inset-y-2 left-[2.5px] w-px bg-line"
