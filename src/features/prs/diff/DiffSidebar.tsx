@@ -71,7 +71,8 @@ export function DiffSidebar({
   return (
     <aside
       aria-label="Files in this pull request"
-      className="flex w-52 shrink-0 flex-col border-r border-line"
+      className="flex shrink-0 flex-col border-r border-line"
+      style={{ width: "var(--diff-rail, 208px)" }}
     >
       <div className="shrink-0 border-b border-line p-2">
         <label className="relative block">

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
   fireEvent,
   render,
@@ -21,6 +21,11 @@ const initialUIState = useUIStore.getState();
 
 beforeEach(() => {
   useUIStore.setState(initialUIState, true);
+  useUIStore.setState({ diffSidebarWidth: 208 });
+});
+
+afterEach(() => {
+  useUIStore.setState({ diffSidebarWidth: 208 });
 });
 
 const headSHA = "abc1234def5678";
@@ -125,6 +130,25 @@ describe("DiffView", () => {
     expect(within(sidebar).getByText("b.ts")).toBeDefined();
     expect(within(sidebar).getByText(/1 of 2 files/)).toBeDefined();
     expect(screen.getByText("alpha added")).toBeDefined();
+  });
+
+  test("the file rail separator resizes by keyboard and resets on double-click", () => {
+    renderDiff();
+    const separator = screen.getByRole("separator");
+
+    expect(separator.getAttribute("aria-valuenow")).toBe("208");
+
+    fireEvent.keyDown(separator, { key: "ArrowRight" });
+    expect(separator.getAttribute("aria-valuenow")).toBe("216");
+
+    fireEvent.keyDown(separator, { key: "Home" });
+    expect(separator.getAttribute("aria-valuenow")).toBe("168");
+
+    fireEvent.keyDown(separator, { key: "End" });
+    expect(separator.getAttribute("aria-valuenow")).toBe("440");
+
+    fireEvent.doubleClick(separator);
+    expect(separator.getAttribute("aria-valuenow")).toBe("208");
   });
 
   test("a review finding jump opens the target file", () => {
