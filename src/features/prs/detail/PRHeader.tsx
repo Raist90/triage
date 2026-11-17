@@ -7,7 +7,7 @@ import { ChangeStat } from "./ChangeStat";
 
 export function PRHeader({ pr }: { pr: PR }) {
   return (
-    <header className="shrink-0 bg-linear-to-b from-surface/60 to-transparent px-4 pt-4 pb-3">
+    <header className="shrink-0 header-wash px-4 pt-4 pb-3">
       <h1 className="flex min-w-0 items-baseline gap-2 text-title font-medium tracking-[-0.01em] text-fg">
         <span className="min-w-0">{pr.title}</span>
         <PRStateTag status={prStatus(pr)} />

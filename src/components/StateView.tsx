@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import type { AriaRole, ReactNode } from "react";
 import { cx } from "../lib/cx";
 import { Kbd } from "./ui";
 
@@ -20,6 +20,8 @@ type StateViewProps = {
   tone?: "default" | "danger";
   /** `fill` centres in the whole pane; `inline` sits in a scrolling panel. */
   layout?: "fill" | "inline";
+  /** Announce the state to assistive tech when it appears asynchronously. */
+  role?: AriaRole;
   className?: string;
   children?: ReactNode;
 };
@@ -35,14 +37,16 @@ export function StateView({
   dotGrid = false,
   tone = "default",
   layout = "fill",
+  role,
   className,
   children,
 }: StateViewProps) {
   return (
     <div
+      role={role}
       className={cx(
-        "relative flex flex-col items-center justify-center gap-3 px-6 py-10 text-center",
-        layout === "fill" && "h-full",
+        "relative flex flex-col items-center justify-center gap-3 py-10 text-center",
+        layout === "fill" && "h-full px-6",
         className,
       )}
     >

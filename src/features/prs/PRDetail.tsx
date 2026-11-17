@@ -1,16 +1,15 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { ErrorState } from "../../components/ErrorState";
-import { cx } from "../../lib/cx";
 import { describeError, getConfig, getPR } from "../../lib/api";
 import { useLiveRefresh } from "../../lib/liveRefresh";
 import { loadDiffForHead } from "../../lib/prRefresh";
 import type { ReviewFinding } from "../../lib/types";
-import { scrollEdgeClass, useScrollEdges } from "../../lib/useScrollEdges";
 import { useUIStore } from "../../stores/ui";
 import { useClaudeAction } from "./action/useClaudeAction";
 import { Conversation } from "./detail/Conversation";
 import { ContextRail } from "./detail/ContextRail";
+import { DetailPanel } from "./detail/DetailPanel";
 import { DetailSkeleton } from "./detail/DetailSkeleton";
 import { DetailTabs, type DetailTab, type TabDef } from "./detail/DetailTabs";
 import { DiffTab } from "./detail/DiffTab";
@@ -64,8 +63,6 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
   // A live re-read must see GitHub's current state, so the next fetch bypasses
   // the server TTLs by reading this flag.
   const liveRefetch = useRef(false);
-  const panelRef = useRef<HTMLDivElement | null>(null);
-  const scrollEdges = useScrollEdges(panelRef);
   const detailQuery = useQuery({
     queryKey: ["pr", repo, number],
     // A poll must bypass the server cache, which may have stored "unknown"
@@ -230,19 +227,7 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
               <PRHeader pr={pr} />
               <DetailTabs tabs={tabs} active={activeTab} onSelect={setTab} />
 
-              <div
-                ref={panelRef}
-                role="tabpanel"
-                id={`detail-panel-${activeTab}`}
-                aria-labelledby={`detail-tab-${activeTab}`}
-                tabIndex={0}
-                className={cx(
-                  activeTab === "diff"
-                    ? "flex min-h-0 flex-1 flex-col outline-none"
-                    : "min-h-0 flex-1 overflow-y-auto p-4 outline-none",
-                  scrollEdgeClass(scrollEdges),
-                )}
-              >
+              <DetailPanel activeTab={activeTab}>
                 {activeTab === "conversation" ? (
                   <Conversation pr={pr} comments={comments} />
                 ) : null}
@@ -273,7 +258,7 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
                 {activeTab === "explain" ? (
                   <ExplainTab controller={explain} />
                 ) : null}
-              </div>
+              </DetailPanel>
             </>
           ) : null}
         </div>

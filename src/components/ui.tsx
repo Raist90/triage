@@ -56,7 +56,7 @@ export function IconButton({
       className={cx(
         "relative inline-flex size-7 shrink-0 items-center justify-center rounded-sm text-fg-faint transition-colors hover:bg-surface hover:text-fg disabled:cursor-not-allowed disabled:opacity-50",
         active &&
-          "text-fg after:absolute after:inset-x-1 after:bottom-0 after:h-0.5 after:rounded-full after:bg-linear-to-r after:from-transparent after:via-accent after:to-transparent",
+          "text-fg after:absolute after:inset-x-1 after:bottom-0 after:h-0.5 after:rounded-full after:accent-hairline",
         className,
       )}
       {...props}
@@ -85,7 +85,7 @@ export function MicroLabel({
 
 export function Kbd({ children }: { children: ReactNode }) {
   return (
-    <kbd className="rounded-sm border border-line bg-linear-to-b from-raised to-surface px-1 font-mono text-micro text-fg-faint">
+    <kbd className="rounded-sm border border-line lit px-1 font-mono text-micro text-fg-faint">
       {children}
     </kbd>
   );

@@ -17,6 +17,7 @@ export function ErrorState({
 }: ErrorStateProps) {
   return (
     <StateView
+      role="alert"
       tone="danger"
       icon={CircleSlash}
       title={title}

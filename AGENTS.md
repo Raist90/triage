@@ -161,7 +161,8 @@ stay side by side; reviewing is the only flow that matters.
   accent is an approval or the next action, danger is a failure.
 - **Gradients are light, not fills.** One source, top-left. Use the utilities in
   `index.css`: `ambient-wash` (shell), `app-seam` (the one fading chrome
-  hairline), `lit`/`rail-active` (raised chrome), `row-selected`
+  hairline), `header-wash` (pane header lamp), `accent-hairline` (active tab or
+  icon underline), `lit`/`rail-active` (raised chrome), `row-selected`
   (list selection), `elevated` (dialogs, popovers), `cta` (the one lit action),
   `shimmer`, `live-dot`, `dot-grid`, `fade-*` (scroll edges). Never inline an
   arbitrary gradient, never add a hue, never blur.
@@ -195,13 +196,13 @@ stay side by side; reviewing is the only flow that matters.
 - **Review:** the verdict is the headline (`text-lead`, accent or danger),
   followed by a proportional severity strip; every finding card carries a 2px
   severity rail.
-- **PR detail:** compact header, 44px bar, tabs for Conversation (default), Diff,
-  Review (when available), Explain (when available). Conversation is one
-  chronological timeline: the PR
+- **PR detail:** compact header with title, state, author, branches and change
+  stats; 44px bar; tabs for Conversation (default), Diff, Review (when
+  available), Explain (when available). Conversation is one chronological
+  timeline: the PR
   body first, then comments, review verdicts and inline review comments. The
-  272px context rail shows checks, review, change stats, branches, commit and
-  author; it is hidden below 1400px and while the Diff tab is active (the diff
-  needs the width).
+  272px context rail shows checks, review, complexity and commit; it is hidden
+  below 1400px and while the Diff tab is active (the diff needs the width).
 - **Diffs:** per file, collapsible, full width, 208px file rail. Semantic diff
   via `sem` when available; fall back to a plain unified diff. Never fail a
   review flow because `sem` is absent. Semantic changes live in a 40px map on

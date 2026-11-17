@@ -160,6 +160,25 @@
   );
 }
 
+/* Pane header catching light from above, into the pane background. */
+@utility header-wash {
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--color-surface) 60%, transparent) 0%,
+    transparent 100%
+  );
+}
+
+/* The active underline on a tab or icon control: accent, soft at both ends. */
+@utility accent-hairline {
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--color-accent) 50%,
+    transparent 100%
+  );
+}
+
 /* Raised chrome: a control that catches light from above. */
 @utility lit {
   background-image: linear-gradient(

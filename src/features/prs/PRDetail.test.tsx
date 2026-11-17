@@ -159,6 +159,48 @@ describe("PRDetail", () => {
     expect(screen.queryByRole("tab", { name: /^Explain/ })).toBeNull();
   });
 
+  test("fades the tab panel when its content overflows", async () => {
+    await renderDetail();
+    const panel = screen.getByRole("tabpanel");
+    Object.defineProperty(panel, "scrollHeight", {
+      configurable: true,
+      value: 1000,
+    });
+    Object.defineProperty(panel, "clientHeight", {
+      configurable: true,
+      value: 100,
+    });
+
+    fireEvent.scroll(panel);
+
+    await waitFor(() => expect(panel.className).toContain("fade-bottom"));
+  });
+
+  test("copies the head SHA from the context rail", async () => {
+    const writeText = mock(async () => {});
+    const descriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    try {
+      await renderDetail();
+
+      fireEvent.click(screen.getByRole("button", { name: "Copy commit SHA" }));
+
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith(pr.headSHA));
+      expect(
+        await screen.findByRole("button", { name: "Copied" }),
+      ).toBeDefined();
+    } finally {
+      if (descriptor) {
+        Object.defineProperty(navigator, "clipboard", descriptor);
+      } else {
+        Reflect.deleteProperty(navigator, "clipboard");
+      }
+    }
+  });
+
   test("Escape closes the detail", async () => {
     await renderDetail();
     fireEvent.keyDown(window, { key: "Escape" });

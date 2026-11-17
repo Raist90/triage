@@ -13,6 +13,10 @@ const FADE_CLASS: Record<ScrollEdges, string> = {
  * Reports which edges of a scroll container are clipped, so the pane can fade
  * content there instead of cutting it against a hard line. A container that
  * does not scroll gets no fade at all.
+ *
+ * The ref must be attached when the effect first runs. A pane that mounts
+ * conditionally owns this hook itself, so the node and the subscription are
+ * created together.
  */
 export function useScrollEdges(
   ref: RefObject<HTMLElement | null>,
@@ -22,20 +26,20 @@ export function useScrollEdges(
   useEffect(() => {
     const node = ref.current;
     if (!node) return;
+    const pane = node;
 
     let frame = 0;
     function update() {
-      if (!node) return;
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        const overflows = node.scrollHeight - node.clientHeight > 4;
+        const overflows = pane.scrollHeight - pane.clientHeight > 4;
         if (!overflows) {
           setEdges("none");
           return;
         }
-        const top = node.scrollTop > 4;
+        const top = pane.scrollTop > 4;
         const bottom =
-          node.scrollTop + node.clientHeight < node.scrollHeight - 4;
+          pane.scrollTop + pane.clientHeight < pane.scrollHeight - 4;
         setEdges(
           top && bottom ? "both" : top ? "top" : bottom ? "bottom" : "none",
         );
@@ -43,16 +47,37 @@ export function useScrollEdges(
     }
 
     update();
-    node.addEventListener("scroll", update, { passive: true });
+    pane.addEventListener("scroll", update, { passive: true });
     // Content growth (rows arriving) changes scrollHeight without a resize of
     // the viewport, so watch the first child too when there is one.
     const observer = new ResizeObserver(update);
-    observer.observe(node);
-    if (node.firstElementChild) observer.observe(node.firstElementChild);
+    observer.observe(pane);
+    let child = pane.firstElementChild;
+    if (child) observer.observe(child);
+
+    // The panel survives tab switches while its child is replaced. Re-observe
+    // the new child and re-measure, otherwise the fades describe old content
+    // until the user scrolls.
+    const mutations = new MutationObserver(() => {
+      const next = pane.firstElementChild;
+      if (next !== child) {
+        if (child) observer.unobserve(child);
+        child = next;
+        if (child) observer.observe(child);
+      }
+      update();
+    });
+    mutations.observe(pane, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+
     return () => {
       cancelAnimationFrame(frame);
-      node.removeEventListener("scroll", update);
+      pane.removeEventListener("scroll", update);
       observer.disconnect();
+      mutations.disconnect();
     };
   }, [ref]);
 

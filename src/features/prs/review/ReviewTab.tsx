@@ -50,7 +50,6 @@ export function ReviewTab({
             restart.
           </>
         }
-        className="items-center px-0 py-12"
         footnote={unavailableReason}
       >
         <pre className="max-w-full overflow-x-auto rounded-sm border border-line bg-surface px-3 py-2 text-left font-mono text-meta text-fg-body select-all">
@@ -84,12 +83,12 @@ export function ReviewTab({
 
       {error ? (
         <StateView
+          role="alert"
           layout="inline"
           tone="danger"
           icon={CircleSlash}
           title="Review failed"
           description={error}
-          className="px-0 py-10"
           action={
             <Button variant="outline" onClick={controller.run}>
               Retry
@@ -123,7 +122,6 @@ export function ReviewTab({
           icon={Sparkles}
           title="Review this pull request"
           description="A read-only pass over the diff and your repository guidelines. Nothing is pushed."
-          className="px-0 py-16"
           action={
             <Button variant="primary" onClick={controller.run}>
               <Sparkles className="size-3.5" aria-hidden />
