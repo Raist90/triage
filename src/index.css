@@ -285,22 +285,24 @@
 /* Loading skeletons: one slow shimmer sweep instead of a flat pulse. */
 @keyframes shimmer {
   from {
-    background-position: 180% 0;
+    background-position: 100% 0;
   }
   to {
-    background-position: -80% 0;
+    background-position: 0% 0;
   }
 }
 
 @utility shimmer {
   background-image: linear-gradient(
     100deg,
-    var(--color-surface) 24%,
-    var(--color-line) 50%,
-    var(--color-surface) 76%
+    var(--color-surface) 0%,
+    var(--color-line) 25%,
+    var(--color-surface) 50%,
+    var(--color-line) 75%,
+    var(--color-surface) 100%
   );
   background-size: 200% 100%;
-  animation: shimmer 1.6s ease-in-out infinite;
+  animation: shimmer 1.6s linear infinite;
   @media (prefers-reduced-motion: reduce) {
     animation: none;
   }
