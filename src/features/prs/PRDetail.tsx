@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "../../components/ui";
 import { describeError, getConfig, getPR } from "../../lib/api";
+import { useLiveRefresh } from "../../lib/liveRefresh";
 import { loadDiffForHead } from "../../lib/prRefresh";
 import type { ReviewFinding } from "../../lib/types";
 import { useUIStore } from "../../stores/ui";
@@ -58,11 +59,24 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
   }
 
   const mergePolls = useRef(0);
+  // A live re-read must see GitHub's current state, so the next fetch bypasses
+  // the server TTLs by reading this flag.
+  const liveRefetch = useRef(false);
   const detailQuery = useQuery({
     queryKey: ["pr", repo, number],
     // A poll must bypass the server cache, which may have stored "unknown"
     // right after a draft toggle.
-    queryFn: () => getPR({ repo, number, refresh: mergePolls.current > 0 }),
+    queryFn: () => {
+      const refresh = liveRefetch.current || mergePolls.current > 0;
+      liveRefetch.current = false;
+      return getPR({ repo, number, refresh });
+    },
+  });
+
+  // The open PR is what the user is reading, so it is the only detail worth
+  // refreshing. The hook pauses on blur and backs off while nothing changes.
+  useLiveRefresh(true, detailQuery.data, detailQuery.refetch, () => {
+    liveRefetch.current = true;
   });
 
   const headSHA = detailQuery.data?.pr.headSHA ?? "";

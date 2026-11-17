@@ -14,6 +14,7 @@ import {
 import { EmptyState } from "../../components/EmptyState";
 import { Button, IconButton } from "../../components/ui";
 import { describeError, getPRs } from "../../lib/api";
+import { useLiveRefresh } from "../../lib/liveRefresh";
 import { refreshOpenPR, syncPRHead } from "../../lib/prRefresh";
 import { useUIStore } from "../../stores/ui";
 import { PRFilterPopover } from "./PRFilterPopover";
@@ -36,10 +37,25 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
   const queryClient = useQueryClient();
   const queryKey = ["prs", repo, tabID] as const;
 
+  // A live re-read is meant to see GitHub's current answer, not the server's
+  // cached one, so the next fetch bypasses the TTLs by reading this flag.
+  const liveRefetch = useRef(false);
   const query = useQuery({
     queryKey,
-    queryFn: () => getPRs({ tab: tabID, repo }),
+    queryFn: () => {
+      const refresh = liveRefetch.current;
+      liveRefetch.current = false;
+      return getPRs({ tab: tabID, repo, refresh });
+    },
     placeholderData: keepPreviousData,
+  });
+
+  // The visible list is the only list worth refreshing; the hook pauses it when
+  // the window is not focused and backs off while GitHub reports no change.
+  // Fullscreen hides the list without unmounting it, so its polls stop too.
+  const detailFullscreen = useUIStore((state) => state.detailFullscreen);
+  useLiveRefresh(!detailFullscreen, query.data, query.refetch, () => {
+    liveRefetch.current = true;
   });
 
   const prs = useMemo(() => query.data?.prs ?? [], [query.data]);

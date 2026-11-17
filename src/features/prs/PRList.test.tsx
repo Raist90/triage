@@ -1,10 +1,19 @@
-import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import {
+  afterAll,
+  beforeEach,
+  describe,
+  expect,
+  jest,
+  mock,
+  test,
+} from "bun:test";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import * as actualApi from "../../lib/api";
+import { LIVE_BASE_MS } from "../../lib/liveRefresh";
 import type { PRListResponse } from "../../lib/types";
 import { useUIStore } from "../../stores/ui";
 import { makeDiffResponse, makePR } from "../../test/fixtures";
-import { renderWithQuery } from "../../test/render";
+import { createTestQueryClient, renderWithQuery } from "../../test/render";
 
 const getPRs = mock(async (): Promise<PRListResponse> => ({
   prs: [],
@@ -78,7 +87,11 @@ describe("PRList", () => {
       expect.stringContaining("Middle change"),
       expect.stringContaining("Oldest draft"),
     ]);
-    expect(getPRs).toHaveBeenCalledWith({ tab: "all", repo: null });
+    expect(getPRs).toHaveBeenCalledWith({
+      tab: "all",
+      repo: null,
+      refresh: false,
+    });
   });
 
   test("j moves the cursor and Enter opens that pull request", async () => {
@@ -203,6 +216,39 @@ describe("PRList", () => {
 
     await waitFor(() => expect(screen.queryByText("Oldest draft")).toBeNull());
     expect(useUIStore.getState().prFilters.hideDrafts).toBe(true);
+  });
+
+  test("fullscreen stops the list's live refresh", async () => {
+    getPRs.mockImplementation(async () => listResponse());
+    const originalHasFocus = document.hasFocus.bind(document);
+    document.hasFocus = () => true;
+    jest.useFakeTimers();
+    try {
+      // Primed cache so the list mounts now and the live timer arms under the
+      // fake clock.
+      const client = createTestQueryClient();
+      client.setQueryData(["prs", null, "all"], listResponse());
+      renderWithQuery(<PRList tabID="all" tabLabel="All open" repo={null} />, {
+        client,
+      });
+      expect(screen.getByRole("listbox")).toBeDefined();
+
+      act(() => {
+        jest.advanceTimersByTime(LIVE_BASE_MS);
+      });
+      expect(getPRs).toHaveBeenCalledTimes(1);
+
+      act(() => {
+        useUIStore.setState({ detailFullscreen: true });
+      });
+      act(() => {
+        jest.advanceTimersByTime(LIVE_BASE_MS * 2);
+      });
+      expect(getPRs).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+      document.hasFocus = originalHasFocus;
+    }
   });
 
   test("an empty response renders the empty state", async () => {
