@@ -77,7 +77,7 @@ export function HunkRows({
               title={`${tallyText(tally)} · ${
                 changes.length
               } semantic ${changes.length === 1 ? "change" : "changes"}`}
-              className={`inline-flex h-5 shrink-0 items-center gap-1 rounded-[3px] border bg-canvas px-1.5 font-sans text-micro transition-colors hover:bg-surface ${badgeClassName(
+              className={`inline-flex h-5 shrink-0 items-center gap-1 rounded-sm border bg-canvas px-2 font-sans text-micro transition-colors hover:bg-surface ${badgeClassName(
                 dominant,
               )}`}
             >

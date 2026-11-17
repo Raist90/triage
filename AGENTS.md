@@ -144,6 +144,9 @@ stay side by side; reviewing is the only flow that matters.
   six-size scale only: `text-micro` 10, `text-meta` 12, `text-ui` 13,
   `text-prose` 14, `text-lead` 16, `text-title` 20, plus `text-code` 12/20.
   Weights are 400 and 500 only. `text-sm`/`text-xs`/`text-2xs` are gone.
+  `text-micro` is for labels and state tags only: 0.08em tracking for labels,
+  0.06em for tags. Actions and values use `text-meta`, except dense metadata
+  inside the 208px diff rail.
 - **Mono = identity data.** Branch, repo, PR number, SHA, counts, file paths,
   timestamps use `font-mono` + `tabular-nums`. Prose and UI labels stay sans. Mono
   disables ligatures (`font-variant-ligatures: none` in `index.css`); they
@@ -153,10 +156,12 @@ stay side by side; reviewing is the only flow that matters.
   hardcode `zinc-*` in components, never use opacity variants on text.
 - **Accent: one green** (`accent`) for active rail, selection rails, dots,
   primary action, focus. **Danger red** is semantic only: failing checks and
-  deletions. No other hues in chrome.
+  deletions. No other hues in chrome. Status color marks exceptions and
+  decisions, not defaults: passing checks and pending states stay neutral,
+  accent is an approval or the next action, danger is a failure.
 - **Gradients are light, not fills.** One source, top-left. Use the utilities in
-  `index.css`: `ambient-wash` (shell), `app-seam`/`seam-b`/`seam-r` (chrome
-  hairlines that fade), `lit`/`rail-active` (raised chrome), `row-selected`
+  `index.css`: `ambient-wash` (shell), `app-seam` (the one fading chrome
+  hairline), `lit`/`rail-active` (raised chrome), `row-selected`
   (list selection), `elevated` (dialogs, popovers), `cta` (the one lit action),
   `shimmer`, `live-dot`, `dot-grid`, `fade-*` (scroll edges). Never inline an
   arbitrary gradient, never add a hue, never blur.
@@ -172,12 +177,24 @@ stay side by side; reviewing is the only flow that matters.
   icon for unknown IDs) and Settings. Then the repo panel, PR list, and detail.
   Detail is a sibling pane, never a route. Below `cockpit` (1180px) the detail
   covers the list. The list stays mounted so cursor and scroll survive.
+  Pane boundaries are solid 1px `line` borders; only the top chrome seam fades.
+  Row-like hovers use `surface/60`; controls fill with `surface`.
 - **Fullscreen:** toggled only by the icon button in the 44px detail bar, no key
   binding. It hides the rail, repo panel and PR list; the list is hidden, not
   unmounted, so leaving fullscreen restores its cursor and scroll. The context
   rail keeps its normal rules and the main pane gets the full width.
 - **No card soup.** Prose, comments and metadata use one surface plus 1px
   `border-line` rules. Only the diff and dialogs get a box.
+- **PR rows:** one strong title line and one quiet identity line. Repo appears
+  only when the list spans repositories, author only when the list is not your
+  own PRs, and draft is a quiet 10px marker. Status icons mark exceptions, not
+  a green column of passing checks.
+- **States:** one `StateView` renders every empty, error and placeholder pane:
+  icon, 16px title, 13px description, optional mono footnote, action and key
+  hints. Panes never hand-roll their own empty markup.
+- **Review:** the verdict is the headline (`text-lead`, accent or danger),
+  followed by a proportional severity strip; every finding card carries a 2px
+  severity rail.
 - **PR detail:** compact header, 44px bar, tabs for Conversation (default), Diff,
   Review (when available), Explain (when available). Conversation is one
   chronological timeline: the PR

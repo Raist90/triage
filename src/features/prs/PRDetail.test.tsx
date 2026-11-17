@@ -109,7 +109,7 @@ describe("PRDetail", () => {
     expect(screen.getByText("Please add tests.")).toBeDefined();
 
     const rail = screen.getByLabelText("Pull request context");
-    expect(within(rail).getByText("Checks")).toBeDefined();
+    expect(within(rail).getByText("Checks passing")).toBeDefined();
     expect(within(rail).getByText("Complexity")).toBeDefined();
     expect(within(rail).getByText("3 source files · 12 changes")).toBeDefined();
   });

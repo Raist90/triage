@@ -19,7 +19,7 @@ export function ChangeAnnotation({
   return (
     <div className="flex items-center gap-2 px-3 py-1 font-sans text-meta">
       <span
-        className={`w-4 shrink-0 rounded-[3px] border text-center text-micro/4 ${badgeClassName(
+        className={`w-4 shrink-0 rounded-sm border text-center text-micro leading-none ${badgeClassName(
           change,
         )}`}
         title={change.changeType}

@@ -2,7 +2,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { cx } from "../lib/cx";
 
 type ButtonProps = ComponentProps<"button"> & {
-  variant?: "ghost" | "outline" | "primary";
+  variant?: "ghost" | "outline" | "primary" | "danger";
 };
 
 const BUTTON_VARIANT: Record<NonNullable<ButtonProps["variant"]>, string> = {
@@ -10,6 +10,8 @@ const BUTTON_VARIANT: Record<NonNullable<ButtonProps["variant"]>, string> = {
   outline:
     "border border-line text-fg-muted hover:border-line-strong hover:text-fg",
   primary: "cta font-medium text-canvas",
+  danger:
+    "border border-line text-danger hover:border-danger/50 hover:bg-surface",
 };
 
 /** Compact text button. Chrome is 12px; primary is the only filled control. */
@@ -83,7 +85,7 @@ export function MicroLabel({
 
 export function Kbd({ children }: { children: ReactNode }) {
   return (
-    <kbd className="rounded-[3px] border border-line bg-linear-to-b from-raised to-surface px-1 font-mono text-micro text-fg-faint">
+    <kbd className="rounded-sm border border-line bg-linear-to-b from-raised to-surface px-1 font-mono text-micro text-fg-faint">
       {children}
     </kbd>
   );

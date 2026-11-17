@@ -249,7 +249,7 @@ export function SemanticRail({
       {viewport.height > 0 ? (
         <span
           aria-hidden
-          className="pointer-events-none absolute inset-x-1 z-20 rounded-[2px] border border-fg-faint/50"
+          className="pointer-events-none absolute inset-x-1 z-20 rounded-sm border border-fg-faint/50"
           style={{
             top: viewport.top,
             height: Math.max(8, viewport.height),

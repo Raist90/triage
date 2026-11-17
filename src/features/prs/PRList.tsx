@@ -12,6 +12,7 @@ import {
   type KeyboardEvent,
 } from "react";
 import { EmptyState } from "../../components/EmptyState";
+import { ErrorState } from "../../components/ErrorState";
 import { Button, IconButton } from "../../components/ui";
 import { cx } from "../../lib/cx";
 import { describeError, getPRs } from "../../lib/api";
@@ -268,7 +269,7 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
                   type="button"
                   onClick={() => setFilterQuery("")}
                   aria-label="Clear search"
-                  className="absolute top-1/2 right-1 flex size-5 -translate-y-1/2 items-center justify-center rounded-[3px] text-fg-faint transition-colors hover:text-fg"
+                  className="absolute top-1/2 right-1 flex size-5 -translate-y-1/2 items-center justify-center rounded-sm text-fg-faint transition-colors hover:text-fg"
                 >
                   <X className="size-3.5" aria-hidden />
                 </button>
@@ -279,12 +280,12 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
               type="button"
               onClick={() => setSearchOpen(true)}
               title="Search pull requests (/)"
-              className="min-w-0 truncate text-left font-mono text-meta text-fg-faint transition-colors hover:text-fg"
+              className="min-w-0 truncate text-left text-meta text-fg-faint transition-colors hover:text-fg"
             >
               {filters.query ? (
                 <span className="text-fg-body">“{filters.query}”</span>
               ) : (
-                scope
+                "Search"
               )}
             </button>
           )}
@@ -329,7 +330,7 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
       </div>
 
       {chips.length > 0 ? (
-        <div className="seam-b flex h-9 shrink-0 items-center gap-1 px-3">
+        <div className="flex h-9 shrink-0 items-center gap-1 border-b border-line px-3">
           <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
             {chips.map((chip) => (
               <button
@@ -337,7 +338,7 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
                 type="button"
                 onClick={() => removeChip(chip)}
                 aria-label={`Remove filter: ${chip.label}`}
-                className="inline-flex h-6 shrink-0 items-center gap-1 rounded-sm border border-line px-1.5 text-meta text-fg-body transition-colors hover:border-line-strong hover:text-fg"
+                className="inline-flex h-6 shrink-0 items-center gap-1 rounded-sm border border-line px-2 text-meta text-fg-body transition-colors hover:border-line-strong hover:text-fg"
               >
                 <span
                   className={
@@ -355,7 +356,7 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
           <Button
             variant="ghost"
             onClick={clearPRFilters}
-            className="shrink-0 px-1.5 text-micro tracking-[0.08em] text-fg-faint uppercase hover:bg-transparent hover:text-fg"
+            className="shrink-0 px-2 text-meta text-fg-faint hover:bg-transparent hover:text-fg"
           >
             Clear
           </Button>
@@ -391,23 +392,12 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
             ))}
           </div>
         ) : query.isError ? (
-          <div
-            role="alert"
-            className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center"
-          >
-            <p className="text-ui text-fg">Can’t load pull requests</p>
-            <p className="max-w-sm text-meta text-fg-faint">
-              {describeError(query.error)}
-            </p>
-            <Button
-              variant="outline"
-              onClick={() => void query.refetch()}
-              disabled={query.isFetching}
-              className="mt-1"
-            >
-              {query.isFetching ? "Retrying…" : "Retry"}
-            </Button>
-          </div>
+          <ErrorState
+            title="Can’t load pull requests"
+            message={describeError(query.error)}
+            retrying={query.isFetching}
+            onRetry={() => void query.refetch()}
+          />
         ) : prs.length === 0 ? (
           <EmptyState
             title={`No pull requests in ${tabLabel}`}
@@ -448,6 +438,8 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
                 pr={pr}
                 active={index === cursor}
                 selected={selectedPR === `${pr.repo}#${pr.number}`}
+                showRepo={repo === null}
+                showAuthor={tabID !== "mine"}
                 onPick={() => pick(index)}
                 elementRef={(element) => {
                   rowRefs.current[index] = element;

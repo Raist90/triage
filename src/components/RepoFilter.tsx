@@ -99,18 +99,12 @@ export function RepoFilter({ repos, selectedRepo, onSelect }: RepoFilterProps) {
                 focusOption(index, true);
               }}
               className={cx(
-                "relative flex h-7 w-full items-center gap-2 rounded-sm px-2 text-left text-ui transition-colors outline-none",
+                "relative flex h-7 w-full items-center gap-2 overflow-hidden rounded-sm px-2 text-left text-ui transition-colors outline-none",
                 isSelected
-                  ? "text-fg"
+                  ? "row-selected text-fg"
                   : "text-fg-muted hover:bg-surface/60 hover:text-fg",
               )}
             >
-              {isSelected ? (
-                <span
-                  aria-hidden="true"
-                  className="pointer-events-none absolute inset-0 rounded-sm bg-linear-to-r from-surface to-transparent"
-                />
-              ) : null}
               <Icon
                 className={cx(
                   "relative size-3.5 shrink-0",

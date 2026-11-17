@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { Button } from "../../components/ui";
+import { ErrorState } from "../../components/ErrorState";
 import { cx } from "../../lib/cx";
 import { describeError, getConfig, getPR } from "../../lib/api";
 import { useLiveRefresh } from "../../lib/liveRefresh";
@@ -219,23 +219,12 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
           {detailQuery.isPending ? (
             <DetailSkeleton />
           ) : detailQuery.isError ? (
-            <div
-              role="alert"
-              className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center"
-            >
-              <p className="text-ui text-fg">Can’t load this pull request</p>
-              <p className="max-w-sm text-meta text-fg-faint">
-                {describeError(detailQuery.error)}
-              </p>
-              <Button
-                variant="outline"
-                onClick={() => void detailQuery.refetch()}
-                disabled={detailQuery.isFetching}
-                className="mt-1"
-              >
-                {detailQuery.isFetching ? "Retrying…" : "Retry"}
-              </Button>
-            </div>
+            <ErrorState
+              title="Can’t load this pull request"
+              message={describeError(detailQuery.error)}
+              retrying={detailQuery.isFetching}
+              onRetry={() => void detailQuery.refetch()}
+            />
           ) : pr ? (
             <>
               <PRHeader pr={pr} />

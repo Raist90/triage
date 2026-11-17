@@ -1,5 +1,5 @@
 import { ShieldCheck, TriangleAlert } from "lucide-react";
-import { MicroLabel } from "../../../components/ui";
+import { cx } from "../../../lib/cx";
 import {
   REVIEW_SEVERITY_ORDER,
   type ReviewDocument,
@@ -31,29 +31,40 @@ function countSeverities(
   return counts;
 }
 
+const SEVERITY_BAR: Record<ReviewSeverity, string> = {
+  blocking: "bg-danger",
+  warning: "bg-fg-muted",
+  nitpick: "bg-fg-faint",
+  praise: "bg-accent",
+};
+
 /**
- * Verdict banner: label, severity counts, one summary sentence. The label is
- * the server verdict, which already accounts for blocking findings.
+ * Verdict banner: the server verdict is the headline, the severity mix is one
+ * proportional strip under it, and the summary is prose.
  */
 export function ReviewVerdict({ review }: { review: ReviewDocument }) {
   const { safeToMerge, summary, overridden } = review.verdict;
   const counts = countSeverities(review.findings);
+  const total = review.findings.length;
   const parts = REVIEW_SEVERITY_ORDER.filter(
     (severity) => counts[severity] > 0,
   ).map((severity) => countLabel(severity, counts[severity]));
 
   return (
     <div>
-      <div className="flex flex-wrap items-baseline gap-3">
-        <span className="flex items-center gap-2">
-          {safeToMerge ? (
-            <ShieldCheck className="size-4 text-accent" aria-hidden />
-          ) : (
-            <TriangleAlert className="size-4 text-danger" aria-hidden />
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span
+          className={cx(
+            "flex items-center gap-2 text-lead font-medium",
+            safeToMerge ? "text-accent" : "text-danger",
           )}
-          <MicroLabel className={safeToMerge ? "text-accent!" : "text-danger!"}>
-            {safeToMerge ? "Safe to merge" : "Needs work"}
-          </MicroLabel>
+        >
+          {safeToMerge ? (
+            <ShieldCheck className="size-4" aria-hidden />
+          ) : (
+            <TriangleAlert className="size-4" aria-hidden />
+          )}
+          {safeToMerge ? "Safe to merge" : "Needs work"}
         </span>
         {parts.length > 0 ? (
           <span className="font-mono text-meta text-fg-faint tabular-nums">
@@ -62,8 +73,22 @@ export function ReviewVerdict({ review }: { review: ReviewDocument }) {
         ) : null}
       </div>
 
+      {total > 0 ? (
+        <div aria-hidden="true" className="mt-3 flex h-1 gap-1">
+          {REVIEW_SEVERITY_ORDER.map((severity) =>
+            counts[severity] > 0 ? (
+              <span
+                key={severity}
+                style={{ flexGrow: counts[severity] }}
+                className={cx("h-1 rounded-full", SEVERITY_BAR[severity])}
+              />
+            ) : null,
+          )}
+        </div>
+      ) : null}
+
       {summary ? (
-        <p className="mt-2 max-w-[68ch] text-prose text-fg-body">{summary}</p>
+        <p className="mt-3 max-w-[68ch] text-prose text-fg-body">{summary}</p>
       ) : null}
 
       {overridden ? (

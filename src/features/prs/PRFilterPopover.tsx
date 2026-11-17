@@ -60,7 +60,7 @@ export function PRFilterPopover({
       aria-label="Filter pull requests"
       className="absolute top-8 right-0 z-30 flex max-h-[min(480px,70vh)] w-64 surface-in flex-col overflow-hidden rounded-md elevated"
     >
-      <div className="seam-b flex h-9 shrink-0 items-center justify-between pr-1 pl-3">
+      <div className="flex h-9 shrink-0 items-center justify-between border-b border-line pr-1 pl-3">
         <span className="text-ui font-medium text-fg">Filter</span>
         <IconButton label="Close filters" onClick={onClose}>
           <X className="size-3.5" aria-hidden />
@@ -157,7 +157,7 @@ export function PRFilterPopover({
         >
           Clear all
         </Button>
-        <span className="font-mono text-micro text-fg-faint tabular-nums">
+        <span className="font-mono text-meta text-fg-faint tabular-nums">
           {shown} of {total}
         </span>
       </div>
@@ -267,7 +267,7 @@ function FacetRow({
       >
         {option.label}
       </span>
-      <span className="font-mono text-micro text-fg-faint tabular-nums">
+      <span className="font-mono text-meta text-fg-faint tabular-nums">
         {option.count}
       </span>
     </label>
@@ -285,7 +285,7 @@ function Checkbox({
     <span
       aria-hidden
       className={cx(
-        "flex size-3.5 shrink-0 items-center justify-center rounded-[3px] border transition-colors peer-focus-visible:outline-1 peer-focus-visible:outline-offset-1 peer-focus-visible:outline-accent/45",
+        "flex size-3.5 shrink-0 items-center justify-center rounded-sm border transition-colors peer-focus-visible:outline-1 peer-focus-visible:outline-offset-1 peer-focus-visible:outline-accent/45",
         checked || indeterminate
           ? "border-accent bg-accent text-canvas"
           : "border-line-strong text-transparent",

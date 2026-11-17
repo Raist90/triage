@@ -37,7 +37,7 @@ export function DetailTabs({ tabs, active, onSelect }: DetailTabsProps) {
             }
           >
             {item.label}
-            {typeof item.count === "number" ? (
+            {typeof item.count === "number" && item.count > 0 ? (
               <span className="font-mono text-fg-faint tabular-nums">
                 {item.count}
               </span>

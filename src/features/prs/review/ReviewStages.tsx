@@ -102,7 +102,7 @@ function StageRow({
       <span
         aria-hidden="true"
         className={cx(
-          "mb-px size-2 shrink-0 rounded-[2px]",
+          "mb-px size-2 shrink-0 rounded-sm",
           state === "done"
             ? "bg-accent"
             : state === "active"

@@ -18,7 +18,6 @@ export function ComplexityMeter({ complexity }: { complexity: Complexity }) {
   const lines = complexityLines(complexity);
   return (
     <div
-      className="mt-2"
       role="img"
       aria-label={`Complexity ${complexity.band}, score ${complexity.score} out of 100. ${lines.join(". ")}`}
     >
@@ -46,7 +45,7 @@ export function ComplexityMeter({ complexity }: { complexity: Complexity }) {
         <p
           key={line}
           aria-hidden="true"
-          className="mt-1 text-micro text-fg-faint"
+          className="mt-1 text-meta text-fg-faint"
         >
           {line}
         </p>

@@ -52,7 +52,7 @@
   --color-syn-func: #bda9d6;
   --color-syn-tag: #94cfa9;
 
-  /* Type scale: five UI sizes plus code. Nothing else. */
+  /* Type scale: six UI sizes plus code. Nothing else. */
   --text-micro: 10px;
   --text-micro--line-height: 14px;
   --text-meta: 12px;
@@ -111,12 +111,12 @@
   }
 
   ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
   }
 
   ::-webkit-scrollbar-thumb {
-    border: 3px solid transparent;
+    border: 2px solid transparent;
     border-radius: 999px;
     background-clip: content-box;
     background-color: var(--color-line-strong);
@@ -158,45 +158,6 @@
     var(--color-line) 91%,
     transparent 100%
   );
-}
-
-/* Internal hairlines: same token, soft ends. Data grids keep solid borders. */
-@utility seam-b {
-  position: relative;
-  &::after {
-    content: "";
-    position: absolute;
-    inset-inline: 0;
-    bottom: 0;
-    height: 1px;
-    background-image: linear-gradient(
-      90deg,
-      transparent 0%,
-      var(--color-line) 8%,
-      var(--color-line) 92%,
-      transparent 100%
-    );
-    pointer-events: none;
-  }
-}
-
-@utility seam-r {
-  position: relative;
-  &::after {
-    content: "";
-    position: absolute;
-    inset-block: 0;
-    right: 0;
-    width: 1px;
-    background-image: linear-gradient(
-      180deg,
-      transparent 0%,
-      var(--color-line) 7%,
-      var(--color-line) 93%,
-      transparent 100%
-    );
-    pointer-events: none;
-  }
 }
 
 /* Raised chrome: a control that catches light from above. */
