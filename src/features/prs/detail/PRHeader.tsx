@@ -1,21 +1,16 @@
 import { StatusIcon } from "../../../components/StatusBadge";
 import { formatRelative } from "../../../lib/time";
 import type { PR } from "../../../lib/types";
+import { PRStateTag } from "../PRStateTag";
+import { prStatus } from "../prStatus";
 import { ChangeStat } from "./ChangeStat";
-import { StateTag } from "./StateTag";
 
 export function PRHeader({ pr }: { pr: PR }) {
   return (
     <header className="shrink-0 px-4 pt-4 pb-3">
       <h1 className="flex min-w-0 items-baseline gap-2 text-title font-medium tracking-[-0.01em] text-fg">
         <span className="min-w-0">{pr.title}</span>
-        {pr.state === "merged" ? (
-          <StateTag label="Merged" merged />
-        ) : pr.state === "closed" ? (
-          <StateTag label="Closed" />
-        ) : pr.isDraft ? (
-          <StateTag label="Draft" />
-        ) : null}
+        <PRStateTag status={prStatus(pr)} />
       </h1>
 
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-meta text-fg-faint">
