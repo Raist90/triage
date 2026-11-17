@@ -78,7 +78,11 @@ describe("PRList", () => {
       expect.stringContaining("Middle change"),
       expect.stringContaining("Oldest draft"),
     ]);
-    expect(getPRs).toHaveBeenCalledWith({ tab: "all", repo: null });
+    expect(getPRs).toHaveBeenCalledWith({
+      tab: "all",
+      repo: null,
+      refresh: false,
+    });
   });
 
   test("j moves the cursor and Enter opens that pull request", async () => {

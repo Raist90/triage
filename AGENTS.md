@@ -280,6 +280,11 @@ Rate limits are a product constraint. Cache aggressively, especially in dev.
 - Store as JSON under `~/.triage/cache` with `{body, etag, fetchedAt}`.
 - TTLs come from `internal/config`; GraphQL responses have no conditional
   requests, so TTL is the only freshness mechanism there.
+- Live refresh is the one deliberate cache bypass. The visible PR list and the
+  open PR re-read through `useLiveRefresh` (`src/lib/liveRefresh.ts`): 30s while
+  the window is focused, doubling up to 3 minutes while GitHub reports no
+  change, and stopped on blur or a hidden window. Those polls send `refresh`
+  because a fresh answer is the point, not because the cache is slow.
 - Per-entry and whole-cache invalidation must be reachable from the UI
   (`Settings → Refresh data`). Invalidation is a user action, not a debug hack.
 - Claude artifacts live under `~/.triage/artifacts`; they are disposable and
@@ -480,7 +485,8 @@ In:
 Out (do not build yet):
 
 - Notifications, multi-account, GitHub OAuth/device flow
-- Real-time updates/webhooks, polling UI beyond manual refresh
+- Real-time updates/webhooks; polling anything beyond the visible list and the
+  open PR
 - Publishing review comments or findings to GitHub
 - Comment thread replies, resolve, suggestion commits
 - Reopen a closed PR, merge methods other than squash, auto-merge, checkout locally
