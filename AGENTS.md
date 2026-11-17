@@ -283,7 +283,9 @@ Rate limits are a product constraint. Cache aggressively, especially in dev.
 - Live refresh is the one deliberate cache bypass. The visible PR list and the
   open PR re-read through `useLiveRefresh` (`src/lib/liveRefresh.ts`): 3 minutes
   while the window is focused, doubling up to 15 minutes while GitHub reports no
-  change, and stopped on blur or a hidden window. Those polls send `refresh`
+  change, and stopped on blur or a hidden window — including the list hidden by
+  fullscreen, which stays mounted but does not poll. Leaving fullscreen, like a
+  window regaining focus, reads once straight away. Those polls send `refresh`
   because a fresh answer is the point, not because the cache is slow.
 - Per-entry and whole-cache invalidation must be reachable from the UI
   (`Settings → Refresh data`). Invalidation is a user action, not a debug hack.

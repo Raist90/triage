@@ -52,7 +52,9 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
 
   // The visible list is the only list worth refreshing; the hook pauses it when
   // the window is not focused and backs off while GitHub reports no change.
-  useLiveRefresh(true, query.data, query.refetch, () => {
+  // Fullscreen hides the list without unmounting it, so its polls stop too.
+  const detailFullscreen = useUIStore((state) => state.detailFullscreen);
+  useLiveRefresh(!detailFullscreen, query.data, query.refetch, () => {
     liveRefetch.current = true;
   });
 
