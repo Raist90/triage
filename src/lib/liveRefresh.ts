@@ -1,10 +1,13 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
 
 /** Fastest gap between live re-reads while the window is focused. */
-export const LIVE_BASE_MS = 30_000;
+export const LIVE_BASE_MS = 180_000;
 
-/** Slowest gap, reached after a run of answers that did not change. */
-export const LIVE_MAX_MS = 180_000;
+/**
+ * Slowest gap, reached after a run of answers that did not change. Matches the
+ * GraphQL TTL, so an idle window costs no more than the cache would anyway.
+ */
+export const LIVE_MAX_MS = 900_000;
 
 function subscribeWindow(onChange: () => void): () => void {
   const events = ["focus", "blur", "visibilitychange"] as const;
