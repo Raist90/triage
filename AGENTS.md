@@ -8,6 +8,11 @@ its Linear issue so you get context before reading a single line of diff.
 The product is a **triage and review cockpit**, not a GitHub client. Every feature
 must reduce the time between "I need to review this" and "review submitted".
 
+This file is the index. Detailed conventions live in `.omp/skills/<name>/SKILL.md`
+(omp: `skill://<name>`); read the owning skill before editing, and every listed
+skill when a change spans directories. Hard, always-on rules are in
+`.omp/RULES.md`.
+
 ## Stack
 
 | Layer    | Choice                                                                      |
@@ -47,445 +52,76 @@ Go sidecar  ──►  GitHub GraphQL / REST
 
 ## Repository layout
 
-```
-src/                     React app
-  App.tsx                shell layout
-  index.css              Tailwind entry + theme tokens
-  components/            presentational components
-  features/              prs/, settings/, linear/ (queries, hooks, views)
-  lib/                   api client, utils
-  lib/generated/         OpenAPI-generated TypeScript contract, never hand-edited
-  lib/types.ts           app-facing facade over the generated types
-  stores/                Zustand stores
-  test/                  Bun test setup, render helper, contract fixtures
-backend/                 Go module (github.com/Raist90/triage/backend)
-  cmd/triage-server/      main: config, handshake, HTTP server
-  internal/api/          HTTP routes + request/response types
-  internal/gql/          hand-rolled GraphQL client (POST + JSON, no deps)
-  internal/github/       GitHub queries, REST diffs, types
-  internal/diff/         unified-diff splitting + `sem` annotations
-  internal/linear/       Linear queries, issue linking
-  internal/plugin/       Plugin interface + registry
-  internal/actions/      Claude runner, diff prompt builder, stream parser, artifact store
-  internal/review/       review types, JSON schema, sem, guidelines, prompt, parse, patch
-  internal/worktree/     disposable git worktrees under ~/.triage/worktrees
-  internal/cache/        on-disk cache, TTL, invalidation
-  internal/config/       the single source of truth for app settings
-src-tauri/               Tauri shell (Rust)
-openapi.json             generated from the Go routes by `make spec`; committed
-.env                     GITHUB_TOKEN, LINEAR_API_KEY — gitignored, never committed
-.env.example             committed, keys only, no values
-~/.triage/config.json    user settings: repos, repoPaths, Linear teams
-~/.triage/cache          provider responses
-~/.triage/artifacts      Explain and Review answers, one file per SHA + action
-~/.triage/worktrees      disposable checkouts used by automatic review
-```
+| Path                                                              | Owns                                                           | Rules                     |
+| ----------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------- |
+| `src/`                                                            | React app: shell, panes, features, stores, test helpers        | `frontend`                |
+| `src/lib/api.ts`                                                  | the only fetch layer                                           | `frontend`                |
+| `src/lib/types.ts`                                                | app-facing facade over the generated types                     | `frontend`                |
+| `src/lib/generated/`                                              | OpenAPI-generated contract, never hand-edited                  | `backend`                 |
+| `backend/cmd/triage-server/`                                      | config, tokens, handshake, HTTP server                         | `backend`, `config-cache` |
+| `backend/internal/api/`                                           | Huma routes, request/response types, error envelope, SSE route | `backend`                 |
+| `backend/internal/gql/`, `github/`, `linear/`, `diff/`, `plugin/` | providers and domain logic                                     | `backend`                 |
+| `backend/internal/config/`, `cache/`                              | settings, tokens, TTLs, invalidation                           | `config-cache`            |
+| `backend/internal/actions/`, `review/`, `worktree/`               | Explain/Review, SSE, artifacts, review worktrees               | `claude-actions`          |
+| `src-tauri/`                                                      | Tauri shell, plugin permissions                                | — (thin glue)             |
+| `openapi.json`                                                    | generated from the Go routes; committed                        | `backend`                 |
+
+Runtime state lives outside the repo: `~/.triage/config.json` (settings),
+`~/.triage/cache` (provider responses), `~/.triage/artifacts` (Explain and Review
+answers), `~/.triage/worktrees` (app-owned review checkouts).
 
 ## Commands
 
 Day-to-day, use the Makefile from the repo root:
 
-```sh
-make dev                    # backend + frontend (browser), Ctrl-C stops both
-make app                    # backend + Tauri desktop shell, Ctrl-C stops both
-make backend                # Go sidecar only
-make frontend               # Vite only
-make check                  # typecheck + lint + go build/vet + verify-api
-make test                   # frontend + Go tests
-make api                    # regenerate openapi.json + src/lib/generated
-make verify-api             # fail when the committed contract is stale
-make fix                    # ESLint --fix + Prettier write
-make build                  # frontend bundle + Go binary
-make clean                  # remove build artifacts and dev handshake
-make help                   # list targets
-```
+| Command           | Does                                             |
+| ----------------- | ------------------------------------------------ |
+| `make dev`        | backend + frontend (browser), Ctrl-C stops both  |
+| `make app`        | backend + Tauri desktop shell, Ctrl-C stops both |
+| `make backend`    | Go sidecar only                                  |
+| `make frontend`   | Vite only                                        |
+| `make check`      | typecheck + lint + go build/vet + verify-api     |
+| `make test`       | frontend + Go tests                              |
+| `make api`        | regenerate `openapi.json` + `src/lib/generated`  |
+| `make verify-api` | fail when the committed contract is stale        |
+| `make fix`        | ESLint --fix + Prettier write                    |
+| `make build`      | frontend bundle + Go binary                      |
+| `make clean`      | remove build artifacts and dev handshake         |
+| `make help`       | list targets                                     |
 
 Raw commands, for debugging one side or when make is not available:
 
 ```sh
 bun install                 # dependencies
-bun run tauri dev           # desktop app (also needs the Go server, see below)
+bun run tauri dev           # desktop app (also needs the Go server)
 bun run dev                 # frontend only, browser
 bun run backend:dev         # run the Go sidecar on its own
 bun run typecheck           # tsc --noEmit
 bun run test                # frontend tests (Bun + happy-dom)
 bun test --watch src        # frontend tests in watch mode
 bun run lint                # ESLint + Prettier check
-bun run fix                 # ESLint --fix + Prettier write (do this before finishing)
+bun run fix                 # ESLint --fix + Prettier write
 cd backend && go build ./... && go vet ./...
 cd backend && go test ./...
 ```
 
-Rules:
-
 - Prefer `make dev` / `make app`; they start and stop both processes together.
-- Run `bun run fix`, `bun run typecheck` and `bun run test` after frontend
-  changes, and `go build ./... && go vet ./... && go test ./...` after Go changes.
-- `bun run lint` and `make check` cache ESLint results in
-  `node_modules/.cache/eslint`. The cache does not track `src/index.css`, which
-  the Tailwind rules read, so `make clean` after editing theme tokens if a class
-  warning looks stale (`make check` drops the cache when the CSS is newer).
+- After frontend changes run `bun run fix`, `bun run typecheck`, `bun run test`;
+  after Go changes run `go build ./... && go vet ./... && go test ./...`.
 - After any change to a request or response type, run `make api` and commit
   `openapi.json` plus `src/lib/generated`.
-- Frontend tests use Bun's built-in runner with happy-dom and Testing Library.
-  `src/test/setup.ts` registers the DOM; `src/test/fixtures.ts` builds contract
-  objects. Test behavior, not source text, and mock `src/lib/api` per file when
-  a component fetches data.
-- Never add a package without a reason; prefer stdlib and hand-rolled code.
-- Do not read or print `.env` contents during development; tokens are the user's.
-- Do not commit `.env`.
 
-## UI rules
+## Non-negotiables
 
-Dark, quiet cockpit. Dense, aligned, low-chrome. The PR list and the PR detail
-stay side by side; reviewing is the only flow that matters.
-
-- **Type: Geist Sans + Geist Mono** (`src/index.css`, bundled woff2, OFL). Use the
-  six-size scale only: `text-micro` 10, `text-meta` 12, `text-ui` 13,
-  `text-prose` 14, `text-lead` 16, `text-title` 20, plus `text-code` 12/20.
-  Weights are 400 and 500 only. `text-sm`/`text-xs`/`text-2xs` are gone.
-  `text-micro` is for labels and state tags only: 0.08em tracking for labels,
-  0.06em for tags. Actions and values use `text-meta`, except dense metadata
-  inside the 208px diff rail.
-- **Mono = identity data.** Branch, repo, PR number, SHA, counts, file paths,
-  timestamps use `font-mono` + `tabular-nums`. Prose and UI labels stay sans. Mono
-  disables ligatures (`font-variant-ligatures: none` in `index.css`); they
-  break diff span boundaries and are never useful in identity data.
-- **Color roles, not shades.** Use `canvas`, `surface`, `raised`, `line`,
-  `line-strong`, `fg`, `fg-body`, `fg-muted`, `fg-faint` from `@theme`. Never
-  hardcode `zinc-*` in components, never use opacity variants on text.
-- **Accent: one green** (`accent`) for active rail, selection rails, dots,
-  primary action, focus. **Danger red** is semantic only: failing checks and
-  deletions. No other hues in chrome. Status color marks exceptions and
-  decisions, not defaults: passing checks and pending states stay neutral,
-  accent is an approval or the next action, danger is a failure.
-- **Gradients are light, not fills.** One source, top-left. Use the utilities in
-  `index.css`: `ambient-wash` (shell), `app-seam` (the one fading chrome
-  hairline), `header-wash` (pane header lamp), `accent-hairline` (active tab or
-  icon underline), `lit`/`rail-active` (raised chrome), `row-selected`
-  (list selection), `elevated` (dialogs, popovers), `cta` (the one lit action),
-  `shimmer`, `live-dot`, `dot-grid`, `fade-*` (scroll edges). Never inline an
-  arbitrary gradient, never add a hue, never blur.
-- **Spacing: 4 / 8 / 12 / 16 / 24 / 32 only.** No `py-1.5`, `py-2.5`, `gap-3.5`,
-  `px-5`. Chrome heights: one 44 top band (rail, repo panel, list toolbar,
-  detail bar), 52 list row. Widths: 48 rail,
-  208 repo panel, 340 PR list, 272 context rail.
-- **Radii:** `rounded-sm` controls (4px), `rounded-md` dialog (6px). Both are
-  declared in px in `@theme` so ESLint maps a `rounded-[4px]` back to the token.
-  One focus ring (`accent` at 45%) from
-  `index.css`; do not re-style focus per component.
-- **Shell:** 48px rail holds the config-driven tabs (icon + tooltip, fallback
-  icon for unknown IDs) and Settings. Then the repo panel, PR list, and detail.
-  Detail is a sibling pane, never a route. Below `cockpit` (1180px) the detail
-  covers the list. The list stays mounted so cursor and scroll survive.
-  Pane boundaries are solid 1px `line` borders; only the top chrome seam fades.
-  Row-like hovers use `surface/60`; controls fill with `surface`.
-- **Fullscreen:** toggled only by the icon button in the 44px detail bar, no key
-  binding. It hides the rail, repo panel and PR list; the list is hidden, not
-  unmounted, so leaving fullscreen restores its cursor and scroll. The context
-  rail keeps its normal rules and the main pane gets the full width.
-- **No card soup.** Prose, comments and metadata use one surface plus 1px
-  `border-line` rules. Only the diff and dialogs get a box.
-- **PR rows:** one strong title line and one quiet identity line. Repo appears
-  only when the list spans repositories, author only when the list is not your
-  own PRs, and draft is a quiet 10px marker. Status icons mark exceptions, not
-  a green column of passing checks.
-- **States:** one `StateView` renders every empty, error and placeholder pane:
-  icon, 16px title, 13px description, optional mono footnote, action and key
-  hints. Panes never hand-roll their own empty markup.
-- **Review:** the verdict is the headline (`text-lead`, accent or danger),
-  followed by a proportional severity strip; every finding card carries a 2px
-  severity rail.
-- **PR detail:** compact header with title, state, author, branches and change
-  stats; 44px bar; tabs for Conversation (default), Diff, Review (when
-  available), Explain (when available). Conversation is one chronological
-  timeline: the PR
-  body first, then comments, review verdicts and inline review comments. The
-  272px context rail shows checks, review, complexity and commit; it is hidden
-  below 1400px and while the Diff tab is active (the diff needs the width).
-- **Diffs:** per file, collapsible, full width, 208px file rail. Semantic diff
-  via `sem` when available; fall back to a plain unified diff. Never fail a
-  review flow because `sem` is absent. Semantic changes live in a 40px map on
-  the right edge of the diff pane (toolbar toggle) plus a per-hunk chip that
-  opens the entity rows on demand; never as always-on rows above the code.
-  Code is syntax-highlighted by the Go sidecar (Chroma): colored, but only
-  desaturated `syn-*` tokens from `index.css`, never raw hues in components.
-  Chrome stays hue-free.
-- **Icons:** `lucide-react`, 14–16px. Reuse `Button`, `IconButton`, `MicroLabel`,
-  `Kbd` from `src/components/ui.tsx`; do not paste new button class strings.
-- **Components:** no styling frameworks, no shadcn/Radix, no CSS-in-JS, no CSS
-  files other than `src/index.css`. Build primitives by hand.
-  [Base UI](https://base-ui.com) is the only exception and only for accessible
-  widgets (dialog, popover, menu, tooltip) when hand-rolling one is genuinely
-  risky — always headless and styled by us.
-- Keyboard-first where cheap: `j`/`k` list navigation, `Enter` opens, `Esc` closes.
-  Do not build a command palette until the core flow works.
-
-## Frontend conventions
-
-- TypeScript strict. No `any`; use `unknown` + narrowing at API boundaries.
-- All server data through TanStack Query. Query keys are tuples
-  (`["prs", repo, tab]`, `["pr", repo, number]`). Mutations invalidate precisely.
-- Zustand only for ephemeral UI state (selected repo, active tab, toggles).
-  Never duplicate server data into a store.
-- API calls live in `src/lib/api.ts`; components never `fetch` directly.
-- Types come from the generated contract. `src/lib/types.ts` re-exports them
-  under the names the app uses and keeps only what OpenAPI cannot express, such
-  as `ActionStreamEvent`. Never hand-write a response shape; change the Go type
-  and run `make api`. Never edit `src/lib/generated` by hand.
-- Components: named exports, one component per file, props typed inline or with a
-  local `type`. Semantic HTML first.
-- Tailwind classes sorted by ESLint and Prettier; do not hand-order them.
-- Class strings are checked by `eslint-plugin-tailwindcss` against
-  `src/index.css` (`settings.tailwindcss.cssConfigPath`). It enforces class order,
-  canonical spelling (`size-7`, not `h-7 w-7`), shorthand, non-conflicting and
-  non-negative-arbitrary classes, and it flags arbitrary values that a spacing
-  utility already covers (`w-85`, not `w-[340px]`). `cx` is registered as a
-  parsed function. It reads JSX attributes and function calls only, so class
-  strings in plain module constants are unchecked. `bun run fix` applies the
-  fixes.
-
-## Go conventions
-
-- Go module in `backend/`. `go vet` clean, `gofmt` formatting.
-- Standard library `net/http` with `http.ServeMux`, routed by Huma (`humago`
-  adapter). No other web framework or router.
-- JSON in, JSON out. Errors as `{"error":{"code":"...","message":"..."}}` with
-  meaningful HTTP status codes. Never leak tokens or raw provider responses.
-- GraphQL: use `internal/gql`, a tiny hand-rolled `POST` client. No GraphQL
-  client dependency. Queries as raw strings, variables as typed structs.
-- REST is used only where GraphQL can't do the job — PR diffs and file lists.
-  Use `ETag`/`If-None-Match` there.
-- Context everywhere; honor cancellation; set HTTP timeouts.
-- One provider per package (`internal/github`, `internal/linear`); `internal/api`
-  orchestrates and never talks to HTTP providers inline.
-- Personal tool, single account. Identity comes from GitHub's `viewer` query.
-
-## API contract
-
-The Go types are the contract. There is no hand-written TypeScript mirror.
-
-```
-backend/internal/api (Huma operations + response structs)
-   → openapi.json          (`make spec`)
-   → src/lib/generated     (`make types`, @hey-api/openapi-ts)
-   → src/lib/types.ts      (facade: aliases + non-OpenAPI shapes)
-```
-
-- Every route is one `huma.Register` call in `internal/api/routes.go` with a
-  typed input struct. Path patterns, numbers, enums and body fields are tags on
-  that struct; do not hand-parse path or query values in handlers.
-- Response bodies come from provider structs (`github.PR`, `diff.File`,
-  `review.Review`, `actions.Artifact`) plus the API wrappers in
-  `internal/api/types.go`. Enum tags on a field are what make the generated type
-  a union, so add `enum:"..."` when the webview narrows a value. `doc` tags
-  become JSDoc in the generated types.
-- Schema names come from the Go type name with the first letter capitalized.
-  Two types with the same name in different packages collide, so keep names
-  distinct (`diff.FileReview` vs `review.Review`) and check the generated
-  `openapi.json` diff.
-- Errors use one envelope. `apiError` in `internal/api/errors.go` implements
-  `huma.StatusError` and is installed as `huma.NewError`, so validation failures
-  and handler errors share the codes the webview already maps.
-- The SSE stream is the only hand-written route: Huma cannot describe
-  long-lived frames, so it is registered on the mux directly and the event union
-  lives in `src/lib/types.ts`.
-- The spec is generated by `triage-server -openapi`, which binds no port and
-  needs no config, token or provider credentials. Huma's own `/openapi`, `/docs`
-  and `/schemas` routes are disabled.
-- Regenerate after any request or response change, and commit both
-  `openapi.json` and `src/lib/generated`. `make verify-api` fails when they are
-  stale.
-
-## Caching
-
-Rate limits are a product constraint. Cache aggressively, especially in dev.
-
-- Cache key = stable hash of provider + query/route + variables.
-- Store as JSON under `~/.triage/cache` with `{body, etag, fetchedAt}`.
-- TTLs come from `internal/config`; GraphQL responses have no conditional
-  requests, so TTL is the only freshness mechanism there.
-- Live refresh is the one deliberate cache bypass. The visible PR list and the
-  open PR re-read through `useLiveRefresh` (`src/lib/liveRefresh.ts`): 3 minutes
-  while the window is focused, doubling up to 15 minutes while GitHub reports no
-  change, and stopped on blur or a hidden window — including the list hidden by
-  fullscreen, which stays mounted but does not poll. Leaving fullscreen, like a
-  window regaining focus, reads once straight away. Those polls send `refresh`
-  because a fresh answer is the point, not because the cache is slow.
-- Per-entry and whole-cache invalidation must be reachable from the UI
-  (`Settings → Refresh data`). Invalidation is a user action, not a debug hack.
-- Claude artifacts live under `~/.triage/artifacts`; they are disposable and
-  never contain tokens. Explain and Review share that tree: one file per SHA,
-  action and prompt version. Review artifacts also record the worktree path,
-  which is machine-local but never secret.
-- In dev, long TTLs are correct behavior. Never bypass the cache to "make it
-  faster" — fix the cache.
-
-## Configuration
-
-Single source of truth lives in **Go** (`backend/internal/config`). The frontend
-fetches it from `GET /config`; it never hardcodes repo lists or user names.
-
-User settings live in `~/.triage/config.json`, next to the cache and artifacts.
-`config.DefaultPath()` resolves it; `config.Load` reads it over `config.Default`
-at startup, so edits apply on the next app launch. The file is small and hand
-edited:
-
-```json
-{
-  "user": { "login": "", "name": "" },
-  "repos": ["owner/name", "other/repo"],
-  "repoPaths": { "owner/name": "~/Projects/name" },
-  "linear": { "teamKeys": ["ENG"] }
-}
-```
-
-- Repos are `owner/name` strings, deduped case-insensitively. Malformed entries
-  are dropped and named in `Config.Problem`; valid ones still load.
-- `repoPaths` is the local clone each tracked repo needs for automatic review.
-  Keys are `owner/name`, matched case-insensitively, and values expand `~`. A
-  repo without a path is still tracked: only Review is disabled for it, and
-  `GET /config` reports the reason (`No local path configured`,
-  `Path does not exist`). A missing path is never a config error.
-- Unknown keys are rejected (`DisallowUnknownFields`) so a typo like `"repo"`
-  fails loudly instead of silently doing nothing.
-- Omitted keys keep their defaults. `"repos": []` means no tracked repos.
-- A missing file is created from a template at mode `0600`. The directory is
-  `0700`.
-- A file that does not parse leaves defaults in place and reports the problem
-  on `Config.Problem`. The app still starts; `GET /config` returns `configPath`
-  and `configError`, and Settings shows both.
-
-`Tabs`, `Cache` TTLs and `Actions` stay in Go. Tabs are product structure, and
-the action model, budget and prompt are server-side only. `GET /config` returns
-an `actions` list plus `actionsReason`, never the internals. See **Claude
-actions**.
-
-Migration rule: every hardcoded value must sit behind the `Config` struct. Do not
-scatter repo names, org names or Linear IDs through components or queries.
-
-Secrets are not config. Tokens are resolved by `internal/config/tokens.go` in this
-order:
-
-1. `GITHUB_TOKEN` / `LINEAR_API_KEY` from the repo-root `.env`. The repo root is
-   found by walking up from the working directory until a folder holds the
-   committed `.env.example`, so the file is read the same way from `make app`,
-   from a subdirectory, or from an IDE run config. No home-directory file.
-2. GitHub only: if `GITHUB_TOKEN` is empty, shell out to `gh auth token` with a 2s
-   timeout and use its output. Failure is silent — the app reports "GitHub not
-   configured" in the UI rather than erroring out.
-3. Linear has no fallback. `LINEAR_API_KEY` must be present in `.env`.
-
-`Tokens.Source` holds the `.env` path that was read, empty when none was found.
-Startup logs it as `env_file` so a missing file is visible. Path only, never a
-value.
-
-Never read `.env` from any other package, never log token values, never send them to
-the webview. Commit only `.env.example`.
-
-## Plugin system
-
-`internal/plugin` defines the contract:
-
-```go
-type Plugin interface {
-    Name() string
-    ResolveLink(pr PR) (*Link, error) // regex-based for now
-    Enrich(ctx context.Context, link Link) (*Metadata, error)
-}
-```
-
-- MVP: one in-repo plugin, `linear`, linking PRs to issues via a regex on the
-  **branch name** (e.g. `eng-123-some-slug` → `ENG-123`). Manual linking is not
-  in scope yet.
-- Plugins are registered explicitly in `internal/plugin/registry.go`. No
-  reflection, no dynamic loading.
-- To keep the path to external plugins open: plugins only depend on types from
-  `internal/plugin` (never on `internal/api`), and their config lives in their own
-  struct inside `internal/config`. No global state, no direct filesystem or
-  network calls outside the plugin's own client.
-- Do not build a plugin SDK, manifest format or loader until a second plugin
-  exists. The interface is the boundary; the seams are enough.
-
-## Claude actions
-
-Two PR-scoped actions, both run by the Go sidecar (never Rust, never the
-webview) against the local `claude` CLI. **Explain** reads only the unified diff.
-**Review** checks out the PR head in a disposable worktree, reads the semantic
-diff, and returns structured findings. Answers stream back over SSE.
-
-- **Diff-only context for Explain.** `internal/api` loads the diff from GitHub
-  REST through the same ETag cache as the diff route, and
-  `actions.PromptData.WithDiff` turns it into a file list plus patch text with a
-  byte budget. Files that do not fit are omitted and named in the prompt, never
-  silently dropped. Dependency, generated and lock files are tried last so
-  source changes win the budget.
-- **Review context.** `internal/review` renders a bounded prompt: PR metadata,
-  the PR description (8 KB), the repo's own `AGENTS.md` / `CLAUDE.md` /
-  `CONTRIBUTING.md` (12 KB), `sem diff --format markdown --verbose` (96 KB) and
-  a raw REST fallback for files sem does not parse (48 KB, 96 KB when sem is
-  absent). Every changed file is either present or named as omitted. A separate
-  `sem diff --patch --format json` run gives the server absolute entity ranges,
-  which the prompt lists and the sanitizer uses to cross-check a citation.
-  `PromptVersion` is part of the artifact identity; bump it on any prompt,
-  budget, schema or finding-validation edit so old answers go stale.
-- **Tools.** Explain runs with `--tools ""`: no filesystem, shell or network
-  access. Review runs read-only with `Read`, `Grep`, `Glob`, restricted and
-  `--permission-mode dontAsk`, cwd at the worktree. Never fall back to
-  `--dangerously-skip-permissions`.
-- **Untrusted output.** PR title, body, diff, guidelines and every repository
-  file are untrusted prompt input. The system prompt says so, and the server
-  never trusts the reply: the model output is untrusted JSON, validated against
-  the PR diff (severity, caps, dedupe, evidence, guideline quote) before it
-  reaches the UI. The model never supplies a line number. It copies one changed
-  line into `evidence`, and the server resolves the line from that quote; a
-  finding whose quote is not on the changed side of the diff is hidden and
-  counted as unverified, never shown as evidence for code the PR did not change.
-  An entity is a label, not an anchor: a named entity that does not contain the
-  evidence line is cleared, and the finding stays. Convention findings must also
-  quote a rule from a guideline the run actually read; the server finds the
-  section by quote, so a misnamed guideline file still keeps a real rule and an
-  invented quote is dropped. A `blocking` finding always forces
-  `safeToMerge: false`, and a hidden blocking finding keeps that verdict
-  conservative. Every hidden finding is recorded in `dropped` with a stable
-  reason and the submitted evidence.
-- **Streamed, bounded.** `--output-format stream-json` → NDJSON parser → SSE
-  events `status`, `delta`, `done`, `error`. One job per PR+action; Explain
-  times out at 5 minutes, Review at 8 minutes; child process group killed on
-  cancel and on app shutdown.
-- **Artifacts.** `~/.triage/artifacts/<owner>/<repo>/<number>/<sha>/<action>.json`,
-  keyed by SHA + model + prompt version. One store, one shape: an Explain
-  artifact carries markdown and a nil `review`, a Review artifact carries
-  `review` plus the `worktree` its patches apply to. A SHA change makes the old
-  answer stale: served with `stale: true` and a Re-run button, never as current.
-  `Settings → Clear artifacts` removes the tree.
-- **Gating.** One gate: `exec.LookPath("claude")` succeeded at startup.
-  `/config.actions` is empty when the CLI is missing; `actionsReason` explains
-  why. Review additionally needs a `repoPaths` entry whose path is a git
-  repository.
-- **HTTP.** `POST/GET /pr/{owner}/{repo}/{n}/actions/{id}`,
-  `GET .../actions/{id}/stream` (SSE over `fetch`, bearer header — never a query
-  token), `POST .../actions/{id}/cancel`, `POST /artifacts/clear`,
-  `POST .../actions/review/patches/{findingID}`, `POST /worktrees/clear`.
-- **Config.** Action model, budget, tools, timeout and prompt live in
-  `internal/config` and never reach the webview. Adding an action is a config
-  entry, not a new route or component.
-
-### Worktrees
-
-Automatic review is the only feature that touches a checkout.
-
-- Root is `~/.triage/worktrees/<owner>/<repo>/<number>`. `internal/worktree`
-  creates it with `git worktree add --detach` from the configured local clone,
-  after fetching `refs/pull/N/head` and the base branch into `refs/triage/*`.
-- A run reuses the directory when `HEAD` already equals the artifact SHA and
-  recreates it otherwise. Jobs for the same PR are serialised by a per-PR lock.
-- The worktree is removed on failure and on cancel, and kept on success because
-  patches apply to it. `Settings → Clear worktrees` removes the whole tree and
-  prunes registrations; it never touches artifacts, the cache or source clones.
-- Patches are applied with `git apply --whitespace=nowarn` only, after a fresh
-  `--check` at apply time. The file set is the PR diff, and `..`, absolute paths
-  and binary patches are rejected. Nothing is ever staged, committed or pushed.
+- `src/lib/generated` is generated. Change the Go type, run `make api`, commit
+  both files. Never edit it by hand.
+- Bun only. Never add a package without a reason; prefer stdlib and hand-rolled
+  code.
+- Never read, print or commit `.env`; tokens are the user's. Commit only
+  `.env.example`.
+- Never bypass the cache to "make it faster" in dev; fix the cache.
+- Default delivery is the worktree → branch → commit → push → draft PR flow in
+  `skill://delivery`.
 
 ## MVP scope
 
@@ -531,4 +167,7 @@ Out (do not build yet):
 - Prefer deleting a placeholder over implementing it speculatively.
 - No new dependency, abstraction, or config layer without a concrete need.
 - Remove the demo `greet` command and example view once real views exist.
-- Update this file when a rule changes; it is the contract for future agents.
+- One owner per rule. Update the owning `.omp/skills/<name>/SKILL.md` when a rule
+  changes; this hub only routes.
+- `.omp/RULES.md` intentionally repeats the handful of rules that must survive
+  compaction and reach subagents; keep it short and in sync.
