@@ -95,7 +95,7 @@ export function RepoFilter({ repos, selectedRepo, onSelect }: RepoFilterProps) {
               className={cx(
                 "flex h-7 w-full items-center gap-2 rounded-sm px-2 text-left text-ui transition-colors outline-none",
                 isSelected
-                  ? "bg-surface text-fg"
+                  ? "bg-linear-to-r from-surface to-transparent text-fg"
                   : "text-fg-muted hover:bg-surface/60 hover:text-fg",
               )}
             >

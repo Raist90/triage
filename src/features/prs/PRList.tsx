@@ -13,9 +13,11 @@ import {
 } from "react";
 import { EmptyState } from "../../components/EmptyState";
 import { Button, IconButton } from "../../components/ui";
+import { cx } from "../../lib/cx";
 import { describeError, getPRs } from "../../lib/api";
 import { useLiveRefresh } from "../../lib/liveRefresh";
 import { refreshOpenPR, syncPRHead } from "../../lib/prRefresh";
+import { scrollEdgeClass, useScrollEdges } from "../../lib/useScrollEdges";
 import { useUIStore } from "../../stores/ui";
 import { PRFilterPopover } from "./PRFilterPopover";
 import { PRRow } from "./PRRow";
@@ -87,6 +89,8 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const rowRefs = useRef<Array<HTMLDivElement | null>>([]);
   const listRef = useRef<HTMLDivElement | null>(null);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const scrollEdges = useScrollEdges(viewportRef);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const filterRef = useRef<HTMLDivElement | null>(null);
 
@@ -210,7 +214,7 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-9 shrink-0 items-center justify-between gap-2 border-b border-line pr-1 pl-3">
+      <div className="flex h-11 shrink-0 items-center justify-between gap-2 pr-1 pl-3">
         <div className="flex min-w-0 items-center gap-3">
           <span className="truncate text-meta font-medium text-fg">
             {tabLabel}
@@ -325,7 +329,7 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
       </div>
 
       {chips.length > 0 ? (
-        <div className="flex h-9 shrink-0 items-center gap-1 border-b border-line px-3">
+        <div className="seam-b flex h-9 shrink-0 items-center gap-1 px-3">
           <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
             {chips.map((chip) => (
               <button
@@ -367,7 +371,13 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
         </p>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div
+        ref={viewportRef}
+        className={cx(
+          "min-h-0 flex-1 overflow-y-auto",
+          scrollEdgeClass(scrollEdges),
+        )}
+      >
         {isLoading && !query.isError ? (
           <div aria-hidden="true">
             {Array.from({ length: 8 }, (_, index) => (
@@ -375,8 +385,8 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
                 key={index}
                 className="flex h-13 flex-col justify-center gap-2 border-b border-line px-3"
               >
-                <div className="h-3 w-2/3 animate-pulse rounded-sm bg-surface" />
-                <div className="h-2.5 w-1/3 animate-pulse rounded-sm bg-surface" />
+                <div className="h-3 w-2/3 shimmer rounded-sm" />
+                <div className="h-2.5 w-1/3 shimmer rounded-sm" />
               </div>
             ))}
           </div>

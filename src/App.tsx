@@ -88,7 +88,18 @@ export function App() {
   }
 
   return (
-    <div className="flex h-full overflow-hidden bg-canvas text-fg">
+    <div className="relative flex h-full overflow-hidden bg-canvas text-fg">
+      {/* One light source behind the main panes; opaque chrome covers it. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 ambient-wash"
+      />
+      {/* One seam under the whole 44px chrome band. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-11 z-10 h-px app-seam"
+      />
+
       {detailFullscreen ? null : (
         <Rail
           tabs={tabs}
@@ -117,7 +128,7 @@ export function App() {
         <section
           aria-hidden={detailFullscreen || undefined}
           className={cx(
-            "min-w-0 flex-col cockpit:w-85 cockpit:shrink-0 cockpit:border-r cockpit:border-line",
+            "min-w-0 flex-col cockpit:seam-r cockpit:w-85 cockpit:shrink-0",
             detailFullscreen
               ? // Hidden, not unmounted: the list keeps its cursor and scroll
                 // for when fullscreen exits.
@@ -156,11 +167,15 @@ export function App() {
 
 function DetailPlaceholder() {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
-      <p className="text-ui text-fg-muted">
+    <div className="relative flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 dot-grid"
+      />
+      <p className="relative text-ui text-fg-muted">
         Pick a pull request to read the diff.
       </p>
-      <div className="flex items-center gap-3 text-meta text-fg-faint">
+      <div className="relative flex items-center gap-3 text-meta text-fg-faint">
         <span className="flex items-center gap-2">
           <Kbd>j</Kbd>
           <Kbd>k</Kbd>

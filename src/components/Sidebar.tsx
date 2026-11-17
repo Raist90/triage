@@ -28,7 +28,7 @@ export function Sidebar({
   onCollapse,
 }: SidebarProps) {
   return (
-    <aside className="flex w-52 shrink-0 flex-col border-r border-line bg-canvas">
+    <aside className="seam-r flex w-52 shrink-0 flex-col bg-canvas">
       <div className="flex h-11 shrink-0 items-center justify-between pr-2 pl-3">
         <MicroLabel>Repositories</MicroLabel>
         <button
@@ -48,7 +48,7 @@ export function Sidebar({
             {[72, 56, 64, 48].map((width) => (
               <div
                 key={width}
-                className="h-7 animate-pulse rounded-sm bg-surface"
+                className="h-7 shimmer rounded-sm"
                 style={{ width: `${width}%` }}
               />
             ))}

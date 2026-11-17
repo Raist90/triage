@@ -154,8 +154,15 @@ stay side by side; reviewing is the only flow that matters.
 - **Accent: one green** (`accent`) for active rail, selection rails, dots,
   primary action, focus. **Danger red** is semantic only: failing checks and
   deletions. No other hues in chrome.
+- **Gradients are light, not fills.** One source, top-left. Use the utilities in
+  `index.css`: `ambient-wash` (shell), `app-seam`/`seam-b`/`seam-r` (chrome
+  hairlines that fade), `lit`/`rail-active` (raised chrome), `row-selected`
+  (list selection), `elevated` (dialogs, popovers), `cta` (the one lit action),
+  `shimmer`, `live-dot`, `dot-grid`, `fade-*` (scroll edges). Never inline an
+  arbitrary gradient, never add a hue, never blur.
 - **Spacing: 4 / 8 / 12 / 16 / 24 / 32 only.** No `py-1.5`, `py-2.5`, `gap-3.5`,
-  `px-5`. Chrome heights: 44 top bar, 36 toolbar, 52 list row. Widths: 48 rail,
+  `px-5`. Chrome heights: one 44 top band (rail, repo panel, list toolbar,
+  detail bar), 52 list row. Widths: 48 rail,
   208 repo panel, 340 PR list, 272 context rail.
 - **Radii:** `rounded-sm` controls (4px), `rounded-md` dialog (6px). Both are
   declared in px in `@theme` so ESLint maps a `rounded-[4px]` back to the token.

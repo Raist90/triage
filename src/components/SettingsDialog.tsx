@@ -103,9 +103,9 @@ export function SettingsDialog({ open, config, onClose }: SettingsDialogProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-title"
-        className="flex max-h-full w-full max-w-md flex-col overflow-hidden rounded-md border border-line-strong bg-canvas"
+        className="flex max-h-full w-full max-w-md surface-in flex-col overflow-hidden rounded-md elevated"
       >
-        <div className="flex h-11 shrink-0 items-center justify-between border-b border-line pr-1 pl-4">
+        <div className="seam-b flex h-11 shrink-0 items-center justify-between pr-1 pl-4">
           <h2 id="settings-title" className="text-ui font-medium text-fg">
             Settings
           </h2>

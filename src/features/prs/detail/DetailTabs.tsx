@@ -32,7 +32,7 @@ export function DetailTabs({ tabs, active, onSelect }: DetailTabsProps) {
             onClick={() => onSelect(item.id)}
             className={
               selected
-                ? "-mb-px flex items-center gap-2 border-b border-accent text-meta font-medium text-fg"
+                ? "relative -mb-px flex items-center gap-2 text-meta font-medium text-fg after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-full after:bg-linear-to-r after:from-transparent after:via-accent after:to-transparent"
                 : "-mb-px flex items-center gap-2 border-b border-transparent text-meta text-fg-faint transition-colors hover:text-fg-muted"
             }
           >

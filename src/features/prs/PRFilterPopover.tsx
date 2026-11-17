@@ -58,9 +58,9 @@ export function PRFilterPopover({
       ref={panelRef}
       role="dialog"
       aria-label="Filter pull requests"
-      className="absolute top-8 right-0 z-30 flex max-h-[min(480px,70vh)] w-64 flex-col overflow-hidden rounded-md border border-line-strong bg-canvas"
+      className="absolute top-8 right-0 z-30 flex max-h-[min(480px,70vh)] w-64 surface-in flex-col overflow-hidden rounded-md elevated"
     >
-      <div className="flex h-9 shrink-0 items-center justify-between border-b border-line pr-1 pl-3">
+      <div className="seam-b flex h-9 shrink-0 items-center justify-between pr-1 pl-3">
         <span className="text-ui font-medium text-fg">Filter</span>
         <IconButton label="Close filters" onClick={onClose}>
           <X className="size-3.5" aria-hidden />

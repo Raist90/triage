@@ -30,7 +30,7 @@ export function PRRow({
       className={[
         "relative flex h-[52px] w-full cursor-default flex-col justify-center gap-1 border-b border-line pr-3 pl-3 text-left transition-colors outline-none",
         selected
-          ? "bg-surface before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-accent"
+          ? "row-selected"
           : active
             ? "bg-surface/60"
             : "hover:bg-surface/40",

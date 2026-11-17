@@ -7,7 +7,7 @@ const LABELS: Record<ConnectionState, string> = {
 };
 
 const DOTS: Record<ConnectionState, string> = {
-  connected: "bg-accent",
+  connected: "bg-accent live-dot",
   connecting: "bg-fg-faint",
   disconnected: "bg-danger",
 };

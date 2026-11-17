@@ -1,8 +1,11 @@
 import { ExternalLink } from "lucide-react";
+import { useRef } from "react";
 import { StatusIcon } from "../../../components/StatusBadge";
 import { Button, MicroLabel } from "../../../components/ui";
+import { cx } from "../../../lib/cx";
 import { openExternal } from "../../../lib/open";
 import type { PR, PRDiffResponse } from "../../../lib/types";
+import { scrollEdgeClass, useScrollEdges } from "../../../lib/useScrollEdges";
 import { ChangeStat } from "./ChangeStat";
 import { ComplexityMeter } from "./ComplexityMeter";
 
@@ -12,10 +15,16 @@ type ContextRailProps = {
 };
 
 export function ContextRail({ pr, diff }: ContextRailProps) {
+  const railRef = useRef<HTMLElement | null>(null);
+  const scrollEdges = useScrollEdges(railRef);
   return (
     <aside
       aria-label="Pull request context"
-      className="hidden w-68 shrink-0 flex-col gap-4 overflow-y-auto border-l border-line px-4 py-3 min-[1400px]:flex"
+      ref={railRef}
+      className={cx(
+        "hidden w-68 shrink-0 flex-col gap-4 overflow-y-auto border-l border-line px-4 py-3 min-[1400px]:flex",
+        scrollEdgeClass(scrollEdges),
+      )}
     >
       <section>
         <MicroLabel>Checks</MicroLabel>
