@@ -19,7 +19,7 @@ stay side by side; reviewing is the only flow that matters.
   Weights are 400 and 500 only. `text-sm`/`text-xs`/`text-2xs` are gone.
   `text-micro` is for labels and state tags only: 0.08em tracking for labels,
   0.06em for tags. Actions and values use `text-meta`, except dense metadata
-  inside the 208px diff rail.
+  inside the diff rail.
 - **Mono = identity data.** Branch, repo, PR number, SHA, counts, file paths,
   timestamps use `font-mono` + `tabular-nums`. Prose and UI labels stay sans. Mono
   disables ligatures (`font-variant-ligatures: none` in `index.css`); they
@@ -76,7 +76,8 @@ stay side by side; reviewing is the only flow that matters.
   body first, then comments, review verdicts and inline review comments. The
   272px context rail shows checks, review, complexity and commit; it is hidden
   below 1400px and while the Diff tab is active (the diff needs the width).
-- **Diffs:** per file, collapsible, full width, 208px file rail. Semantic diff
+- **Diffs:** per file, collapsible, full width, 208px file rail, draggable
+  between 168 and 440px (double-click resets). Semantic diff
   via `sem` when available; fall back to a plain unified diff. Never fail a
   review flow because `sem` is absent. Semantic changes live in a 40px map on
   the right edge of the diff pane (toolbar toggle) plus a per-hunk chip that

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { CSSProperties } from "react";
 import { cx } from "../../../lib/cx";
 import type { DiffFile, SemanticSummary } from "../../../lib/types";
 import { scrollEdgeClass, useScrollEdges } from "../../../lib/useScrollEdges";
@@ -10,6 +11,7 @@ import { DiffToolbar } from "./DiffToolbar";
 import { SemanticRail } from "./SemanticRail";
 import type { DiffCommentsController } from "./useDiffComments";
 import { useDiffNavigation } from "./useDiffNavigation";
+import { useResizableRail } from "./useResizableRail";
 
 export type { DiffTarget } from "./diffSelection";
 
@@ -90,6 +92,7 @@ export function DiffView({
   });
 
   const scrollEdges = useScrollEdges(paneRef);
+  const { width: railWidth, rootRef, separatorProps } = useResizableRail();
 
   const railLayoutKey = visible
     .map(
@@ -104,7 +107,11 @@ export function DiffView({
   const showSummary = semanticAvailable && (semanticSummary?.total ?? 0) > 0;
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div
+      ref={rootRef}
+      className="flex h-full min-h-0 flex-col"
+      style={{ "--diff-rail": `${railWidth}px` } as CSSProperties}
+    >
       <DiffToolbar
         summary={semanticSummary}
         showSummary={showSummary}
@@ -142,6 +149,11 @@ export function DiffView({
           onFilterChange={setFilter}
           onToggleKind={toggleFileKind}
           onSelect={selectFile}
+        />
+
+        <div
+          {...separatorProps}
+          className="-ml-1 w-2 shrink-0 cursor-col-resize touch-none"
         />
 
         <div
