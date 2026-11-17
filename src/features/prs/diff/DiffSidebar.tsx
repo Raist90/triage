@@ -1,6 +1,5 @@
 import { EyeOff, Search, X } from "lucide-react";
 import type { RefObject } from "react";
-import { MicroLabel } from "../../../components/ui";
 import type { DiffFile, DiffFileKind } from "../../../lib/types";
 import type { DiffSort } from "../../../stores/ui";
 import {
@@ -106,7 +105,7 @@ export function DiffSidebar({
               type="button"
               onClick={() => onFilterChange("")}
               aria-label="Clear file filter"
-              className="absolute top-1/2 right-1 flex size-5 -translate-y-1/2 items-center justify-center rounded-[3px] text-fg-faint transition-colors hover:text-fg"
+              className="absolute top-1/2 right-1 flex size-5 -translate-y-1/2 items-center justify-center rounded-sm text-fg-faint transition-colors hover:text-fg"
             >
               <X className="size-3.5" aria-hidden />
             </button>
@@ -114,46 +113,40 @@ export function DiffSidebar({
         </label>
 
         {kinds.length > 0 ? (
-          <>
-            <MicroLabel className="mt-2 block">Hide</MicroLabel>
-            <div
-              role="group"
-              aria-label="Hide file types"
-              className="mt-1 flex flex-wrap gap-1"
-            >
-              {kinds.map((kind) => (
-                <ToggleChip
-                  key={kind}
-                  kind={kind}
-                  count={kindCounts[kind]}
-                  excluded={hiddenKinds.includes(kind)}
-                  onToggle={() => onToggleKind(kind)}
-                />
-              ))}
-            </div>
-          </>
+          <div
+            role="group"
+            aria-label="Hide file types"
+            className="mt-2 flex flex-wrap gap-1"
+          >
+            {kinds.map((kind) => (
+              <ToggleChip
+                key={kind}
+                kind={kind}
+                count={kindCounts[kind]}
+                excluded={hiddenKinds.includes(kind)}
+                onToggle={() => onToggleKind(kind)}
+              />
+            ))}
+          </div>
         ) : null}
 
         {hasReview ? (
           <>
-            <div className="mt-2 flex items-center justify-between gap-2">
-              <MicroLabel>Sort</MicroLabel>
-              <div
-                role="group"
-                aria-label="Sort diff files"
-                className="flex items-center gap-1"
-              >
-                <SortButton
-                  label="Priority"
-                  active={sort === "priority"}
-                  onClick={() => onSortChange("priority")}
-                />
-                <SortButton
-                  label="Path"
-                  active={sort === "path"}
-                  onClick={() => onSortChange("path")}
-                />
-              </div>
+            <div
+              role="group"
+              aria-label="Sort diff files"
+              className="mt-2 flex items-center gap-1"
+            >
+              <SortButton
+                label="Priority"
+                active={sort === "priority"}
+                onClick={() => onSortChange("priority")}
+              />
+              <SortButton
+                label="Path"
+                active={sort === "path"}
+                onClick={() => onSortChange("path")}
+              />
             </div>
             {lowCount > 0 ? (
               <button
@@ -162,9 +155,9 @@ export function DiffSidebar({
                 aria-pressed={hideLowPriority}
                 aria-label={`${hideLowPriority ? "Show" : "Hide"} ${lowCount} low-focus ${lowCount === 1 ? "file" : "files"}`}
                 title={`${hideLowPriority ? "Show" : "Hide"} ${lowCount} low-focus ${lowCount === 1 ? "file" : "files"}`}
-                className={`relative mt-2 inline-flex h-6 shrink-0 items-center gap-1 rounded-sm border px-2 text-meta font-medium transition-colors ${
+                className={`mt-2 inline-flex h-6 w-full items-center justify-center gap-1 rounded-sm border px-2 text-meta font-medium transition-colors ${
                   hideLowPriority
-                    ? "border-accent/40 text-fg after:absolute after:inset-x-1 after:bottom-0 after:h-0.5 after:rounded-full after:bg-accent"
+                    ? "border-line-strong bg-surface text-fg"
                     : "border-line text-fg-faint hover:border-line-strong hover:text-fg"
                 }`}
               >
@@ -203,11 +196,11 @@ export function DiffSidebar({
                 className={`relative flex h-9 w-full items-center gap-2 px-2 text-left transition-colors ${
                   active
                     ? "bg-surface before:absolute before:inset-y-1 before:left-0 before:w-0.5 before:rounded-full before:bg-accent"
-                    : "hover:bg-surface/50"
+                    : "hover:bg-surface/60"
                 }`}
               >
                 <span
-                  className={`w-3.5 shrink-0 rounded-[3px] border text-center font-mono text-micro/4 ${status.className}`}
+                  className={`w-3.5 shrink-0 rounded-sm border text-center font-mono text-micro leading-none ${status.className}`}
                   title={file.status}
                 >
                   {status.mark}
@@ -316,7 +309,7 @@ function ToggleChip({
       title={`${excluded ? "Show" : "Hide"} ${count} ${label.toLowerCase()} ${filesLabel}`}
       className={`relative inline-flex h-6 shrink-0 items-center gap-1 rounded-sm border px-2 text-meta font-medium transition-colors ${
         excluded
-          ? "border-accent/40 text-fg after:absolute after:inset-x-1 after:bottom-0 after:h-0.5 after:rounded-full after:bg-accent"
+          ? "border-line-strong bg-surface text-fg"
           : "border-line text-fg-faint hover:border-line-strong hover:text-fg"
       }`}
     >

@@ -37,7 +37,7 @@ export function ReviewPanel({ review }: ReviewPanelProps) {
         rows={3}
         autoFocus
         placeholder="Leave a comment…"
-        className="w-full resize-y rounded-sm border border-line bg-surface px-2 py-1.5 text-prose text-fg placeholder:text-fg-faint"
+        className="w-full resize-y rounded-sm border border-line bg-surface p-2 text-prose text-fg placeholder:text-fg-faint"
       />
 
       <div className="mt-2 flex items-center gap-2">

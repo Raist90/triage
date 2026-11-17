@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { GitPullRequest } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import type { ConnectionState } from "./components/ConnectionStatus";
 import { EmptyState } from "./components/EmptyState";
@@ -7,7 +8,7 @@ import { LoadingState } from "./components/LoadingState";
 import { Rail } from "./components/Rail";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { Sidebar, type ConfigStatus } from "./components/Sidebar";
-import { Kbd } from "./components/ui";
+import { StateView } from "./components/StateView";
 import { cx } from "./lib/cx";
 import { describeError, getConfig, getHealth } from "./lib/api";
 import { parsePRKey } from "./lib/pr";
@@ -88,7 +89,18 @@ export function App() {
   }
 
   return (
-    <div className="flex h-full overflow-hidden bg-canvas text-fg">
+    <div className="relative flex h-full overflow-hidden bg-canvas text-fg">
+      {/* One light source behind the main panes; opaque chrome covers it. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 ambient-wash"
+      />
+      {/* One seam under the whole 44px chrome band. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-11 z-10 h-px app-seam"
+      />
+
       {detailFullscreen ? null : (
         <Rail
           tabs={tabs}
@@ -133,8 +145,8 @@ export function App() {
 
         <section
           className={cx(
-            "min-w-0 flex-1",
-            prSelection ? "flex flex-col" : "hidden cockpit:flex",
+            "min-w-0 flex-1 flex-col",
+            prSelection ? "flex" : "hidden cockpit:flex",
           )}
         >
           {prSelection ? (
@@ -156,25 +168,16 @@ export function App() {
 
 function DetailPlaceholder() {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
-      <p className="text-ui text-fg-muted">
-        Pick a pull request to read the diff.
-      </p>
-      <div className="flex items-center gap-3 text-meta text-fg-faint">
-        <span className="flex items-center gap-2">
-          <Kbd>j</Kbd>
-          <Kbd>k</Kbd>
-          move
-        </span>
-        <span className="flex items-center gap-2">
-          <Kbd>↵</Kbd>
-          open
-        </span>
-        <span className="flex items-center gap-2">
-          <Kbd>/</Kbd>
-          filter files
-        </span>
-      </div>
-    </div>
+    <StateView
+      dotGrid
+      icon={GitPullRequest}
+      title="Pick a pull request"
+      description="Read the conversation, scan the diff, or run a review."
+      hints={[
+        { keys: ["j", "k"], label: "move" },
+        { keys: ["↵"], label: "open" },
+        { keys: ["/"], label: "search" },
+      ]}
+    />
   );
 }

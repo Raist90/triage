@@ -27,8 +27,8 @@ export function RepoFilter({ repos, selectedRepo, onSelect }: RepoFilterProps) {
   const cursor = Math.min(cursorOverride ?? selectedIndex, lastIndex);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
-  function focusOption(index: number) {
-    itemRefs.current[index]?.focus();
+  function focusOption(index: number, preventScroll = false) {
+    itemRefs.current[index]?.focus({ preventScroll });
   }
 
   function move(index: number) {
@@ -74,7 +74,7 @@ export function RepoFilter({ repos, selectedRepo, onSelect }: RepoFilterProps) {
         role="listbox"
         aria-label="Repositories"
         onKeyDown={handleKeyDown}
-        className="flex flex-col gap-0"
+        className="flex flex-col gap-1"
       >
         {options.map((option, index) => {
           const isSelected = option === selectedRepo;
@@ -90,23 +90,29 @@ export function RepoFilter({ repos, selectedRepo, onSelect }: RepoFilterProps) {
               role="option"
               aria-selected={isSelected}
               tabIndex={index === cursor ? 0 : -1}
+              onMouseDown={(event) => event.preventDefault()}
               onFocus={() => setCursorOverride(index)}
-              onClick={() => commit(index)}
+              onClick={() => {
+                commit(index);
+                // Pointer focus must not scroll a partially hidden row into
+                // view: the list would jump under the cursor.
+                focusOption(index, true);
+              }}
               className={cx(
-                "flex h-7 w-full items-center gap-2 rounded-sm px-2 text-left text-ui transition-colors outline-none",
+                "relative flex h-7 w-full items-center gap-2 overflow-hidden rounded-sm px-2 text-left text-ui transition-colors outline-none",
                 isSelected
-                  ? "bg-surface text-fg"
+                  ? "row-selected text-fg"
                   : "text-fg-muted hover:bg-surface/60 hover:text-fg",
               )}
             >
               <Icon
                 className={cx(
-                  "size-3.5 shrink-0",
+                  "relative size-3.5 shrink-0",
                   isSelected ? "text-accent" : "text-fg-faint",
                 )}
                 aria-hidden
               />
-              <span className="truncate">{label}</span>
+              <span className="relative truncate">{label}</span>
             </button>
           );
         })}

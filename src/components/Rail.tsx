@@ -43,7 +43,7 @@ export function Rail({
         title={repoPanelOpen ? "Hide repositories" : "Show repositories"}
         aria-label={repoPanelOpen ? "Hide repositories" : "Show repositories"}
         aria-expanded={repoPanelOpen}
-        className="mb-3 flex size-7 items-center justify-center rounded-sm bg-raised font-mono text-meta font-medium text-fg transition-colors hover:bg-line"
+        className="mb-3 flex size-7 items-center justify-center rounded-sm lit font-mono text-meta font-medium text-fg transition-colors hover:brightness-110"
       >
         T
       </button>
@@ -68,7 +68,7 @@ export function Rail({
               className={cx(
                 "relative flex size-9 items-center justify-center rounded-sm transition-colors",
                 active
-                  ? "bg-surface text-fg before:absolute before:inset-y-2 before:-left-1.5 before:w-0.5 before:rounded-full before:bg-accent"
+                  ? "rail-active text-fg"
                   : "text-fg-faint hover:bg-surface hover:text-fg",
               )}
             >

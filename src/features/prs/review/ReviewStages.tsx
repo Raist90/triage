@@ -102,7 +102,7 @@ function StageRow({
       <span
         aria-hidden="true"
         className={cx(
-          "mb-px size-2 shrink-0 rounded-[2px]",
+          "mb-px size-2 shrink-0 rounded-sm",
           state === "done"
             ? "bg-accent"
             : state === "active"
@@ -126,9 +126,9 @@ function ReviewSkeleton() {
     <div aria-hidden="true" className="rounded-md border border-line">
       {Array.from({ length: 3 }, (_, index) => (
         <div key={index} className="border-b border-line p-3 last:border-b-0">
-          <div className="h-2 w-24 animate-pulse rounded-sm bg-surface" />
-          <div className="mt-2 h-3 w-2/3 animate-pulse rounded-sm bg-surface" />
-          <div className="mt-2 h-3 w-1/2 animate-pulse rounded-sm bg-surface" />
+          <div className="h-2 w-24 shimmer rounded-sm" />
+          <div className="mt-2 h-3 w-2/3 shimmer rounded-sm" />
+          <div className="mt-2 h-3 w-1/2 shimmer rounded-sm" />
         </div>
       ))}
     </div>

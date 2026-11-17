@@ -7,7 +7,13 @@ import {
   mock,
   test,
 } from "bun:test";
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import * as actualApi from "../../lib/api";
 import { LIVE_BASE_MS } from "../../lib/liveRefresh";
 import type { PRListResponse } from "../../lib/types";
@@ -249,6 +255,34 @@ describe("PRList", () => {
       jest.useRealTimers();
       document.hasFocus = originalHasFocus;
     }
+  });
+
+  test("shows the repo only when the list spans repositories", async () => {
+    getPRs.mockImplementation(async () => listResponse());
+    const first = renderWithQuery(
+      <PRList tabID="all" tabLabel="All open" repo={null} />,
+    );
+    const rows = await screen.findAllByRole("option");
+    expect(within(rows[0]).getByText("acme/web")).toBeDefined();
+
+    first.unmount();
+    renderWithQuery(<PRList tabID="all" tabLabel="All open" repo="acme/web" />);
+    const scopedRows = await screen.findAllByRole("option");
+    expect(within(scopedRows[0]).queryByText("acme/web")).toBeNull();
+  });
+
+  test("shows the author outside My PRs and hides it there", async () => {
+    getPRs.mockImplementation(async () => listResponse());
+    const all = renderWithQuery(
+      <PRList tabID="all" tabLabel="All open" repo={null} />,
+    );
+    const rows = await screen.findAllByRole("option");
+    expect(within(rows[0]).getByText("octocat")).toBeDefined();
+
+    all.unmount();
+    renderWithQuery(<PRList tabID="mine" tabLabel="My PRs" repo={null} />);
+    const mineRows = await screen.findAllByRole("option");
+    expect(within(mineRows[0]).queryByText("octocat")).toBeNull();
   });
 
   test("an empty response renders the empty state", async () => {

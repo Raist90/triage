@@ -16,7 +16,7 @@ export function PRStateTag({ status }: { status: PRStatus }) {
   return (
     <span
       className={cx(
-        "shrink-0 rounded-[3px] border border-line px-1 align-middle text-micro font-normal tracking-[0.06em] uppercase",
+        "shrink-0 rounded-sm border border-line px-1 align-middle text-micro font-normal tracking-[0.06em] uppercase",
         accent ? "text-accent" : "text-fg-faint",
       )}
     >

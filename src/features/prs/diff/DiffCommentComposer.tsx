@@ -64,7 +64,7 @@ export function CommentComposer({
         rows={3}
         autoFocus
         placeholder="Leave a comment on this line…"
-        className="w-full resize-y rounded-sm border border-line bg-canvas px-2 py-1.5 text-prose text-fg placeholder:text-fg-faint"
+        className="w-full resize-y rounded-sm border border-line bg-canvas p-2 text-prose text-fg placeholder:text-fg-faint"
       />
       <div className="mt-2 flex items-center gap-2">
         <Button

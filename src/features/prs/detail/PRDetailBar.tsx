@@ -1,5 +1,5 @@
 import { ArrowLeft, ExternalLink, Maximize2, Minimize2 } from "lucide-react";
-import { IconButton, Kbd } from "../../../components/ui";
+import { IconButton } from "../../../components/ui";
 import { cx } from "../../../lib/cx";
 import { openExternal } from "../../../lib/open";
 import type { PR } from "../../../lib/types";
@@ -32,7 +32,7 @@ export function PRDetailBar({
   return (
     <div
       className={cx(
-        "flex h-11 shrink-0 items-center gap-2 border-b border-line pr-1 pl-2",
+        "flex h-11 shrink-0 items-center gap-2 pr-1 pl-2",
         fullscreen && "bg-canvas",
       )}
     >
@@ -43,7 +43,6 @@ export function PRDetailBar({
       >
         <ArrowLeft className="size-4" aria-hidden />
         Back
-        <Kbd>Esc</Kbd>
       </button>
       <span className="min-w-0 truncate font-mono text-meta text-fg-faint">
         {repo}

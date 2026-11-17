@@ -82,7 +82,7 @@ const components: Components = {
     <strong className="font-medium text-fg">{children}</strong>
   ),
   code: ({ children }) => (
-    <code className="rounded-[3px] border border-line bg-surface px-1 py-px font-mono text-meta text-fg-body">
+    <code className="rounded-sm border border-line bg-surface px-1 py-px font-mono text-meta text-fg-body">
       {children}
     </code>
   ),

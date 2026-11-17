@@ -14,10 +14,18 @@ import { findHunk, sliceHunk } from "./reviewHunks";
 
 /** Color roles only: blocking and praise carry meaning, the rest stay neutral. */
 const SEVERITY_TEXT: Record<ReviewSeverity, string> = {
-  blocking: "text-danger!",
-  warning: "text-fg!",
-  nitpick: "text-fg-faint!",
-  praise: "text-accent!",
+  blocking: "text-danger",
+  warning: "text-fg",
+  nitpick: "text-fg-faint",
+  praise: "text-accent",
+};
+
+/** A 2px rail on the card, so severity survives a glance at the list. */
+const SEVERITY_RAIL: Record<ReviewSeverity, string> = {
+  blocking: "before:bg-danger",
+  warning: "before:bg-fg-muted",
+  nitpick: "before:bg-fg-faint",
+  praise: "before:bg-accent",
 };
 
 type FindingCardProps = {
@@ -74,7 +82,12 @@ export function FindingCard({
   }, [diffFiles, finding.file, finding.line]);
 
   return (
-    <article className="rounded-sm border border-line">
+    <article
+      className={cx(
+        "relative overflow-hidden rounded-sm border border-line before:absolute before:inset-y-0 before:left-0 before:w-0.5",
+        SEVERITY_RAIL[finding.severity],
+      )}
+    >
       <button
         type="button"
         aria-expanded={open}
@@ -83,11 +96,14 @@ export function FindingCard({
         className="flex w-full flex-col gap-1 rounded-sm p-3 text-left transition-colors hover:bg-surface"
       >
         <span className="flex w-full min-w-0 items-baseline gap-3">
-          <MicroLabel
-            className={cx("shrink-0", SEVERITY_TEXT[finding.severity])}
+          <span
+            className={cx(
+              "shrink-0 text-micro font-medium tracking-[0.06em] uppercase",
+              SEVERITY_TEXT[finding.severity],
+            )}
           >
             {finding.severity}
-          </MicroLabel>
+          </span>
           <span className="shrink-0 font-mono text-meta text-fg-faint">
             {finding.category}
           </span>
@@ -114,18 +130,18 @@ export function FindingCard({
             />
           </span>
         </span>
-        <span className="text-ui font-medium text-fg">{finding.title}</span>
+        <span className="text-prose font-medium text-fg">{finding.title}</span>
       </button>
 
       <div id={bodyId} hidden={!open} className="border-t border-line p-3">
-        <p className="max-w-[72ch] text-prose text-fg-body">{finding.claim}</p>
+        <p className="max-w-[68ch] text-prose text-fg-body">{finding.claim}</p>
 
         {hunk ? <FindingHunk match={hunk.match} lines={hunk.lines} /> : null}
 
         {finding.suggestion ? (
           <div className="mt-3">
             <MicroLabel>Suggestion</MicroLabel>
-            <p className="mt-1 max-w-[72ch] text-prose text-fg-body">
+            <p className="mt-1 max-w-[68ch] text-prose text-fg-body">
               {finding.suggestion}
             </p>
           </div>

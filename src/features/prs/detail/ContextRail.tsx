@@ -1,9 +1,9 @@
-import { ExternalLink } from "lucide-react";
+import { Check, Copy } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { StatusIcon } from "../../../components/StatusBadge";
-import { Button, MicroLabel } from "../../../components/ui";
-import { openExternal } from "../../../lib/open";
+import { cx } from "../../../lib/cx";
 import type { PR, PRDiffResponse } from "../../../lib/types";
-import { ChangeStat } from "./ChangeStat";
+import { scrollEdgeClass, useScrollEdges } from "../../../lib/useScrollEdges";
 import { ComplexityMeter } from "./ComplexityMeter";
 
 type ContextRailProps = {
@@ -12,75 +12,81 @@ type ContextRailProps = {
 };
 
 export function ContextRail({ pr, diff }: ContextRailProps) {
+  const railRef = useRef<HTMLElement | null>(null);
+  const copyTimer = useRef<number | null>(null);
+  const [copied, setCopied] = useState(false);
+  const scrollEdges = useScrollEdges(railRef);
+
+  useEffect(
+    () => () => {
+      if (copyTimer.current !== null) window.clearTimeout(copyTimer.current);
+    },
+    [],
+  );
+
+  async function copySHA() {
+    try {
+      await navigator.clipboard.writeText(pr.headSHA);
+    } catch {
+      return;
+    }
+    setCopied(true);
+    if (copyTimer.current !== null) window.clearTimeout(copyTimer.current);
+    copyTimer.current = window.setTimeout(() => setCopied(false), 1500);
+  }
+
   return (
     <aside
       aria-label="Pull request context"
-      className="hidden w-68 shrink-0 flex-col gap-4 overflow-y-auto border-l border-line px-4 py-3 min-[1400px]:flex"
+      ref={railRef}
+      className={cx(
+        "hidden w-68 shrink-0 flex-col overflow-y-auto border-l border-line p-4 min-[1400px]:flex",
+        scrollEdgeClass(scrollEdges),
+      )}
     >
-      <section>
-        <MicroLabel>Checks</MicroLabel>
-        <div className="mt-2">
-          <StatusIcon kind="check" state={pr.checkStatus} withLabel />
-        </div>
-      </section>
+      <dl className="grid grid-cols-[72px_minmax(0,1fr)] gap-x-3 gap-y-4 text-meta">
+        <dt className="text-fg-faint">Status</dt>
+        <dd className="flex flex-col gap-2 text-fg-muted">
+          {pr.checkStatus !== "none" ? (
+            <StatusIcon kind="check" state={pr.checkStatus} withLabel />
+          ) : null}
+          {pr.reviewState !== "none" ? (
+            <StatusIcon kind="review" state={pr.reviewState} withLabel />
+          ) : null}
+          {pr.checkStatus === "none" && pr.reviewState === "none" ? (
+            <span className="text-fg-faint">No checks or reviews</span>
+          ) : null}
+        </dd>
 
-      <section>
-        <MicroLabel>Review</MicroLabel>
-        <div className="mt-2">
-          <StatusIcon kind="review" state={pr.reviewState} withLabel />
-        </div>
-      </section>
+        {diff?.complexity ? (
+          <>
+            <dt className="text-fg-faint">Complexity</dt>
+            <dd className="text-fg-muted">
+              <ComplexityMeter complexity={diff.complexity} />
+            </dd>
+          </>
+        ) : null}
 
-      <section>
-        <MicroLabel>Change</MicroLabel>
-        <div className="mt-2">
-          <ChangeStat
-            additions={pr.additions}
-            deletions={pr.deletions}
-            files={pr.changedFiles}
-            className="text-meta text-fg-muted"
-          />
-        </div>
-      </section>
-
-      {diff?.complexity ? (
-        <section>
-          <MicroLabel>Complexity</MicroLabel>
-          <ComplexityMeter complexity={diff.complexity} />
-        </section>
-      ) : null}
-
-      <section>
-        <MicroLabel>Branches</MicroLabel>
-        <p className="mt-2 font-mono text-meta break-all text-fg-muted">
-          {pr.branch}
-          <span className="px-1 text-fg-faint">→</span>
-          {pr.baseBranch}
-        </p>
-      </section>
-
-      <section>
-        <MicroLabel>Commit</MicroLabel>
-        <p className="mt-2 font-mono text-meta text-fg-muted">
-          {pr.headSHA.slice(0, 7)}
-        </p>
-      </section>
-
-      <section>
-        <MicroLabel>Opened by</MicroLabel>
-        <p className="mt-2 text-meta text-fg-muted">{pr.author}</p>
-      </section>
-
-      <section className="mt-auto pt-2">
-        <Button
-          variant="outline"
-          onClick={() => void openExternal(pr.url)}
-          className="w-full justify-center"
-        >
-          <ExternalLink className="size-3.5" aria-hidden />
-          Open on GitHub
-        </Button>
-      </section>
+        <dt className="text-fg-faint">Commit</dt>
+        <dd className="flex items-center gap-1 text-fg-muted">
+          <span className="font-mono tabular-nums">
+            {pr.headSHA.slice(0, 7)}
+          </span>
+          <button
+            type="button"
+            onClick={() => void copySHA()}
+            title={copied ? "Copied" : "Copy commit SHA"}
+            aria-label={copied ? "Copied" : "Copy commit SHA"}
+            className="-my-1 flex size-5 items-center justify-center rounded-sm text-fg-faint transition-colors hover:bg-surface hover:text-fg"
+          >
+            {copied ? (
+              <Check className="size-3.5 text-accent" aria-hidden />
+            ) : (
+              <Copy className="size-3.5" aria-hidden />
+            )}
+          </button>
+        </dd>
+      </dl>
     </aside>
   );
 }

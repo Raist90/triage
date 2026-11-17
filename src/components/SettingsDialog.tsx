@@ -92,6 +92,9 @@ export function SettingsDialog({ open, config, onClose }: SettingsDialogProps) {
   }
 
   const claudeReady = (config?.actions.length ?? 0) > 0;
+  const repos = config?.repos ?? [];
+  const readyCount = repos.filter((repo) => repo.review.available).length;
+  const blockedRepos = repos.filter((repo) => !repo.review.available);
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-canvas/80 p-6"
@@ -103,7 +106,7 @@ export function SettingsDialog({ open, config, onClose }: SettingsDialogProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-title"
-        className="flex max-h-full w-full max-w-md flex-col overflow-hidden rounded-md border border-line-strong bg-canvas"
+        className="flex max-h-full w-full max-w-md surface-in flex-col overflow-hidden rounded-md elevated"
       >
         <div className="flex h-11 shrink-0 items-center justify-between border-b border-line pr-1 pl-4">
           <h2 id="settings-title" className="text-ui font-medium text-fg">
@@ -149,68 +152,92 @@ export function SettingsDialog({ open, config, onClose }: SettingsDialogProps) {
 
           <section className="mt-6">
             <MicroLabel>Repositories</MicroLabel>
-            <div className="mt-2 rounded-sm border border-line">
-              {(config?.repos ?? []).map((repo) => (
-                <div
-                  key={`${repo.owner}/${repo.name}`}
-                  className="border-b border-line px-3 py-2 last:border-b-0"
-                >
-                  <div className="flex items-center justify-between gap-3 text-meta">
-                    <span className="truncate font-mono text-fg-body">
-                      {repo.owner}/{repo.name}
-                    </span>
-                    <span
-                      className={
-                        repo.review.available ? "text-accent" : "text-fg-faint"
-                      }
-                    >
-                      {repo.review.available ? "Review ready" : "Review off"}
-                    </span>
+            {repos.length === 0 ? (
+              <p className="mt-2 text-meta text-fg-faint">
+                No repositories configured.
+              </p>
+            ) : (
+              <>
+                <p className="mt-2 text-meta text-fg-muted">
+                  {readyCount === repos.length
+                    ? `Review is available in all ${repos.length} ${
+                        repos.length === 1 ? "repository" : "repositories"
+                      }.`
+                    : `Review is available in ${readyCount} of ${repos.length} repositories.`}
+                </p>
+                {blockedRepos.length > 0 ? (
+                  <div className="mt-2 rounded-sm border border-line">
+                    {blockedRepos.map((repo) => (
+                      <div
+                        key={`${repo.owner}/${repo.name}`}
+                        className="border-b border-line px-3 py-2 last:border-b-0"
+                      >
+                        <div className="flex items-center justify-between gap-3 text-meta">
+                          <span className="truncate font-mono text-fg-body">
+                            {repo.owner}/{repo.name}
+                          </span>
+                          <span className="shrink-0 text-fg-faint">
+                            Review off
+                          </span>
+                        </div>
+                        {repo.review.reason ? (
+                          <p className="mt-1 text-meta text-fg-faint">
+                            {repo.review.reason}
+                          </p>
+                        ) : null}
+                      </div>
+                    ))}
                   </div>
-                  {repo.review.reason ? (
-                    <p className="mt-1 text-meta text-fg-faint">
-                      {repo.review.reason}
-                    </p>
-                  ) : null}
-                </div>
-              ))}
+                ) : null}
+              </>
+            )}
+          </section>
+
+          <section className="mt-6">
+            <MicroLabel>Data</MicroLabel>
+            <p className="mt-2 text-meta text-fg-muted">
+              Provider responses are cached aggressively. Refresh clears them
+              and every visible query.
+            </p>
+            <div className="mt-2">
+              <Button
+                variant="outline"
+                onClick={() => void refreshCache()}
+                disabled={busy !== null}
+              >
+                <RefreshCw
+                  className={`size-3.5 ${busy === "cache" ? "animate-spin" : ""}`}
+                  aria-hidden
+                />
+                {busy === "cache" ? "Refreshing…" : "Refresh data"}
+              </Button>
             </div>
           </section>
 
-          <section className="mt-6 flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              onClick={() => void refreshCache()}
-              disabled={busy !== null}
-            >
-              <RefreshCw
-                className={`size-3.5 ${busy === "cache" ? "animate-spin" : ""}`}
-                aria-hidden
-              />
-              Refresh data
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => void clearStoredArtifacts()}
-              disabled={busy !== null}
-            >
-              <Trash2
-                className={`size-3.5 ${busy === "artifacts" ? "animate-spin" : ""}`}
-                aria-hidden
-              />
-              Clear artifacts
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => void clearDisposableWorktrees()}
-              disabled={busy !== null}
-            >
-              <Trash2
-                className={`size-3.5 ${busy === "worktrees" ? "animate-spin" : ""}`}
-                aria-hidden
-              />
-              Clear worktrees
-            </Button>
+          <section className="mt-6">
+            <MicroLabel>Reset</MicroLabel>
+            <p className="mt-2 text-meta text-fg-muted">
+              Remove generated review answers and disposable checkouts. Cached
+              responses and source clones are untouched.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Button
+                variant="danger"
+                onClick={() => void clearStoredArtifacts()}
+                disabled={busy !== null}
+              >
+                <Trash2 className="size-3.5" aria-hidden />
+                {busy === "artifacts" ? "Clearing…" : "Clear artifacts"}
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => void clearDisposableWorktrees()}
+                disabled={busy !== null}
+              >
+                <Trash2 className="size-3.5" aria-hidden />
+                {busy === "worktrees" ? "Clearing…" : "Clear worktrees"}
+              </Button>
+            </div>
           </section>
 
           {message ? (

@@ -12,10 +12,13 @@ import {
   type KeyboardEvent,
 } from "react";
 import { EmptyState } from "../../components/EmptyState";
+import { ErrorState } from "../../components/ErrorState";
 import { Button, IconButton } from "../../components/ui";
+import { cx } from "../../lib/cx";
 import { describeError, getPRs } from "../../lib/api";
 import { useLiveRefresh } from "../../lib/liveRefresh";
 import { refreshOpenPR, syncPRHead } from "../../lib/prRefresh";
+import { scrollEdgeClass, useScrollEdges } from "../../lib/useScrollEdges";
 import { useUIStore } from "../../stores/ui";
 import { PRFilterPopover } from "./PRFilterPopover";
 import { PRRow } from "./PRRow";
@@ -87,6 +90,8 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const rowRefs = useRef<Array<HTMLDivElement | null>>([]);
   const listRef = useRef<HTMLDivElement | null>(null);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const scrollEdges = useScrollEdges(viewportRef);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const filterRef = useRef<HTMLDivElement | null>(null);
 
@@ -210,7 +215,7 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-9 shrink-0 items-center justify-between gap-2 border-b border-line pr-1 pl-3">
+      <div className="flex h-11 shrink-0 items-center justify-between gap-2 pr-1 pl-3">
         <div className="flex min-w-0 items-center gap-3">
           <span className="truncate text-meta font-medium text-fg">
             {tabLabel}
@@ -264,7 +269,7 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
                   type="button"
                   onClick={() => setFilterQuery("")}
                   aria-label="Clear search"
-                  className="absolute top-1/2 right-1 flex size-5 -translate-y-1/2 items-center justify-center rounded-[3px] text-fg-faint transition-colors hover:text-fg"
+                  className="absolute top-1/2 right-1 flex size-5 -translate-y-1/2 items-center justify-center rounded-sm text-fg-faint transition-colors hover:text-fg"
                 >
                   <X className="size-3.5" aria-hidden />
                 </button>
@@ -275,12 +280,12 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
               type="button"
               onClick={() => setSearchOpen(true)}
               title="Search pull requests (/)"
-              className="min-w-0 truncate text-left font-mono text-meta text-fg-faint transition-colors hover:text-fg"
+              className="min-w-0 truncate text-left text-meta text-fg-faint transition-colors hover:text-fg"
             >
               {filters.query ? (
                 <span className="text-fg-body">“{filters.query}”</span>
               ) : (
-                scope
+                "Search"
               )}
             </button>
           )}
@@ -333,7 +338,7 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
                 type="button"
                 onClick={() => removeChip(chip)}
                 aria-label={`Remove filter: ${chip.label}`}
-                className="inline-flex h-6 shrink-0 items-center gap-1 rounded-sm border border-line px-1.5 text-meta text-fg-body transition-colors hover:border-line-strong hover:text-fg"
+                className="inline-flex h-6 shrink-0 items-center gap-1 rounded-sm border border-line px-2 text-meta text-fg-body transition-colors hover:border-line-strong hover:text-fg"
               >
                 <span
                   className={
@@ -351,7 +356,7 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
           <Button
             variant="ghost"
             onClick={clearPRFilters}
-            className="shrink-0 px-1.5 text-micro tracking-[0.08em] text-fg-faint uppercase hover:bg-transparent hover:text-fg"
+            className="shrink-0 px-2 text-meta text-fg-faint hover:bg-transparent hover:text-fg"
           >
             Clear
           </Button>
@@ -367,7 +372,13 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
         </p>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div
+        ref={viewportRef}
+        className={cx(
+          "min-h-0 flex-1 overflow-y-auto",
+          scrollEdgeClass(scrollEdges),
+        )}
+      >
         {isLoading && !query.isError ? (
           <div aria-hidden="true">
             {Array.from({ length: 8 }, (_, index) => (
@@ -375,29 +386,18 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
                 key={index}
                 className="flex h-13 flex-col justify-center gap-2 border-b border-line px-3"
               >
-                <div className="h-3 w-2/3 animate-pulse rounded-sm bg-surface" />
-                <div className="h-2.5 w-1/3 animate-pulse rounded-sm bg-surface" />
+                <div className="h-3 w-2/3 shimmer rounded-sm" />
+                <div className="h-2.5 w-1/3 shimmer rounded-sm" />
               </div>
             ))}
           </div>
         ) : query.isError ? (
-          <div
-            role="alert"
-            className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center"
-          >
-            <p className="text-ui text-fg">Can’t load pull requests</p>
-            <p className="max-w-sm text-meta text-fg-faint">
-              {describeError(query.error)}
-            </p>
-            <Button
-              variant="outline"
-              onClick={() => void query.refetch()}
-              disabled={query.isFetching}
-              className="mt-1"
-            >
-              {query.isFetching ? "Retrying…" : "Retry"}
-            </Button>
-          </div>
+          <ErrorState
+            title="Can’t load pull requests"
+            message={describeError(query.error)}
+            retrying={query.isFetching}
+            onRetry={() => void query.refetch()}
+          />
         ) : prs.length === 0 ? (
           <EmptyState
             title={`No pull requests in ${tabLabel}`}
@@ -438,6 +438,8 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
                 pr={pr}
                 active={index === cursor}
                 selected={selectedPR === `${pr.repo}#${pr.number}`}
+                showRepo={repo === null}
+                showAuthor={tabID !== "mine"}
                 onPick={() => pick(index)}
                 elementRef={(element) => {
                   rowRefs.current[index] = element;

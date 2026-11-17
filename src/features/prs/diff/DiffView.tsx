@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { cx } from "../../../lib/cx";
 import type { DiffFile, SemanticSummary } from "../../../lib/types";
+import { scrollEdgeClass, useScrollEdges } from "../../../lib/useScrollEdges";
 import { useUIStore } from "../../../stores/ui";
 import { DiffFileSection } from "./DiffFileSection";
 import { selectDiffFiles, type DiffTarget } from "./diffSelection";
@@ -87,6 +89,8 @@ export function DiffView({
     focusTarget,
   });
 
+  const scrollEdges = useScrollEdges(paneRef);
+
   const railLayoutKey = visible
     .map(
       ({ key, file }) =>
@@ -146,7 +150,10 @@ export function DiffView({
           onWheel={releaseScrollLock}
           onTouchStart={releaseScrollLock}
           onPointerDown={releaseScrollLock}
-          className="min-w-0 flex-1 overflow-y-auto"
+          className={cx(
+            "min-w-0 flex-1 overflow-y-auto",
+            scrollEdgeClass(scrollEdges),
+          )}
         >
           {visible.length === 0 ? (
             kindFiltered.length === 0 ? (

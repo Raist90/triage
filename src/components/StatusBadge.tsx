@@ -17,7 +17,11 @@ type StatusProps =
 type Style = { label: string; Icon: LucideIcon; tone: string };
 
 const CHECK: Record<CheckState, Style | null> = {
-  success: { label: "Checks passing", Icon: CircleCheck, tone: "text-accent" },
+  success: {
+    label: "Checks passing",
+    Icon: CircleCheck,
+    tone: "text-fg-muted",
+  },
   failure: { label: "Checks failing", Icon: CircleX, tone: "text-danger" },
   error: { label: "Checks error", Icon: TriangleAlert, tone: "text-danger" },
   pending: { label: "Checks pending", Icon: Clock, tone: "text-fg-muted" },

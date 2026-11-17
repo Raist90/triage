@@ -47,7 +47,7 @@ export function InlineCommentRow({
             type="button"
             onClick={() => setConfirming(true)}
             disabled={deleting}
-            className="ml-auto text-micro text-fg-faint opacity-0 transition-opacity group-hover:opacity-100 hover:text-danger focus-visible:opacity-100 disabled:opacity-50"
+            className="ml-auto text-meta text-fg-faint opacity-0 transition-opacity group-hover:opacity-100 hover:text-danger focus-visible:opacity-100 disabled:opacity-50"
           >
             Delete
           </button>

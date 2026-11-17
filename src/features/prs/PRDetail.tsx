@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { Button } from "../../components/ui";
+import { ErrorState } from "../../components/ErrorState";
 import { describeError, getConfig, getPR } from "../../lib/api";
 import { useLiveRefresh } from "../../lib/liveRefresh";
 import { loadDiffForHead } from "../../lib/prRefresh";
@@ -9,6 +9,7 @@ import { useUIStore } from "../../stores/ui";
 import { useClaudeAction } from "./action/useClaudeAction";
 import { Conversation } from "./detail/Conversation";
 import { ContextRail } from "./detail/ContextRail";
+import { DetailPanel } from "./detail/DetailPanel";
 import { DetailSkeleton } from "./detail/DetailSkeleton";
 import { DetailTabs, type DetailTab, type TabDef } from "./detail/DetailTabs";
 import { DiffTab } from "./detail/DiffTab";
@@ -215,39 +216,18 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
           {detailQuery.isPending ? (
             <DetailSkeleton />
           ) : detailQuery.isError ? (
-            <div
-              role="alert"
-              className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center"
-            >
-              <p className="text-ui text-fg">Can’t load this pull request</p>
-              <p className="max-w-sm text-meta text-fg-faint">
-                {describeError(detailQuery.error)}
-              </p>
-              <Button
-                variant="outline"
-                onClick={() => void detailQuery.refetch()}
-                disabled={detailQuery.isFetching}
-                className="mt-1"
-              >
-                {detailQuery.isFetching ? "Retrying…" : "Retry"}
-              </Button>
-            </div>
+            <ErrorState
+              title="Can’t load this pull request"
+              message={describeError(detailQuery.error)}
+              retrying={detailQuery.isFetching}
+              onRetry={() => void detailQuery.refetch()}
+            />
           ) : pr ? (
             <>
               <PRHeader pr={pr} />
               <DetailTabs tabs={tabs} active={activeTab} onSelect={setTab} />
 
-              <div
-                role="tabpanel"
-                id={`detail-panel-${activeTab}`}
-                aria-labelledby={`detail-tab-${activeTab}`}
-                tabIndex={0}
-                className={
-                  activeTab === "diff"
-                    ? "flex min-h-0 flex-1 flex-col outline-none"
-                    : "min-h-0 flex-1 overflow-y-auto p-4 outline-none"
-                }
-              >
+              <DetailPanel activeTab={activeTab}>
                 {activeTab === "conversation" ? (
                   <Conversation pr={pr} comments={comments} />
                 ) : null}
@@ -278,7 +258,7 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
                 {activeTab === "explain" ? (
                   <ExplainTab controller={explain} />
                 ) : null}
-              </div>
+              </DetailPanel>
             </>
           ) : null}
         </div>

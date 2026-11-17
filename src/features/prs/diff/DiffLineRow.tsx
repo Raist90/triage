@@ -46,7 +46,7 @@ export function LineRow({
               onClick={() => onDraftChange(composing ? null : key)}
               aria-label={composing ? "Cancel comment" : "Comment on this line"}
               title={composing ? "Cancel comment" : "Comment on this line"}
-              className="flex size-5 items-center justify-center rounded-[3px] text-fg-faint opacity-0 transition-opacity group-hover:opacity-100 hover:bg-surface hover:text-fg focus-visible:opacity-100"
+              className="flex size-5 items-center justify-center rounded-sm text-fg-faint opacity-0 transition-opacity group-hover:opacity-100 hover:bg-surface hover:text-fg focus-visible:opacity-100"
             >
               <MessageSquarePlus className="size-3.5" aria-hidden />
             </button>

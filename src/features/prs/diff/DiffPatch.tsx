@@ -66,7 +66,7 @@ export function FilePatch({
               aria-expanded={showUnanchored}
               className="flex h-7 w-full items-center gap-2 px-3 font-sans text-meta text-fg-faint transition-colors hover:bg-surface/60 hover:text-fg-muted"
             >
-              <span className="rounded-[3px] border border-line-strong px-1 font-mono text-micro text-fg-muted">
+              <span className="rounded-sm border border-line-strong px-1 font-mono text-micro text-fg-muted">
                 {unanchored.length}
               </span>
               unanchored semantic{" "}

@@ -2,14 +2,16 @@ import type { ComponentProps, ReactNode } from "react";
 import { cx } from "../lib/cx";
 
 type ButtonProps = ComponentProps<"button"> & {
-  variant?: "ghost" | "outline" | "primary";
+  variant?: "ghost" | "outline" | "primary" | "danger";
 };
 
 const BUTTON_VARIANT: Record<NonNullable<ButtonProps["variant"]>, string> = {
   ghost: "text-fg-muted hover:bg-surface hover:text-fg",
   outline:
     "border border-line text-fg-muted hover:border-line-strong hover:text-fg",
-  primary: "bg-accent font-medium text-canvas hover:bg-accent/90",
+  primary: "cta font-medium text-canvas",
+  danger:
+    "border border-line text-danger hover:border-danger/50 hover:bg-surface",
 };
 
 /** Compact text button. Chrome is 12px; primary is the only filled control. */
@@ -54,7 +56,7 @@ export function IconButton({
       className={cx(
         "relative inline-flex size-7 shrink-0 items-center justify-center rounded-sm text-fg-faint transition-colors hover:bg-surface hover:text-fg disabled:cursor-not-allowed disabled:opacity-50",
         active &&
-          "text-fg after:absolute after:inset-x-1 after:bottom-0 after:h-0.5 after:rounded-full after:bg-accent",
+          "text-fg after:absolute after:inset-x-1 after:bottom-0 after:h-0.5 after:rounded-full after:accent-hairline",
         className,
       )}
       {...props}
@@ -83,7 +85,7 @@ export function MicroLabel({
 
 export function Kbd({ children }: { children: ReactNode }) {
   return (
-    <kbd className="rounded-[3px] border border-line px-1 font-mono text-micro text-fg-faint">
+    <kbd className="rounded-sm border border-line lit px-1 font-mono text-micro text-fg-faint">
       {children}
     </kbd>
   );

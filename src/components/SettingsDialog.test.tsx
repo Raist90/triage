@@ -98,10 +98,34 @@ describe("SettingsDialog", () => {
     expect(closed).toBe(1);
   });
 
-  test("shows the config path and whether review is available per repo", () => {
-    renderDialog();
+  test("summarizes review availability and names blocked repos", () => {
+    const config = makeConfig({
+      repos: [
+        {
+          owner: "acme",
+          name: "web",
+          actions: true,
+          review: { available: true },
+        },
+        {
+          owner: "acme",
+          name: "api",
+          actions: false,
+          review: {
+            available: false,
+            reason: "No local path configured",
+          },
+        },
+      ],
+    });
+    renderWithQuery(<SettingsDialog open config={config} onClose={() => {}} />);
+
     expect(screen.getByText("/Users/test/.triage/config.json")).toBeDefined();
-    expect(screen.getByText("Review ready")).toBeDefined();
+    expect(
+      screen.getByText("Review is available in 1 of 2 repositories."),
+    ).toBeDefined();
+    expect(screen.getByText("No local path configured")).toBeDefined();
+    expect(screen.queryByText("Review ready")).toBeNull();
   });
 
   test("renders nothing while closed", () => {

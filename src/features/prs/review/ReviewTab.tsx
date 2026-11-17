@@ -1,4 +1,5 @@
-import { Sparkles, X } from "lucide-react";
+import { CircleSlash, FolderGit, Sparkles, X } from "lucide-react";
+import { StateView } from "../../../components/StateView";
 import { Button } from "../../../components/ui";
 import type { DiffFile, ReviewFinding } from "../../../lib/types";
 import type { ClaudeActionController } from "../action/useClaudeAction";
@@ -39,20 +40,22 @@ export function ReviewTab({
 
   if (!reviewAvailable) {
     return (
-      <section className="max-w-[68ch]">
-        <h2 className="text-ui font-medium text-fg">
-          Automatic review needs a local clone.
-        </h2>
-        <p className="mt-2 text-prose text-fg-muted">
-          Add this to {configFile}, then restart:
-        </p>
-        <pre className="mt-2 overflow-x-auto rounded-sm border border-line bg-surface px-3 py-2 font-mono text-meta text-fg-body select-all">
+      <StateView
+        layout="inline"
+        icon={FolderGit}
+        title="Automatic review needs a local clone"
+        description={
+          <>
+            Add this to <span className="font-mono">{configFile}</span>, then
+            restart.
+          </>
+        }
+        footnote={unavailableReason}
+      >
+        <pre className="max-w-full overflow-x-auto rounded-sm border border-line bg-surface px-3 py-2 text-left font-mono text-meta text-fg-body select-all">
           {`  "repoPaths": { "${repo}": "/path/to/clone" }`}
         </pre>
-        {unavailableReason ? (
-          <p className="mt-2 text-meta text-fg-faint">{unavailableReason}</p>
-        ) : null}
-      </section>
+      </StateView>
     );
   }
 
@@ -62,27 +65,36 @@ export function ReviewTab({
 
   return (
     <section className="flex flex-col gap-3">
-      <div className="flex min-h-7 justify-end">
-        {running ? (
-          <Button variant="ghost" onClick={controller.cancel}>
-            <X className="size-4 animate-pulse" aria-hidden />
-            Cancel
-          </Button>
-        ) : artifact ? (
-          <Button variant="outline" onClick={controller.run}>
-            <Sparkles className="size-3.5" aria-hidden />
-            Re-run
-          </Button>
-        ) : null}
-      </div>
+      {running || artifact ? (
+        <div className="flex min-h-7 justify-end">
+          {running ? (
+            <Button variant="ghost" onClick={controller.cancel}>
+              <X className="size-4 animate-pulse" aria-hidden />
+              Cancel
+            </Button>
+          ) : (
+            <Button variant="outline" onClick={controller.run}>
+              <Sparkles className="size-3.5" aria-hidden />
+              Re-run
+            </Button>
+          )}
+        </div>
+      ) : null}
 
       {error ? (
-        <div role="alert" className="rounded-sm border border-line px-3 py-2">
-          <p className="text-prose text-danger">{error}</p>
-          <Button variant="outline" onClick={controller.run} className="mt-2">
-            Retry
-          </Button>
-        </div>
+        <StateView
+          role="alert"
+          layout="inline"
+          tone="danger"
+          icon={CircleSlash}
+          title="Review failed"
+          description={error}
+          action={
+            <Button variant="outline" onClick={controller.run}>
+              Retry
+            </Button>
+          }
+        />
       ) : null}
 
       {running ? <ReviewStages phase={phase} number={number} /> : null}
@@ -105,21 +117,19 @@ export function ReviewTab({
       ) : null}
 
       {showEmpty ? (
-        <div className="max-w-[68ch]">
-          <h2 className="text-ui font-medium text-fg">Automatic review</h2>
-          <p className="mt-1 text-prose text-fg-muted">
-            Read-only review in a disposable worktree. Nothing is pushed.
-          </p>
-          <div className="mt-4 flex flex-wrap items-center gap-3">
+        <StateView
+          layout="inline"
+          icon={Sparkles}
+          title="Review this pull request"
+          description="A read-only pass over the diff and your repository guidelines. Nothing is pushed."
+          action={
             <Button variant="primary" onClick={controller.run}>
               <Sparkles className="size-3.5" aria-hidden />
               Run review
             </Button>
-            <span className="font-mono text-meta text-fg-faint">
-              haiku 5.5 · ~$1 · ~2 min
-            </span>
-          </div>
-        </div>
+          }
+          footnote={<span className="font-mono">haiku 5.5 · ~$1 · ~2 min</span>}
+        />
       ) : null}
     </section>
   );

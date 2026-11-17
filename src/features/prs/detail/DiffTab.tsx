@@ -39,7 +39,7 @@ export function DiffTab({
               key={index}
               className="border-b border-line p-3 last:border-b-0"
             >
-              <div className="h-3 w-1/2 animate-pulse rounded-sm bg-surface" />
+              <div className="h-3 w-1/2 shimmer rounded-sm" />
             </div>
           ))}
         </div>

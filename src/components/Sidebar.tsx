@@ -42,13 +42,13 @@ export function Sidebar({
         </button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+      <div className="min-h-0 flex-1 overflow-y-auto p-2">
         {configStatus === "loading" ? (
-          <div className="flex flex-col gap-1 pt-1">
+          <div className="flex flex-col gap-1">
             {[72, 56, 64, 48].map((width) => (
               <div
                 key={width}
-                className="h-7 animate-pulse rounded-sm bg-surface"
+                className="h-7 shimmer rounded-sm"
                 style={{ width: `${width}%` }}
               />
             ))}
