@@ -61,12 +61,14 @@ const diff = makeDiffResponse(
 const getConfig = mock(async () => makeConfig());
 const getPR = mock(async () => ({ pr }));
 const getPRDiff = mock(async () => diff);
+const mergePR = mock(async () => ({ ok: true }));
 
 mock.module("../../lib/api", () => ({
   ...actualApi,
   getConfig,
   getPR,
   getPRDiff,
+  mergePR,
 }));
 
 const { PRDetail } = await import("./PRDetail");
@@ -85,6 +87,7 @@ beforeEach(() => {
   getConfig.mockClear();
   getPR.mockClear();
   getPRDiff.mockClear();
+  mergePR.mockClear();
   getConfig.mockImplementation(async () => makeConfig());
   getPR.mockImplementation(async () => ({ pr }));
   getPRDiff.mockImplementation(async () => diff);
@@ -216,6 +219,29 @@ describe("PRDetail", () => {
 
     expect(useUIStore.getState().detailFullscreen).toBe(false);
     expect(useUIStore.getState().detailOpen).toBe(true);
+  });
+
+  test("closes the detail after a squash merge", async () => {
+    const myPR = makePR({
+      author: "viewer",
+      viewerLogin: "viewer",
+      mergeable: "mergeable",
+      mergeStateStatus: "clean",
+    });
+    getPR.mockImplementation(async () => ({ pr: myPR }));
+    useUIStore.setState({ detailFullscreen: true });
+    await renderDetail();
+
+    fireEvent.click(screen.getByRole("button", { name: "Squash merge" }));
+    const confirm = screen.getByLabelText("Confirm squash merge");
+    fireEvent.click(
+      within(confirm).getByRole("button", { name: "Squash merge" }),
+    );
+
+    await waitFor(() => expect(mergePR).toHaveBeenCalled());
+    expect(useUIStore.getState().selectedPR).toBeNull();
+    expect(useUIStore.getState().detailOpen).toBe(false);
+    expect(useUIStore.getState().detailFullscreen).toBe(false);
   });
 
   test("a failed PR load offers a retry", async () => {
