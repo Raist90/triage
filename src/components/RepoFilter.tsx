@@ -27,8 +27,8 @@ export function RepoFilter({ repos, selectedRepo, onSelect }: RepoFilterProps) {
   const cursor = Math.min(cursorOverride ?? selectedIndex, lastIndex);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
-  function focusOption(index: number) {
-    itemRefs.current[index]?.focus();
+  function focusOption(index: number, preventScroll = false) {
+    itemRefs.current[index]?.focus({ preventScroll });
   }
 
   function move(index: number) {
@@ -90,8 +90,14 @@ export function RepoFilter({ repos, selectedRepo, onSelect }: RepoFilterProps) {
               role="option"
               aria-selected={isSelected}
               tabIndex={index === cursor ? 0 : -1}
+              onMouseDown={(event) => event.preventDefault()}
               onFocus={() => setCursorOverride(index)}
-              onClick={() => commit(index)}
+              onClick={() => {
+                commit(index);
+                // Pointer focus must not scroll a partially hidden row into
+                // view: the list would jump under the cursor.
+                focusOption(index, true);
+              }}
               className={cx(
                 "flex h-7 w-full items-center gap-2 rounded-sm px-2 text-left text-ui transition-colors outline-none",
                 isSelected
