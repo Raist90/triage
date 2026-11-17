@@ -123,6 +123,35 @@ describe("PRDetail", () => {
     expect(getPRDiff).toHaveBeenCalledTimes(1);
   });
 
+  test("never caches a diff under a head it does not describe", async () => {
+    const movedSHA = "fedcba9876543";
+    const movedPR = { ...pr, headSHA: movedSHA };
+    const movedDiff = makeDiffResponse([makeFile({ path: "src/moved.ts" })], {
+      headSHA: movedSHA,
+    });
+    let detailCalls = 0;
+    getPR.mockImplementation(async () => {
+      detailCalls += 1;
+      return { pr: detailCalls === 1 ? pr : movedPR };
+    });
+    getPRDiff.mockImplementation(async () => movedDiff);
+
+    const { client } = renderWithQuery(
+      <PRDetail repo="acme/web" number={42} />,
+    );
+    await screen.findByText("Add checkout flow");
+
+    await waitFor(() =>
+      expect(
+        client.getQueryData(["pr-diff", "acme/web", 42, movedSHA]),
+      ).toBeDefined(),
+    );
+    expect(
+      client.getQueryData(["pr-diff", "acme/web", 42, pr.headSHA]),
+    ).toBeUndefined();
+    expect(detailCalls).toBeGreaterThanOrEqual(2);
+  });
+
   test("omits Review and Explain tabs when the server offers no actions", async () => {
     await renderDetail();
 

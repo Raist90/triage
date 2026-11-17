@@ -1,6 +1,35 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { getPR, getPRDiff } from "./api";
-import type { PR, PRDetailResponse } from "./types";
+import type { PR, PRDetailResponse, PRDiffResponse } from "./types";
+
+/** A diff response described a commit other than the one requested. */
+export class HeadMovedError extends Error {
+  constructor() {
+    super("The pull request moved while loading its diff.");
+    this.name = "HeadMovedError";
+  }
+}
+
+/**
+ * Loads the diff for one expected head. A response for another commit is filed
+ * under its own key and the detail is re-read, so a diff is never cached under
+ * a commit it does not describe.
+ */
+export async function loadDiffForHead(
+  queryClient: QueryClient,
+  repo: string,
+  number: number,
+  headSHA: string,
+  refresh = false,
+): Promise<PRDiffResponse> {
+  const diff = await getPRDiff({ repo, number, refresh });
+  if (diff.headSHA === headSHA) return diff;
+  if (diff.headSHA !== "") {
+    queryClient.setQueryData(["pr-diff", repo, number, diff.headSHA], diff);
+  }
+  void queryClient.invalidateQueries({ queryKey: ["pr", repo, number] });
+  throw new HeadMovedError();
+}
 
 /**
  * Re-reads an open PR above the server TTLs after a manual list refresh. The
@@ -19,11 +48,16 @@ export async function refreshOpenPR(
   });
   const sha = detail.pr.headSHA;
   if (sha === "") return;
-  await queryClient.fetchQuery({
-    queryKey: ["pr-diff", repo, number, sha],
-    queryFn: () => getPRDiff({ repo, number, refresh: true }),
-    staleTime: 0,
-  });
+  try {
+    await queryClient.fetchQuery({
+      queryKey: ["pr-diff", repo, number, sha],
+      queryFn: () => loadDiffForHead(queryClient, repo, number, sha, true),
+      staleTime: 0,
+    });
+  } catch (error) {
+    // The guard already refreshed the detail; the new head's query loads next.
+    if (!(error instanceof HeadMovedError)) throw error;
+  }
 }
 
 /**
