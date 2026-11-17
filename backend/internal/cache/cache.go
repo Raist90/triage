@@ -21,6 +21,9 @@ type Entry struct {
 	Body      json.RawMessage `json:"body"`
 	ETag      string          `json:"etag,omitempty"`
 	FetchedAt time.Time       `json:"fetchedAt"`
+	// SHA is the commit a body was fetched for. Only diff entries use it; a
+	// mismatch against the current head is a cache miss, never a stale hit.
+	SHA string `json:"sha,omitempty"`
 }
 
 // Cache is a directory of cache entries.

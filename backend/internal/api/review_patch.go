@@ -46,7 +46,7 @@ func (s *Server) applyFindingPatch(ctx context.Context, in *patchInput) (*patchO
 
 	// The allowlist is computed from the same cached diff the review was built
 	// from, so a patch can only touch files this pull request changes.
-	unified, err := s.loadDiff(ctx, in.Owner, in.Repo, in.Number, false)
+	unified, err := s.loadDiff(ctx, in.Owner, in.Repo, in.Number, pr.HeadSHA, false)
 	if err != nil {
 		return nil, s.providerError(err)
 	}

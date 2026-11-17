@@ -1,7 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "../../components/ui";
-import { describeError, getConfig, getPR, getPRDiff } from "../../lib/api";
+import { describeError, getConfig, getPR } from "../../lib/api";
+import { loadDiffForHead } from "../../lib/prRefresh";
 import type { ReviewFinding } from "../../lib/types";
 import { useUIStore } from "../../stores/ui";
 import { useClaudeAction } from "./action/useClaudeAction";
@@ -64,9 +65,16 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
     queryFn: () => getPR({ repo, number, refresh: mergePolls.current > 0 }),
   });
 
+  const headSHA = detailQuery.data?.pr.headSHA ?? "";
+  const queryClient = useQueryClient();
   const diffQuery = useQuery({
-    queryKey: ["pr-diff", repo, number],
-    queryFn: () => getPRDiff({ repo, number }),
+    // A diff only describes one commit. Keying by SHA makes a moved head a
+    // different query, so an older diff can never stand in for the new one.
+    queryKey: ["pr-diff", repo, number, headSHA],
+    // The loader also verifies the response SHA, so a head that moved between
+    // the two requests cannot be cached under this key.
+    queryFn: () => loadDiffForHead(queryClient, repo, number, headSHA),
+    enabled: headSHA !== "",
   });
 
   const configQuery = useQuery({ queryKey: ["config"], queryFn: getConfig });

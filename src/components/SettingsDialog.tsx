@@ -44,6 +44,9 @@ export function SettingsDialog({ open, config, onClose }: SettingsDialogProps) {
     setMessage(null);
     try {
       const result = await invalidateCache();
+      // Clearing the server cache must reach the screen too; otherwise every
+      // mounted query keeps rendering the responses just deleted.
+      await queryClient.invalidateQueries();
       setMessage(
         `Cleared ${result.cleared} cached response${result.cleared === 1 ? "" : "s"}.`,
       );

@@ -14,6 +14,7 @@ import {
 import { EmptyState } from "../../components/EmptyState";
 import { Button, IconButton } from "../../components/ui";
 import { describeError, getPRs } from "../../lib/api";
+import { refreshOpenPR, syncPRHead } from "../../lib/prRefresh";
 import { useUIStore } from "../../stores/ui";
 import { PRFilterPopover } from "./PRFilterPopover";
 import { PRRow } from "./PRRow";
@@ -74,6 +75,7 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
   const filterRef = useRef<HTMLDivElement | null>(null);
 
   const selectedPR = useUIStore((state) => state.selectedPR);
+  const detailOpen = useUIStore((state) => state.detailOpen);
   const selectPR = useUIStore((state) => state.selectPR);
 
   // Returning from the detail panel restores keyboard focus to the list.
@@ -111,6 +113,9 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
     const pr = visible[index];
     if (!pr) return;
     selectPR(`${pr.repo}#${pr.number}`);
+    // The list row carries the fresh head; a cached detail from an older
+    // commit is re-read instead of being shown as current.
+    void syncPRHead(queryClient, pr).catch(() => {});
   }
 
   function clearAllFilters() {
@@ -170,6 +175,13 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
     try {
       const data = await getPRs({ tab: tabID, repo, refresh: true });
       queryClient.setQueryData(queryKey, data);
+      const open = selectedPR
+        ? data.prs.find((item) => `${item.repo}#${item.number}` === selectedPR)
+        : undefined;
+      if (open && detailOpen) {
+        // The list bypassed its cache; the open detail and diff must too.
+        await refreshOpenPR(queryClient, open.repo, open.number);
+      }
     } catch (error) {
       setRefreshError(describeError(error));
     } finally {

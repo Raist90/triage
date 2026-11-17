@@ -371,6 +371,7 @@ export type RepoView = {
 export type Response = {
   complexity?: Complexity;
   files: Array<File>;
+  headSHA: string;
   semanticAvailable: boolean;
   semanticSummary?: SemanticSummary;
 };
@@ -1052,7 +1053,7 @@ export type GetPrDiffData = {
   };
   query?: {
     /**
-     * Bypass the cached diff
+     * Bypass the cached head and diff
      */
     refresh?: boolean;
   };

@@ -94,8 +94,10 @@ export function getPR({
 export function getPRDiff({
   repo,
   number,
-}: PROptions): Promise<PRDiffResponse> {
-  return request<PRDiffResponse>(`${prPath(repo, number)}/diff`);
+  refresh = false,
+}: PROptions & { refresh?: boolean }): Promise<PRDiffResponse> {
+  const params = refresh ? "?refresh=1" : "";
+  return request<PRDiffResponse>(`${prPath(repo, number)}/diff${params}`);
 }
 
 type SubmitReviewOptions = PROptions & {

@@ -1049,6 +1049,9 @@
             },
             "type": "array"
           },
+          "headSHA": {
+            "type": "string"
+          },
           "semanticAvailable": {
             "type": "boolean"
           },
@@ -1057,6 +1060,7 @@
           }
         },
         "required": [
+          "headSHA",
           "files",
           "semanticAvailable"
         ],
@@ -2413,12 +2417,12 @@
             }
           },
           {
-            "description": "Bypass the cached diff",
+            "description": "Bypass the cached head and diff",
             "explode": false,
             "in": "query",
             "name": "refresh",
             "schema": {
-              "description": "Bypass the cached diff",
+              "description": "Bypass the cached head and diff",
               "type": "boolean"
             }
           }
