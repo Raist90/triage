@@ -69,9 +69,12 @@ type Report struct {
 	Summary SemanticSummary
 }
 
-// Response is the route payload. SemanticAvailable is false when sem is
-// missing, fails, or cannot parse the patch.
+// Response is the route payload. HeadSHA names the commit the diff belongs to,
+// so a client can never mistake an older diff for the current head.
+// SemanticAvailable is false when sem is missing, fails, or cannot parse the
+// patch.
 type Response struct {
+	HeadSHA           string           `json:"headSHA"`
 	Files             []File           `json:"files"`
 	SemanticAvailable bool             `json:"semanticAvailable"`
 	SemanticSummary   *SemanticSummary `json:"semanticSummary,omitempty"`

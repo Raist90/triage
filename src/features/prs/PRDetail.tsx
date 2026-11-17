@@ -64,9 +64,13 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
     queryFn: () => getPR({ repo, number, refresh: mergePolls.current > 0 }),
   });
 
+  const headSHA = detailQuery.data?.pr.headSHA ?? "";
   const diffQuery = useQuery({
-    queryKey: ["pr-diff", repo, number],
+    // A diff only describes one commit. Keying by SHA makes a moved head a
+    // different query, so an older diff can never stand in for the new one.
+    queryKey: ["pr-diff", repo, number, headSHA],
     queryFn: () => getPRDiff({ repo, number }),
+    enabled: headSHA !== "",
   });
 
   const configQuery = useQuery({ queryKey: ["config"], queryFn: getConfig });

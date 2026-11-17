@@ -3,7 +3,7 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import * as actualApi from "../../lib/api";
 import type { PRListResponse } from "../../lib/types";
 import { useUIStore } from "../../stores/ui";
-import { makePR } from "../../test/fixtures";
+import { makeDiffResponse, makePR } from "../../test/fixtures";
 import { renderWithQuery } from "../../test/render";
 
 const getPRs = mock(async (): Promise<PRListResponse> => ({
@@ -11,7 +11,15 @@ const getPRs = mock(async (): Promise<PRListResponse> => ({
   viewer: { login: "viewer", name: "Viewer" },
 }));
 
-mock.module("../../lib/api", () => ({ ...actualApi, getPRs }));
+const getPR = mock(async () => ({ pr: makePR() }));
+const getPRDiff = mock(async () => makeDiffResponse([]));
+
+mock.module("../../lib/api", () => ({
+  ...actualApi,
+  getPRs,
+  getPR,
+  getPRDiff,
+}));
 
 const { PRList } = await import("./PRList");
 
@@ -20,6 +28,10 @@ const initialUIState = useUIStore.getState();
 beforeEach(() => {
   useUIStore.setState(initialUIState, true);
   getPRs.mockClear();
+  getPR.mockClear();
+  getPRDiff.mockClear();
+  getPR.mockImplementation(async () => ({ pr: makePR() }));
+  getPRDiff.mockImplementation(async () => makeDiffResponse([]));
 });
 
 afterAll(() => {
@@ -124,6 +136,62 @@ describe("PRList", () => {
       repo: null,
       refresh: true,
     });
+  });
+
+  test("refresh re-reads the open pull request and its diff", async () => {
+    getPRs.mockImplementation(async () => listResponse());
+    useUIStore.setState({ selectedPR: "acme/web#2", detailOpen: true });
+    const { client } = await renderList();
+
+    const moved = { ...newest, headSHA: "def9999" };
+    getPR.mockImplementation(async () => ({ pr: moved }));
+    getPRDiff.mockImplementation(async () =>
+      makeDiffResponse([], { headSHA: moved.headSHA }),
+    );
+    getPRs.mockImplementation(async () =>
+      listResponse([moved, middle, oldest]),
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Refresh from GitHub" }),
+    );
+
+    await waitFor(() =>
+      expect(getPR).toHaveBeenLastCalledWith({
+        repo: "acme/web",
+        number: 2,
+        refresh: true,
+      }),
+    );
+    await waitFor(() =>
+      expect(getPRDiff).toHaveBeenLastCalledWith({
+        repo: "acme/web",
+        number: 2,
+        refresh: true,
+      }),
+    );
+    expect(
+      client.getQueryData(["pr-diff", "acme/web", 2, "def9999"]),
+    ).toBeDefined();
+  });
+
+  test("opening a pull request re-reads a detail from an older head", async () => {
+    getPRs.mockImplementation(async () => listResponse());
+    getPR.mockImplementation(async () => ({ pr: newest }));
+    const { client } = await renderList();
+    client.setQueryData(["pr", "acme/web", 2], {
+      pr: { ...newest, headSHA: "oldsha" },
+    });
+
+    fireEvent.keyDown(screen.getByRole("listbox"), { key: "Enter" });
+
+    await waitFor(() =>
+      expect(getPR).toHaveBeenCalledWith({
+        repo: "acme/web",
+        number: 2,
+        refresh: true,
+      }),
+    );
   });
 
   test("filters the draft row out from the filter popover", async () => {

@@ -38,13 +38,16 @@ function renderDialog(onClose = () => {}) {
 
 describe("SettingsDialog", () => {
   test("refreshing data reports the number of cleared responses", async () => {
-    renderDialog();
+    const { client } = renderDialog();
+    const invalidate = mock(client.invalidateQueries.bind(client));
+    client.invalidateQueries = invalidate;
     fireEvent.click(screen.getByRole("button", { name: /Refresh data/ }));
 
     expect(
       await screen.findByText("Cleared 2 cached responses."),
     ).toBeDefined();
     expect(invalidateCache).toHaveBeenCalledTimes(1);
+    expect(invalidate).toHaveBeenCalledWith();
   });
 
   test("clearing artifacts invalidates cached action queries", async () => {

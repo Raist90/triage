@@ -81,7 +81,12 @@ export function makeDiffResponse(
   files: DiffFile[],
   overrides: Partial<PRDiffResponse> = {},
 ): PRDiffResponse {
-  return { files, semanticAvailable: false, ...overrides };
+  return {
+    headSHA: "abc1234def5678",
+    files,
+    semanticAvailable: false,
+    ...overrides,
+  };
 }
 
 export function makeConfig(config: Partial<Config> = {}): Config {

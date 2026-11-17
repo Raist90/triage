@@ -39,7 +39,7 @@ func (s *Server) runAction(ctx context.Context, in *actionInput) (*actionRunOutp
 		return &actionRunOutput{Status: http.StatusOK, Body: actionResponse{Artifact: artifact}}, nil
 	}
 
-	unified, err := s.loadDiff(ctx, in.Owner, in.Repo, in.Number, true)
+	unified, err := s.loadDiff(ctx, in.Owner, in.Repo, in.Number, pr.HeadSHA, true)
 	if err != nil {
 		return nil, s.providerError(err)
 	}

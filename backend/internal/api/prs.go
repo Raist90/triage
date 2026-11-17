@@ -20,7 +20,7 @@ type prDetailInput struct {
 
 type diffInput struct {
 	PRPath
-	Refresh bool `query:"refresh" doc:"Bypass the cached diff"`
+	Refresh bool `query:"refresh" doc:"Bypass the cached head and diff"`
 }
 
 // getPRs serves GET /prs?tab=mine&repo=owner/name&refresh=1.
@@ -77,9 +77,18 @@ func (s *Server) getPR(ctx context.Context, in *prDetailInput) (*prDetailOutput,
 
 // getPRDiff serves GET /pr/{owner}/{repo}/{number}/diff.
 func (s *Server) getPRDiff(ctx context.Context, in *diffInput) (*diffOutput, error) {
-	body, err := s.loadDiff(ctx, in.Owner, in.Repo, in.Number, in.Refresh)
+	// The diff belongs to one commit, so the head must be resolved first. A
+	// manual refresh re-reads it instead of trusting the detail cache.
+	pr, err := s.prMetadata(ctx, in.Owner, in.Repo, in.Number, in.Refresh)
 	if err != nil {
 		return nil, s.providerError(err)
 	}
-	return &diffOutput{Body: buildDiffResponse(ctx, body)}, nil
+	if pr.HeadSHA == "" {
+		return nil, errorf(http.StatusBadGateway, codeGitHub, "GitHub did not report the head commit")
+	}
+	body, err := s.loadDiff(ctx, in.Owner, in.Repo, in.Number, pr.HeadSHA, in.Refresh)
+	if err != nil {
+		return nil, s.providerError(err)
+	}
+	return &diffOutput{Body: buildDiffResponse(ctx, body, pr.HeadSHA)}, nil
 }
