@@ -120,8 +120,6 @@ cd backend && go test ./...
 - Never read, print or commit `.env`; tokens are the user's. Commit only
   `.env.example`.
 - Never bypass the cache to "make it faster" in dev; fix the cache.
-- Default delivery is the worktree → branch → commit → push → draft PR flow in
-  `skill://delivery`.
 
 ## MVP scope
 

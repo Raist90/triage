@@ -70,8 +70,8 @@ diff, and returns structured findings. Answers stream back over SSE.
 ## Worktrees
 
 Automatic review is the only feature that touches a checkout. `~/.triage/worktrees`
-belongs to the app: `Settings → Clear worktrees` deletes it. Never create a
-development worktree there — see `skill://delivery`.
+belongs to the app: `Settings → Clear worktrees` deletes it. Do not use it for
+development checkouts.
 
 - Root is `~/.triage/worktrees/<owner>/<repo>/<number>`. `internal/worktree`
   creates it with `git worktree add --detach` from the configured local clone,
