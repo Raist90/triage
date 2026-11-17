@@ -13,7 +13,7 @@ export function PRHeader({ pr }: { pr: PR }) {
         <PRStateTag status={prStatus(pr)} />
       </h1>
 
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-meta text-fg-faint">
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-meta text-fg-faint">
         <span className="text-fg-muted">{pr.author}</span>
         <span className="tabular-nums">
           updated {formatRelative(pr.updatedAt)}

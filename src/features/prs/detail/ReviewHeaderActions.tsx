@@ -15,7 +15,7 @@ export function ReviewHeaderActions({ pr, review }: ReviewHeaderActionsProps) {
   return (
     <div className="flex shrink-0 items-center gap-2">
       {pr.viewerReview === "approved" ? (
-        <span className="flex items-center gap-1.5 text-meta text-accent">
+        <span className="flex items-center gap-1 text-meta text-accent">
           <Check className="size-3.5" aria-hidden />
           Approved
         </span>

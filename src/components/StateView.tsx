@@ -45,7 +45,7 @@ export function StateView({
     <div
       role={role}
       className={cx(
-        "relative flex flex-col items-center justify-center gap-3 py-10 text-center",
+        "relative flex flex-col items-center justify-center gap-3 py-8 text-center",
         layout === "fill" && "h-full px-6",
         className,
       )}
