@@ -10,7 +10,7 @@ export function ExplainTab({
   controller: ClaudeActionController;
 }) {
   return (
-    <section className="max-w-[68ch]">
+    <section className="mx-auto max-w-[68ch]">
       <div className="mb-3 flex justify-end">
         <ClaudeActionButton controller={controller} />
       </div>
