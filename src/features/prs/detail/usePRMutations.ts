@@ -45,6 +45,8 @@ export function usePRMutations(
     void queryClient.invalidateQueries({ queryKey: ["pr", repo, number] });
   }, [queryClient, repo, number]);
 
+  const closeConfirm = useCallback(() => setConfirming(null), []);
+
   const scheduleListRefresh = useCallback(() => {
     if (listTimer.current !== null) window.clearTimeout(listTimer.current);
     listTimer.current = window.setTimeout(() => {
@@ -122,7 +124,7 @@ export function usePRMutations(
       closeMutation.reset();
       setConfirming("close");
     },
-    closeConfirm: () => setConfirming(null),
+    closeConfirm,
     toggleDraft: (draft) => {
       mergeMutation.reset();
       closeMutation.reset();

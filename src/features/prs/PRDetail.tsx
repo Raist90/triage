@@ -127,6 +127,16 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
   const reviewOpen = review.open;
   const closeReview = review.closePanel;
 
+  // A merged or closed PR has no review controls. Drop a form or confirmation
+  // that was up when the state changed, so Escape and the receipt are clean.
+  const closeConfirm = mutations.closeConfirm;
+  const confirming = mutations.confirming;
+  useEffect(() => {
+    if (isOpen) return;
+    if (reviewOpen) closeReview();
+    if (confirming !== null) closeConfirm();
+  }, [isOpen, reviewOpen, closeReview, confirming, closeConfirm]);
+
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
@@ -213,8 +223,8 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
         onToggleFullscreen={toggleFullscreen}
       />
 
-      <ReviewPanel review={review} />
-      {pr ? <PRStatePanel pr={pr} mutations={mutations} /> : null}
+      {isOpen ? <ReviewPanel review={review} /> : null}
+      {pr && isOpen ? <PRStatePanel pr={pr} mutations={mutations} /> : null}
 
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">

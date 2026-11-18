@@ -1,5 +1,11 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import * as actualApi from "../../lib/api";
 import { useUIStore } from "../../stores/ui";
 import {
@@ -257,6 +263,44 @@ describe("PRDetail", () => {
     expect(screen.queryByRole("button", { name: "Squash merge" })).toBeNull();
     expect(useUIStore.getState().selectedPR).toBe("acme/web#42");
     expect(useUIStore.getState().detailOpen).toBe(true);
+  });
+
+  test("drops open review and confirmation controls when the PR is merged", async () => {
+    const myPR = makePR({
+      author: "viewer",
+      viewerLogin: "viewer",
+      mergeable: "mergeable",
+      mergeStateStatus: "clean",
+    });
+    const mergedPR = makePR({
+      ...myPR,
+      state: "merged",
+      mergedAt: "2026-06-15T12:00:00Z",
+      mergedBy: "viewer",
+      mergeCommitSHA: "9f3c2abffee12",
+    });
+    let merged = false;
+    getPR.mockImplementation(async () => ({ pr: merged ? mergedPR : myPR }));
+    const { client } = await renderDetail();
+
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    expect(screen.getByLabelText("Review comment")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Squash merge" }));
+    expect(screen.getByLabelText("Confirm squash merge")).toBeDefined();
+
+    merged = true;
+    await act(() =>
+      client.invalidateQueries({ queryKey: ["pr", "acme/web", 42] }),
+    );
+
+    expect(await screen.findByText(/Merged into/)).toBeDefined();
+    expect(screen.queryByLabelText("Review comment")).toBeNull();
+    expect(screen.queryByLabelText("Confirm squash merge")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Squash merge" })).toBeNull();
+
+    // Nothing hidden is left consuming Escape; it closes the detail.
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(useUIStore.getState().detailOpen).toBe(false);
   });
 
   test("a merged PR opens as its receipt, not the tabbed view", async () => {
