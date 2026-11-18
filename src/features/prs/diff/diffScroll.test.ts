@@ -1,5 +1,40 @@
 import { describe, expect, test } from "bun:test";
-import { activeSectionKey } from "./diffScroll";
+import { activeSectionKey, clampedAtBottom } from "./diffScroll";
+
+describe("clampedAtBottom", () => {
+  test("is true when the last pixel is reached or nearly reached", () => {
+    expect(
+      clampedAtBottom({
+        scrollTop: 500,
+        clientHeight: 500,
+        scrollHeight: 1000,
+      }),
+    ).toBe(true);
+    expect(
+      clampedAtBottom({
+        scrollTop: 499,
+        clientHeight: 500,
+        scrollHeight: 1000,
+      }),
+    ).toBe(true);
+  });
+
+  test("is false while there is still content below the viewport", () => {
+    expect(
+      clampedAtBottom({
+        scrollTop: 480,
+        clientHeight: 500,
+        scrollHeight: 1000,
+      }),
+    ).toBe(false);
+  });
+
+  test("is true when the content fits without scrolling", () => {
+    expect(
+      clampedAtBottom({ scrollTop: 0, clientHeight: 500, scrollHeight: 500 }),
+    ).toBe(true);
+  });
+});
 
 describe("activeSectionKey", () => {
   test("returns the section that contains the top edge", () => {

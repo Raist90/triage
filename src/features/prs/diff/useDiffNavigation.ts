@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { findHunkIndex } from "./diffFile";
 import type { DiffFileEntry, DiffTarget } from "./diffSelection";
-import { activeSectionKey, type SectionRect } from "./diffScroll";
+import {
+  activeSectionKey,
+  clampedAtBottom,
+  type SectionRect,
+} from "./diffScroll";
 
 type Jump = {
   key: string;
@@ -272,6 +276,14 @@ export function useDiffNavigation({
         expandedRef.current.has(key),
       );
       if (entries.length === 0) return;
+      // At the end of the pane the top edge can never reach the last files, so
+      // short trailing files would never win the top-edge test. The last
+      // rendered body is what the user is looking at there.
+      if (clampedAtBottom(pane)) {
+        const last = entries[entries.length - 1].key;
+        setActiveKey((previous) => (previous === last ? previous : last));
+        return;
+      }
       const sections: SectionRect[] = [];
       for (const { key } of entries) {
         const element = sectionRefs.current.get(key);
