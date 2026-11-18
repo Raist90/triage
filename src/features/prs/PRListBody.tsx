@@ -65,8 +65,13 @@ export function PRListBody({
   const rows = isLoading || query.isError ? [] : visible;
   const hasRows = rows.length > 0;
 
+  const selectedIndex = rows.findIndex(
+    (pr) => `${pr.repo}#${pr.number}` === selectedPR,
+  );
+
   const { cursor, handleKeyDown } = usePRListCursor({
     count: rows.length,
+    selectedIndex,
     scrollRef: listRef,
     onPick: (index) => {
       const pr = rows[index];

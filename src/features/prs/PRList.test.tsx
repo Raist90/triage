@@ -101,13 +101,11 @@ describe("PRList", () => {
     });
   });
 
-  test("j moves the cursor and Enter opens that pull request", async () => {
+  test("j moves the cursor and opens that pull request", async () => {
     getPRs.mockImplementation(async () => listResponse());
     await renderList();
 
-    const listbox = screen.getByRole("listbox");
-    fireEvent.keyDown(listbox, { key: "j" });
-    fireEvent.keyDown(listbox, { key: "Enter" });
+    fireEvent.keyDown(screen.getByRole("listbox"), { key: "j" });
 
     expect(useUIStore.getState().selectedPR).toBe("acme/web#1");
   });
@@ -118,9 +116,14 @@ describe("PRList", () => {
 
     const listbox = screen.getByRole("listbox");
     fireEvent.keyDown(listbox, { key: "k" });
-    fireEvent.keyDown(listbox, { key: "Enter" });
 
+    const rows = screen.getAllByRole("option");
+    expect(rows[0].getAttribute("aria-selected")).toBe("true");
     expect(useUIStore.getState().selectedPR).toBe("acme/web#2");
+
+    fireEvent.keyDown(listbox, { key: "k" });
+    expect(useUIStore.getState().selectedPR).toBe("acme/web#2");
+    expect(getPR).not.toHaveBeenCalled();
   });
 
   test("/ opens search and narrows the list without a new request", async () => {
@@ -178,7 +181,7 @@ describe("PRList", () => {
     expect(surface.getAttribute("aria-activedescendant")).toBeNull();
 
     act(() => useUIStore.setState({ selectedPR: null }));
-    fireEvent.keyDown(surface, { key: "Enter" });
+    fireEvent.keyDown(surface, { key: "j" });
     expect(useUIStore.getState().selectedPR).toBeNull();
   });
 
@@ -203,7 +206,7 @@ describe("PRList", () => {
     expect(surface.getAttribute("aria-activedescendant")).toBeNull();
 
     act(() => useUIStore.setState({ selectedPR: null }));
-    fireEvent.keyDown(surface, { key: "Enter" });
+    fireEvent.keyDown(surface, { key: "j" });
     expect(useUIStore.getState().selectedPR).toBeNull();
   });
 
@@ -273,8 +276,9 @@ describe("PRList", () => {
       pr: { ...newest, headSHA: "oldsha" },
     });
 
-    fireEvent.keyDown(screen.getByRole("listbox"), { key: "Enter" });
+    fireEvent.keyDown(screen.getByRole("listbox"), { key: "k" });
 
+    expect(useUIStore.getState().selectedPR).toBe("acme/web#2");
     await waitFor(() =>
       expect(getPR).toHaveBeenCalledWith({
         repo: "acme/web",
@@ -282,6 +286,28 @@ describe("PRList", () => {
         refresh: true,
       }),
     );
+  });
+
+  test("j opens each row without Enter and stops at the last row", async () => {
+    getPRs.mockImplementation(async () => listResponse());
+    const { client } = await renderList();
+    // A stale detail under the last row is re-read once, when j opens it.
+    client.setQueryData(["pr", "acme/web", 3], {
+      pr: { ...oldest, headSHA: "oldsha" },
+    });
+
+    const listbox = screen.getByRole("listbox");
+    fireEvent.keyDown(listbox, { key: "j" });
+    expect(useUIStore.getState().selectedPR).toBe("acme/web#1");
+
+    fireEvent.keyDown(listbox, { key: "j" });
+    expect(useUIStore.getState().selectedPR).toBe("acme/web#3");
+    await waitFor(() => expect(getPR).toHaveBeenCalledTimes(1));
+
+    fireEvent.keyDown(listbox, { key: "j" });
+    await act(async () => {});
+    expect(useUIStore.getState().selectedPR).toBe("acme/web#3");
+    expect(getPR).toHaveBeenCalledTimes(1);
   });
 
   test("filters the draft row out from the filter popover", async () => {
