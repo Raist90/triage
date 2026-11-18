@@ -308,6 +308,10 @@ export type Pr = {
   headSHA: string;
   isDraft: boolean;
   /**
+   * Commit the merge created on the base branch
+   */
+  mergeCommitSHA?: string;
+  /**
    * GitHub's detailed merge state, e.g. clean or blocked
    */
   mergeStateStatus?: string;
@@ -315,6 +319,14 @@ export type Pr = {
    * Whether GitHub can merge the pull request
    */
   mergeable?: "mergeable" | "conflicting" | "unknown";
+  /**
+   * When the pull request merged
+   */
+  mergedAt?: string;
+  /**
+   * Login that merged the pull request
+   */
+  mergedBy?: string;
   number: number;
   repo: string;
   /**

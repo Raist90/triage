@@ -883,6 +883,10 @@
           "isDraft": {
             "type": "boolean"
           },
+          "mergeCommitSHA": {
+            "description": "Commit the merge created on the base branch",
+            "type": "string"
+          },
           "mergeStateStatus": {
             "description": "GitHub's detailed merge state, e.g. clean or blocked",
             "type": "string"
@@ -894,6 +898,14 @@
               "conflicting",
               "unknown"
             ],
+            "type": "string"
+          },
+          "mergedAt": {
+            "description": "When the pull request merged",
+            "type": "string"
+          },
+          "mergedBy": {
+            "description": "Login that merged the pull request",
             "type": "string"
           },
           "number": {

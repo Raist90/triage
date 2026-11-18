@@ -45,6 +45,8 @@ export function usePRMutations(
     void queryClient.invalidateQueries({ queryKey: ["pr", repo, number] });
   }, [queryClient, repo, number]);
 
+  const closeConfirm = useCallback(() => setConfirming(null), []);
+
   const scheduleListRefresh = useCallback(() => {
     if (listTimer.current !== null) window.clearTimeout(listTimer.current);
     listTimer.current = window.setTimeout(() => {
@@ -66,6 +68,8 @@ export function usePRMutations(
     mutationFn: (sha: string) => mergePR({ repo, number, sha }),
     onSuccess: () => {
       setConfirming(null);
+      // The detail refetches to the merged receipt and stays open; the list
+      // drops the PR once GitHub's search index catches up.
       refreshDetail();
       scheduleListRefresh();
     },
@@ -120,7 +124,7 @@ export function usePRMutations(
       closeMutation.reset();
       setConfirming("close");
     },
-    closeConfirm: () => setConfirming(null),
+    closeConfirm,
     toggleDraft: (draft) => {
       mergeMutation.reset();
       closeMutation.reset();

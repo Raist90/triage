@@ -16,6 +16,7 @@ import { DiffTab } from "./detail/DiffTab";
 import { ExplainTab } from "./detail/ExplainTab";
 import { PRDetailBar } from "./detail/PRDetailBar";
 import { PRHeader } from "./detail/PRHeader";
+import { PRSummary } from "./detail/PRSummary";
 import { ReviewPanel } from "./detail/ReviewPanel";
 import { PRStatePanel } from "./detail/PRStateActions";
 import { usePRMutations } from "./detail/usePRMutations";
@@ -74,13 +75,18 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
     },
   });
 
+  // A merged or closed PR is a receipt, not a live document: no poll, no diff
+  // and no review actions. Every consumer below keys off this one fact.
+  const pr = detailQuery.data?.pr;
+  const isOpen = pr?.state === "open";
+
   // The open PR is what the user is reading, so it is the only detail worth
   // refreshing. The hook pauses on blur and backs off while nothing changes.
-  useLiveRefresh(true, detailQuery.data, detailQuery.refetch, () => {
+  useLiveRefresh(isOpen, detailQuery.data, detailQuery.refetch, () => {
     liveRefetch.current = true;
   });
 
-  const headSHA = detailQuery.data?.pr.headSHA ?? "";
+  const headSHA = pr?.headSHA ?? "";
   const queryClient = useQueryClient();
   const diffQuery = useQuery({
     // A diff only describes one commit. Keying by SHA makes a moved head a
@@ -89,7 +95,7 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
     // The loader also verifies the response SHA, so a head that moved between
     // the two requests cannot be cached under this key.
     queryFn: () => loadDiffForHead(queryClient, repo, number, headSHA),
-    enabled: headSHA !== "",
+    enabled: headSHA !== "" && isOpen,
   });
 
   const configQuery = useQuery({ queryKey: ["config"], queryFn: getConfig });
@@ -107,19 +113,29 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
     repo,
     number,
     explainAction,
-    explainAction !== null,
+    explainAction !== null && isOpen,
   );
   const reviewController = useClaudeAction(
     repo,
     number,
     reviewAction,
-    reviewAction !== null,
+    reviewAction !== null && isOpen,
   );
   const review = useReview(repo, number);
   const mutations = usePRMutations(repo, number);
-  const diffComments = useDiffComments(repo, number, tab === "diff");
+  const diffComments = useDiffComments(repo, number, isOpen && tab === "diff");
   const reviewOpen = review.open;
   const closeReview = review.closePanel;
+
+  // A merged or closed PR has no review controls. Drop a form or confirmation
+  // that was up when the state changed, so Escape and the receipt are clean.
+  const closeConfirm = mutations.closeConfirm;
+  const confirming = mutations.confirming;
+  useEffect(() => {
+    if (isOpen) return;
+    if (reviewOpen) closeReview();
+    if (confirming !== null) closeConfirm();
+  }, [isOpen, reviewOpen, closeReview, confirming, closeConfirm]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -154,7 +170,6 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
     toggleFullscreen,
   ]);
 
-  const pr = detailQuery.data?.pr;
   const refetchDetail = detailQuery.refetch;
 
   // GitHub computes mergeability asynchronously after a draft toggle. Poll a
@@ -208,8 +223,8 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
         onToggleFullscreen={toggleFullscreen}
       />
 
-      <ReviewPanel review={review} />
-      {pr ? <PRStatePanel pr={pr} mutations={mutations} /> : null}
+      {isOpen ? <ReviewPanel review={review} /> : null}
+      {pr && isOpen ? <PRStatePanel pr={pr} mutations={mutations} /> : null}
 
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">
@@ -222,6 +237,8 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
               retrying={detailQuery.isFetching}
               onRetry={() => void detailQuery.refetch()}
             />
+          ) : pr && !isOpen ? (
+            <PRSummary pr={pr} />
           ) : pr ? (
             <>
               <PRHeader pr={pr} />
@@ -263,7 +280,7 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
           ) : null}
         </div>
 
-        {pr && activeTab !== "diff" ? (
+        {pr && isOpen && activeTab !== "diff" ? (
           <ContextRail pr={pr} diff={diffQuery.data} />
         ) : null}
       </div>

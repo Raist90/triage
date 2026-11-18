@@ -69,9 +69,16 @@ type prNode struct {
 	} `json:"viewerLatestReview"`
 	CreatedAt    string `json:"createdAt"`
 	UpdatedAt    string `json:"updatedAt"`
-	Additions    int    `json:"additions"`
-	Deletions    int    `json:"deletions"`
-	ChangedFiles int    `json:"changedFiles"`
+	MergedAt     string `json:"mergedAt"`
+	MergedBy     struct {
+		Login string `json:"login"`
+	} `json:"mergedBy"`
+	MergeCommit struct {
+		Oid string `json:"oid"`
+	} `json:"mergeCommit"`
+	Additions    int `json:"additions"`
+	Deletions    int `json:"deletions"`
+	ChangedFiles int `json:"changedFiles"`
 	Author       struct {
 		Login string `json:"login"`
 	} `json:"author"`
@@ -182,6 +189,9 @@ func (n prNode) toPR() PR {
 		ChangedFiles:       n.ChangedFiles,
 		CreatedAt:          n.CreatedAt,
 		UpdatedAt:          n.UpdatedAt,
+		MergedAt:           n.MergedAt,
+		MergedBy:           n.MergedBy.Login,
+		MergeCommitSHA:     n.MergeCommit.Oid,
 		IsDraft:            n.IsDraft,
 		Mergeable:          strings.ToLower(n.Mergeable),
 		MergeStateStatus:   strings.ToLower(n.MergeStateStatus),
