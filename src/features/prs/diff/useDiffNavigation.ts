@@ -82,7 +82,7 @@ export function useDiffNavigation({
     );
   }, [visibleSignature]);
 
-  // A finding clicked in the Review tab opens its file and hunk here. The token
+  // A finding clicked in the Verdict tab opens its file and hunk here. The token
   // changes on every click, so two findings in the same file both jump. A file
   // hidden by a user filter is left alone rather than silently un-filtered.
   const focusPath = focusTarget?.path;

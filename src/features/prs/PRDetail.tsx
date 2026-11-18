@@ -48,7 +48,7 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
   }>({ key: prKey, tab: "conversation" });
   const tab: DetailTab = tabState.key === prKey ? tabState.tab : "conversation";
   const setTab = (next: DetailTab) => setTabState({ key: prKey, tab: next });
-  // A finding clicked in the Review tab. The token re-triggers the jump for two
+  // A finding clicked in the Verdict tab. The token re-triggers the jump for two
   // findings in the same file; the target is never cleared after consumption.
   const [diffTarget, setDiffTarget] = useState<DiffTarget | null>(null);
   function openInDiff(finding: ReviewFinding) {
@@ -204,7 +204,7 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
     { id: "diff", label: "Diff", count: pr?.changedFiles },
   ];
   if (reviewAvailable) {
-    tabs.push({ id: "review", label: "Review" });
+    tabs.push({ id: "review", label: "Verdict" });
   }
   if (explain.action) {
     tabs.push({ id: "explain", label: explain.action.label });

@@ -161,10 +161,10 @@ describe("PRDetail", () => {
     expect(detailCalls).toBeGreaterThanOrEqual(2);
   });
 
-  test("omits Review and Explain tabs when the server offers no actions", async () => {
+  test("omits Verdict and Explain tabs when the server offers no actions", async () => {
     await renderDetail();
 
-    expect(screen.queryByRole("tab", { name: /^Review/ })).toBeNull();
+    expect(screen.queryByRole("tab", { name: /^Verdict/ })).toBeNull();
     expect(screen.queryByRole("tab", { name: /^Explain/ })).toBeNull();
   });
 
