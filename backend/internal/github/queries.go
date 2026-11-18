@@ -51,6 +51,9 @@ const detailQuery = `query PRDetail($owner: String!, $name: String!, $number: In
       isDraft
       mergeable
       mergeStateStatus
+      mergedAt
+      mergedBy { login }
+      mergeCommit { oid }
       headRefName
       headRefOid
       baseRefName

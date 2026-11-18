@@ -18,7 +18,7 @@ type prVars struct {
 
 // prDetailRoute is the stable cache route for one PR's detail. Bump it when the
 // detail response shape changes so old cache entries are not decoded into it.
-const prDetailRoute = "pr-detail-v5"
+const prDetailRoute = "pr-detail-v6"
 
 // listVars is the cache-key shape for one tab request.
 type listVars struct {

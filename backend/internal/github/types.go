@@ -54,7 +54,12 @@ type PR struct {
 	ChangedFiles     int    `json:"changedFiles"`
 	CreatedAt        string `json:"createdAt,omitempty"`
 	UpdatedAt        string `json:"updatedAt"`
-	IsDraft          bool   `json:"isDraft"`
+	// MergedAt, MergedBy and MergeCommitSHA are the merge receipt. Detail
+	// responses only, and only once GitHub reports the PR merged.
+	MergedAt       string `json:"mergedAt,omitempty" doc:"When the pull request merged"`
+	MergedBy       string `json:"mergedBy,omitempty" doc:"Login that merged the pull request"`
+	MergeCommitSHA string `json:"mergeCommitSHA,omitempty" doc:"Commit the merge created on the base branch"`
+	IsDraft        bool   `json:"isDraft"`
 	// Mergeable and MergeStateStatus are detail responses only. GitHub computes
 	// mergeability asynchronously, so Mergeable can be "unknown" for a moment
 	// after the head or draft state changes.

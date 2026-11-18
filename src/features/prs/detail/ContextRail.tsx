@@ -1,8 +1,9 @@
 import { Check, Copy } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import { StatusIcon } from "../../../components/StatusBadge";
 import { cx } from "../../../lib/cx";
 import type { PR, PRDiffResponse } from "../../../lib/types";
+import { useCopy } from "../../../lib/useCopy";
 import { scrollEdgeClass, useScrollEdges } from "../../../lib/useScrollEdges";
 import { ComplexityMeter } from "./ComplexityMeter";
 
@@ -13,27 +14,8 @@ type ContextRailProps = {
 
 export function ContextRail({ pr, diff }: ContextRailProps) {
   const railRef = useRef<HTMLElement | null>(null);
-  const copyTimer = useRef<number | null>(null);
-  const [copied, setCopied] = useState(false);
   const scrollEdges = useScrollEdges(railRef);
-
-  useEffect(
-    () => () => {
-      if (copyTimer.current !== null) window.clearTimeout(copyTimer.current);
-    },
-    [],
-  );
-
-  async function copySHA() {
-    try {
-      await navigator.clipboard.writeText(pr.headSHA);
-    } catch {
-      return;
-    }
-    setCopied(true);
-    if (copyTimer.current !== null) window.clearTimeout(copyTimer.current);
-    copyTimer.current = window.setTimeout(() => setCopied(false), 1500);
-  }
+  const { copied, copy } = useCopy(pr.headSHA);
 
   return (
     <aside
@@ -74,7 +56,7 @@ export function ContextRail({ pr, diff }: ContextRailProps) {
           </span>
           <button
             type="button"
-            onClick={() => void copySHA()}
+            onClick={() => void copy()}
             title={copied ? "Copied" : "Copy commit SHA"}
             aria-label={copied ? "Copied" : "Copy commit SHA"}
             className="-my-1 flex size-5 items-center justify-center rounded-sm text-fg-faint transition-colors hover:bg-surface hover:text-fg"

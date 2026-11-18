@@ -221,17 +221,29 @@ describe("PRDetail", () => {
     expect(useUIStore.getState().detailOpen).toBe(true);
   });
 
-  test("closes the detail after a squash merge", async () => {
+  test("shows the merged receipt instead of closing the detail", async () => {
     const myPR = makePR({
       author: "viewer",
       viewerLogin: "viewer",
       mergeable: "mergeable",
       mergeStateStatus: "clean",
     });
-    getPR.mockImplementation(async () => ({ pr: myPR }));
+    const mergedPR = makePR({
+      ...myPR,
+      state: "merged",
+      mergedAt: "2026-06-15T12:00:00Z",
+      mergedBy: "viewer",
+      mergeCommitSHA: "9f3c2abffee12",
+    });
+    let merged = false;
+    getPR.mockImplementation(async () => ({ pr: merged ? mergedPR : myPR }));
     useUIStore.setState({ detailFullscreen: true });
     await renderDetail();
 
+    mergePR.mockImplementation(async () => {
+      merged = true;
+      return { ok: true };
+    });
     fireEvent.click(screen.getByRole("button", { name: "Squash merge" }));
     const confirm = screen.getByLabelText("Confirm squash merge");
     fireEvent.click(
@@ -239,9 +251,42 @@ describe("PRDetail", () => {
     );
 
     await waitFor(() => expect(mergePR).toHaveBeenCalled());
-    expect(useUIStore.getState().selectedPR).toBeNull();
-    expect(useUIStore.getState().detailOpen).toBe(false);
-    expect(useUIStore.getState().detailFullscreen).toBe(false);
+    expect(await screen.findByText(/Merged into/)).toBeDefined();
+    expect(screen.queryByRole("tablist")).toBeNull();
+    expect(screen.getByText("9f3c2ab")).toBeDefined();
+    expect(screen.queryByRole("button", { name: "Squash merge" })).toBeNull();
+    expect(useUIStore.getState().selectedPR).toBe("acme/web#42");
+    expect(useUIStore.getState().detailOpen).toBe(true);
+  });
+
+  test("a merged PR opens as its receipt, not the tabbed view", async () => {
+    getPR.mockImplementation(async () => ({
+      pr: makePR({
+        state: "merged",
+        mergedAt: "2026-06-15T12:00:00Z",
+        mergedBy: "octocat",
+        mergeCommitSHA: "9f3c2abffee12",
+      }),
+    }));
+    await renderDetail();
+
+    expect(screen.queryByRole("tablist")).toBeNull();
+    expect(screen.queryByLabelText("Pull request context")).toBeNull();
+    expect(screen.getByText(/Merged into/)).toBeDefined();
+    expect(screen.getByText("Merge commit")).toBeDefined();
+    expect(getPRDiff).not.toHaveBeenCalled();
+  });
+
+  test("a closed PR keeps the receipt but drops the merge rows", async () => {
+    getPR.mockImplementation(async () => ({
+      pr: makePR({ state: "closed", isDraft: false }),
+    }));
+    await renderDetail();
+
+    expect(screen.getByText("Closed without merging")).toBeDefined();
+    expect(screen.queryByText("Merge commit")).toBeNull();
+    expect(screen.queryByText("Merged")).toBeNull();
+    expect(screen.queryByRole("tablist")).toBeNull();
   });
 
   test("a failed PR load offers a retry", async () => {

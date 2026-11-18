@@ -60,7 +60,7 @@ func (s *Server) getPR(ctx context.Context, in *prDetailInput) (*prDetailOutput,
 	vars := prVars{Owner: in.Owner, Repo: in.Repo, Number: in.Number}
 
 	var pr github.PR
-	// v5 adds mergeability and whether squash merge is allowed.
+	// v6 adds the merge receipt (mergedAt, mergedBy, mergeCommit).
 	err := s.loadCached(prDetailRoute, vars, s.cfg.Cache.GraphQL, in.Refresh, &pr, func() error {
 		fetched, err := s.github.GetPR(ctx, in.Owner, in.Repo, in.Number)
 		if err != nil {

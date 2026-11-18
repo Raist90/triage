@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { closePR, describeError, mergePR, setPRDraft } from "../../../lib/api";
-import { useUIStore } from "../../../stores/ui";
 
 /** GitHub's search index lags a merge, close or draft change by a moment. */
 const LIST_REFRESH_DELAY_MS = 1500;
@@ -67,13 +66,9 @@ export function usePRMutations(
     mutationFn: (sha: string) => mergePR({ repo, number, sha }),
     onSuccess: () => {
       setConfirming(null);
-      // The merged PR has no detail left to show. Only close the pane if this
-      // PR is still selected; the user may have moved on while it merged.
-      const ui = useUIStore.getState();
-      if (ui.selectedPR === `${repo}#${number}`) {
-        ui.selectPR(null);
-        ui.closeDetail();
-      }
+      // The detail refetches to the merged receipt and stays open; the list
+      // drops the PR once GitHub's search index catches up.
+      refreshDetail();
       scheduleListRefresh();
     },
     // A rejected merge can mean the head moved. Refresh so the next attempt
