@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { cx } from "../../../lib/cx";
 import type { DiffFile, SemanticSummary } from "../../../lib/types";
@@ -51,6 +51,18 @@ export function DiffView({
   const showSemanticRail = useUIStore((state) => state.showSemanticRail);
   const toggleSemanticRail = useUIStore((state) => state.toggleSemanticRail);
 
+  // Filters and the priority sort are pure but O(files); a selection render
+  // must not recompute them.
+  const selection = useMemo(
+    () =>
+      selectDiffFiles(files, {
+        hiddenKinds,
+        hideCosmetic,
+        hideLowPriority,
+        sort: diffSort,
+      }),
+    [files, hiddenKinds, hideCosmetic, hideLowPriority, diffSort],
+  );
   const {
     kindCounts,
     hiddenByKind,
@@ -63,12 +75,7 @@ export function DiffView({
     visible,
     firstVisibleKey,
     visibleSignature,
-  } = selectDiffFiles(files, {
-    hiddenKinds,
-    hideCosmetic,
-    hideLowPriority,
-    sort: diffSort,
-  });
+  } = selection;
 
   const {
     activeKey,
@@ -94,17 +101,46 @@ export function DiffView({
   const scrollEdges = useScrollEdges(paneRef);
   const { width: railWidth, rootRef, separatorProps } = useResizableRail();
 
-  const railLayoutKey = visible
-    .map(
-      ({ key, file }) =>
-        `${key}:${expanded.has(key) ? "open" : "closed"}:${file.semantic?.length ?? 0}`,
-    )
-    .join("\u0000");
-  const hasSemantic =
-    semanticAvailable && files.some((file) => (file.semantic?.length ?? 0) > 0);
-  const visibleSemantic =
-    hasSemantic && visible.some(({ file }) => (file.semantic?.length ?? 0) > 0);
+  const railLayoutKey = useMemo(
+    () =>
+      visible
+        .map(
+          ({ key, file }) =>
+            `${key}:${expanded.has(key) ? "open" : "closed"}:${file.semantic?.length ?? 0}`,
+        )
+        .join("\u0000"),
+    [visible, expanded],
+  );
+  const hasSemantic = useMemo(
+    () =>
+      semanticAvailable &&
+      files.some((file) => (file.semantic?.length ?? 0) > 0),
+    [semanticAvailable, files],
+  );
+  const visibleSemantic = useMemo(
+    () =>
+      hasSemantic &&
+      visible.some(({ file }) => (file.semantic?.length ?? 0) > 0),
+    [hasSemantic, visible],
+  );
   const showSummary = semanticAvailable && (semanticSummary?.total ?? 0) > 0;
+
+  // Stable registration so a memoized section owns its own ref callback.
+  const onSectionRef = useCallback(
+    (key: string, element: HTMLElement | null) => {
+      if (element) sectionRefs.current.set(key, element);
+      else sectionRefs.current.delete(key);
+    },
+    [sectionRefs],
+  );
+
+  // Only the section that owns the open composer needs the draft key. The key
+  // is `${path}\u0000${side}\u0000${line}`.
+  const draftSeparator = draft === null ? -1 : draft.indexOf("\u0000");
+  const draftPath =
+    draft !== null && draftSeparator >= 0
+      ? draft.slice(0, draftSeparator)
+      : null;
 
   return (
     <div
@@ -199,18 +235,15 @@ export function DiffView({
               file={file}
               fileKey={key}
               open={expanded.has(key)}
-              onToggle={() => toggleFile(key)}
-              sectionRef={(element) => {
-                if (element) sectionRefs.current.set(key, element);
-                else sectionRefs.current.delete(key);
-              }}
+              onToggle={toggleFile}
+              onSectionRef={onSectionRef}
               comments={comments}
               headSHA={headSHA}
               canComment={canComment}
-              draft={draft}
+              draft={draftPath === file.path ? draft : null}
               onDraftChange={setDraft}
               viewerLogin={viewerLogin}
-              flash={flash}
+              flash={flash !== null && flash.key === key ? flash.label : null}
             />
           ))}
         </div>
