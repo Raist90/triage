@@ -4,6 +4,8 @@ import { StatusIcon } from "../../components/StatusBadge";
 
 type PRRowProps = {
   pr: PR;
+  /** DOM id targeted by the listbox's aria-activedescendant. */
+  optionId: string;
   /** Keyboard cursor position. */
   active: boolean;
   /** Committed selection; survives refetches. */
@@ -13,21 +15,20 @@ type PRRowProps = {
   /** Show the author only when the list is not the viewer's own PRs. */
   showAuthor: boolean;
   onPick: () => void;
-  elementRef?: (element: HTMLDivElement | null) => void;
 };
 
 export function PRRow({
   pr,
+  optionId,
   active,
   selected,
   showRepo,
   showAuthor,
   onPick,
-  elementRef,
 }: PRRowProps) {
   return (
     <div
-      ref={elementRef}
+      id={optionId}
       role="option"
       aria-selected={selected}
       onClick={onPick}

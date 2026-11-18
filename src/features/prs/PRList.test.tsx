@@ -136,6 +136,25 @@ describe("PRList", () => {
     expect(getPRs.mock.calls.length).toBe(callCount);
   });
 
+  test("f still opens filters when the search empties the list", async () => {
+    getPRs.mockImplementation(async () => listResponse());
+    await renderList();
+
+    fireEvent.keyDown(screen.getByRole("listbox"), { key: "/" });
+    fireEvent.change(screen.getByLabelText("Search pull requests"), {
+      target: { value: "no-such-pr" },
+    });
+
+    const empty = await screen.findByRole("group", {
+      name: "All open pull requests",
+    });
+    fireEvent.keyDown(empty, { key: "f" });
+
+    expect(
+      await screen.findByRole("checkbox", { name: "Hide drafts" }),
+    ).toBeDefined();
+  });
+
   test("refresh bypasses the cache and replaces the rows", async () => {
     getPRs.mockImplementation(async () => listResponse());
     await renderList();

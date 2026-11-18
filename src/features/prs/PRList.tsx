@@ -3,25 +3,15 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { ListFilter, RefreshCw, Search, X } from "lucide-react";
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type KeyboardEvent,
-} from "react";
-import { EmptyState } from "../../components/EmptyState";
-import { ErrorState } from "../../components/ErrorState";
-import { Button, IconButton } from "../../components/ui";
-import { cx } from "../../lib/cx";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { describeError, getPRs } from "../../lib/api";
 import { useLiveRefresh } from "../../lib/liveRefresh";
 import { refreshOpenPR, syncPRHead } from "../../lib/prRefresh";
-import { scrollEdgeClass, useScrollEdges } from "../../lib/useScrollEdges";
+import type { PR } from "../../lib/types";
 import { useUIStore } from "../../stores/ui";
-import { PRFilterPopover } from "./PRFilterPopover";
-import { PRRow } from "./PRRow";
+import { PRFilterChips } from "./PRFilterChips";
+import { PRListBody } from "./PRListBody";
+import { PRListToolbar } from "./PRListToolbar";
 import {
   filterChips,
   filterPRs,
@@ -34,6 +24,12 @@ type PRListProps = {
   tabID: string;
   tabLabel: string;
   repo: string | null;
+};
+
+type RefreshFailure = {
+  message: string;
+  /** The list's dataUpdatedAt when the manual refresh failed. */
+  listDataAt: number;
 };
 
 export function PRList({ tabID, tabLabel, repo }: PRListProps) {
@@ -75,64 +71,38 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
     [prs, filters],
   );
   const chips = useMemo(() => filterChips(prs, filters), [prs, filters]);
-  const lastIndex = Math.max(visible.length - 1, 0);
 
   // Placeholder rows from the previous query key are not fresh for this tab.
   const isLoading = query.isPending || query.isPlaceholderData;
 
-  const [cursorState, setCursorState] = useState(0);
-  // A shorter list after a refetch or filter change must not leave the cursor
-  // out of bounds.
-  const cursor = Math.min(cursorState, lastIndex);
   const [refreshing, setRefreshing] = useState(false);
-  const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [refreshFailure, setRefreshFailure] = useState<RefreshFailure | null>(
+    null,
+  );
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const rowRefs = useRef<Array<HTMLDivElement | null>>([]);
   const listRef = useRef<HTMLDivElement | null>(null);
-  const viewportRef = useRef<HTMLDivElement | null>(null);
-  const scrollEdges = useScrollEdges(viewportRef);
-  const searchRef = useRef<HTMLInputElement | null>(null);
-  const filterRef = useRef<HTMLDivElement | null>(null);
 
   const selectedPR = useUIStore((state) => state.selectedPR);
   const detailOpen = useUIStore((state) => state.detailOpen);
   const selectPR = useUIStore((state) => state.selectPR);
 
-  // Returning from the detail panel restores keyboard focus to the list.
-  useEffect(() => {
-    if (!selectedPR) listRef.current?.focus();
-  }, [selectedPR]);
+  const scope = repo ?? "All repos";
+  const isFiltered = hasFacetFilters(filters) || filters.query.trim() !== "";
 
-  useEffect(() => {
-    if (searchOpen) searchRef.current?.focus();
-  }, [searchOpen]);
+  const openSearch = useCallback(() => setSearchOpen(true), []);
+  const closeSearch = useCallback(() => setSearchOpen(false), []);
+  const toggleFilters = useCallback(() => setFiltersOpen((open) => !open), []);
+  const closeFilters = useCallback(() => setFiltersOpen(false), []);
+  const focusList = useCallback(() => listRef.current?.focus(), [listRef]);
 
-  // A click anywhere outside the filter button and its panel dismisses it.
-  useEffect(() => {
-    if (!filtersOpen) return;
-    function handlePointerDown(event: MouseEvent) {
-      if (
-        filterRef.current &&
-        event.target instanceof Node &&
-        !filterRef.current.contains(event.target)
-      ) {
-        setFiltersOpen(false);
-      }
-    }
-    window.addEventListener("mousedown", handlePointerDown);
-    return () => window.removeEventListener("mousedown", handlePointerDown);
-  }, [filtersOpen]);
+  // A failed manual refresh is stale as soon as any later read answers.
+  const refreshError =
+    refreshFailure && refreshFailure.listDataAt === query.dataUpdatedAt
+      ? refreshFailure.message
+      : null;
 
-  function moveCursor(index: number) {
-    const next = Math.min(Math.max(index, 0), lastIndex);
-    setCursorState(next);
-    rowRefs.current[next]?.scrollIntoView({ block: "nearest" });
-  }
-
-  function pick(index: number) {
-    const pr = visible[index];
-    if (!pr) return;
+  function pickPR(pr: PR) {
     selectPR(`${pr.repo}#${pr.number}`);
     // The list row carries the fresh head; a cached detail from an older
     // commit is re-read instead of being shown as current.
@@ -156,43 +126,9 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
     toggleFilterFacet(chip.section, chip.value);
   }
 
-  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    switch (event.key) {
-      case "j":
-      case "ArrowDown":
-        event.preventDefault();
-        moveCursor(cursor + 1);
-        break;
-      case "k":
-      case "ArrowUp":
-        event.preventDefault();
-        moveCursor(cursor - 1);
-        break;
-      case "Enter":
-        event.preventDefault();
-        pick(cursor);
-        break;
-      case "Escape":
-        event.preventDefault();
-        setFiltersOpen(false);
-        selectPR(null);
-        break;
-      case "/":
-        event.preventDefault();
-        setSearchOpen(true);
-        break;
-      case "f":
-        event.preventDefault();
-        setFiltersOpen((open) => !open);
-        break;
-      default:
-        break;
-    }
-  }
-
   async function refresh() {
     setRefreshing(true);
-    setRefreshError(null);
+    setRefreshFailure(null);
     try {
       const data = await getPRs({ tab: tabID, repo, refresh: true });
       queryClient.setQueryData(queryKey, data);
@@ -204,164 +140,47 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
         await refreshOpenPR(queryClient, open.repo, open.number);
       }
     } catch (error) {
-      setRefreshError(describeError(error));
+      setRefreshFailure({
+        message: describeError(error),
+        listDataAt: query.dataUpdatedAt,
+      });
     } finally {
       setRefreshing(false);
     }
   }
 
-  const scope = repo ?? "All repos";
-  const isFiltered = visible.length !== prs.length || filters.query !== "";
-
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-11 shrink-0 items-center justify-between gap-2 pr-1 pl-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="truncate text-meta font-medium text-fg">
-            {tabLabel}
-          </span>
-          {searchOpen ? null : (
-            <>
-              <span className="shrink-0 text-fg-faint" aria-hidden="true">
-                ·
-              </span>
-              <span className="shrink-0 text-meta text-fg-faint tabular-nums">
-                {isLoading
-                  ? "Loading…"
-                  : isFiltered
-                    ? `${visible.length} of ${prs.length}`
-                    : `${prs.length} open`}
-              </span>
-              <span className="h-3 w-px shrink-0 bg-line" aria-hidden="true" />
-            </>
-          )}
-          {searchOpen ? (
-            <label className="relative block min-w-0 flex-1">
-              <Search
-                className="pointer-events-none absolute top-1/2 left-1.5 size-3.5 -translate-y-1/2 text-fg-faint"
-                aria-hidden
-              />
-              <input
-                ref={searchRef}
-                type="text"
-                value={filters.query}
-                onChange={(event) => setFilterQuery(event.target.value)}
-                onBlur={() => {
-                  if (filters.query.trim() === "") setSearchOpen(false);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key !== "Escape") return;
-                  event.preventDefault();
-                  event.stopPropagation();
-                  if (filters.query) {
-                    setFilterQuery("");
-                  } else {
-                    setSearchOpen(false);
-                    listRef.current?.focus();
-                  }
-                }}
-                placeholder="Search pull requests"
-                aria-label="Search pull requests"
-                className="h-7 w-full rounded-sm border border-line bg-surface px-7 text-meta text-fg placeholder:text-fg-faint focus:border-line-strong focus:outline-none"
-              />
-              {filters.query ? (
-                <button
-                  type="button"
-                  onClick={() => setFilterQuery("")}
-                  aria-label="Clear search"
-                  className="absolute top-1/2 right-1 flex size-5 -translate-y-1/2 items-center justify-center rounded-sm text-fg-faint transition-colors hover:text-fg"
-                >
-                  <X className="size-3.5" aria-hidden />
-                </button>
-              ) : null}
-            </label>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setSearchOpen(true)}
-              title="Search pull requests (/)"
-              className="min-w-0 truncate text-left text-meta text-fg-faint transition-colors hover:text-fg"
-            >
-              {filters.query ? (
-                <span className="text-fg-body">“{filters.query}”</span>
-              ) : (
-                "Search"
-              )}
-            </button>
-          )}
-        </div>
+      <PRListToolbar
+        tabLabel={tabLabel}
+        isLoading={isLoading}
+        isFiltered={isFiltered}
+        shown={visible.length}
+        total={prs.length}
+        repo={repo}
+        prs={prs}
+        filters={filters}
+        searchOpen={searchOpen}
+        filtersOpen={filtersOpen}
+        refreshing={refreshing}
+        onOpenSearch={openSearch}
+        onCloseSearch={closeSearch}
+        onFocusList={focusList}
+        onSetQuery={setFilterQuery}
+        onToggleFilters={toggleFilters}
+        onCloseFilters={closeFilters}
+        onRefresh={() => void refresh()}
+        onToggleFacet={toggleFilterFacet}
+        onSetFacet={setFilterFacet}
+        onToggleDrafts={toggleHideDrafts}
+        onClearFilters={clearAllFilters}
+      />
 
-        <div className="flex shrink-0 items-center gap-1">
-          <div ref={filterRef} className="relative">
-            <IconButton
-              label="Filter pull requests (f)"
-              active={filtersOpen || hasFacetFilters(filters)}
-              onClick={() => setFiltersOpen((open) => !open)}
-            >
-              <ListFilter className="size-4" aria-hidden />
-            </IconButton>
-            {filtersOpen ? (
-              <PRFilterPopover
-                prs={prs}
-                filters={filters}
-                showRepos={repo === null}
-                shown={visible.length}
-                total={prs.length}
-                onToggleFacet={toggleFilterFacet}
-                onSetFacet={setFilterFacet}
-                onToggleDrafts={toggleHideDrafts}
-                onClear={clearAllFilters}
-                onClose={() => setFiltersOpen(false)}
-              />
-            ) : null}
-          </div>
-
-          <IconButton
-            label="Refresh from GitHub"
-            onClick={() => void refresh()}
-            disabled={refreshing}
-          >
-            <RefreshCw
-              className={`size-4 ${refreshing ? "animate-spin" : ""}`}
-              aria-hidden
-            />
-          </IconButton>
-        </div>
-      </div>
-
-      {chips.length > 0 ? (
-        <div className="flex h-9 shrink-0 items-center gap-1 border-b border-line px-3">
-          <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-            {chips.map((chip) => (
-              <button
-                key={chip.key}
-                type="button"
-                onClick={() => removeChip(chip)}
-                aria-label={`Remove filter: ${chip.label}`}
-                className="inline-flex h-6 shrink-0 items-center gap-1 rounded-sm border border-line px-2 text-meta text-fg-body transition-colors hover:border-line-strong hover:text-fg"
-              >
-                <span
-                  className={
-                    chip.section === "authors" || chip.section === "repos"
-                      ? "font-mono"
-                      : undefined
-                  }
-                >
-                  {chip.label}
-                </span>
-                <X className="size-3 text-fg-faint" aria-hidden />
-              </button>
-            ))}
-          </div>
-          <Button
-            variant="ghost"
-            onClick={clearPRFilters}
-            className="shrink-0 px-2 text-meta text-fg-faint hover:bg-transparent hover:text-fg"
-          >
-            Clear
-          </Button>
-        </div>
-      ) : null}
+      <PRFilterChips
+        chips={chips}
+        onRemove={removeChip}
+        onClear={clearPRFilters}
+      />
 
       {refreshError ? (
         <p
@@ -372,83 +191,26 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
         </p>
       ) : null}
 
-      <div
-        ref={viewportRef}
-        className={cx(
-          "min-h-0 flex-1 overflow-y-auto",
-          scrollEdgeClass(scrollEdges),
-        )}
-      >
-        {isLoading && !query.isError ? (
-          <div aria-hidden="true">
-            {Array.from({ length: 8 }, (_, index) => (
-              <div
-                key={index}
-                className="flex h-13 flex-col justify-center gap-2 border-b border-line px-3"
-              >
-                <div className="h-3 w-2/3 shimmer rounded-sm" />
-                <div className="h-2.5 w-1/3 shimmer rounded-sm" />
-              </div>
-            ))}
-          </div>
-        ) : query.isError ? (
-          <ErrorState
-            title="Can’t load pull requests"
-            message={describeError(query.error)}
-            retrying={query.isFetching}
-            onRetry={() => void query.refetch()}
-          />
-        ) : prs.length === 0 ? (
-          <EmptyState
-            title={`No pull requests in ${tabLabel}`}
-            description={`Nothing open in ${scope}.`}
-            footnote="Refresh pulls fresh data from GitHub."
-          />
-        ) : visible.length === 0 ? (
-          <EmptyState
-            title="No pull requests match"
-            description={
-              filters.query
-                ? `Nothing matches “${filters.query}” in ${scope}.`
-                : `No open pull requests match the current filters in ${scope}.`
-            }
-            footnote="Press / to search, f to change filters."
-            action={
-              <Button
-                variant="outline"
-                onClick={clearAllFilters}
-                className="mt-1"
-              >
-                Clear filters
-              </Button>
-            }
-          />
-        ) : (
-          <div
-            ref={listRef}
-            role="listbox"
-            aria-label={`${tabLabel} pull requests`}
-            tabIndex={0}
-            onKeyDown={handleKeyDown}
-            className="outline-none"
-          >
-            {visible.map((pr, index) => (
-              <PRRow
-                key={`${pr.repo}#${pr.number}`}
-                pr={pr}
-                active={index === cursor}
-                selected={selectedPR === `${pr.repo}#${pr.number}`}
-                showRepo={repo === null}
-                showAuthor={tabID !== "mine"}
-                onPick={() => pick(index)}
-                elementRef={(element) => {
-                  rowRefs.current[index] = element;
-                }}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      <PRListBody
+        query={query}
+        listRef={listRef}
+        visible={visible}
+        prs={prs}
+        filters={filters}
+        isLoading={isLoading}
+        tabID={tabID}
+        tabLabel={tabLabel}
+        repo={repo}
+        scope={scope}
+        selectedPR={selectedPR}
+        onPick={pickPR}
+        onRetry={() => void query.refetch()}
+        onClearFilters={clearAllFilters}
+        onOpenSearch={openSearch}
+        onToggleFilters={toggleFilters}
+        onCloseFilters={closeFilters}
+        onClearSelection={() => selectPR(null)}
+      />
     </div>
   );
 }
