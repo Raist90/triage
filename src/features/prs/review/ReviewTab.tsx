@@ -64,7 +64,7 @@ export function ReviewTab({
   const canceled = !running && phase === "canceled";
 
   return (
-    <section className="flex flex-col gap-3">
+    <section className="mx-auto flex w-full max-w-[68ch] flex-col gap-3">
       {running || artifact ? (
         <div className="flex min-h-7 justify-end">
           {running ? (
