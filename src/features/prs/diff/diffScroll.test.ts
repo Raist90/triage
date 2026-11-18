@@ -29,10 +29,10 @@ describe("clampedAtBottom", () => {
     ).toBe(false);
   });
 
-  test("is true when the content fits without scrolling", () => {
+  test("is false when the content fits without scrolling", () => {
     expect(
       clampedAtBottom({ scrollTop: 0, clientHeight: 500, scrollHeight: 500 }),
-    ).toBe(true);
+    ).toBe(false);
   });
 });
 

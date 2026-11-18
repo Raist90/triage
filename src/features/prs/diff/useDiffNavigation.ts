@@ -267,23 +267,26 @@ export function useDiffNavigation({
       // Inferring from viewport position here is what used to highlight the
       // wrong file right after a sidebar click.
       if (programmaticScroll.current) return;
-      const threshold = pane.getBoundingClientRect().top + 1;
-      // Only rendered file bodies can own the scroll selection. A collapsed
-      // file is a 36px header and scroll clamping can leave it under the top
-      // edge after a jump to a short last file, so letting it win would steal
-      // the highlight from the file the user just opened.
-      const entries = visibleRef.current.filter(({ key }) =>
-        expandedRef.current.has(key),
-      );
-      if (entries.length === 0) return;
+      const visibleEntries = visibleRef.current;
+      if (visibleEntries.length === 0) return;
       // At the end of the pane the top edge can never reach the last files, so
       // short trailing files would never win the top-edge test. The last
-      // rendered body is what the user is looking at there.
+      // visible section owns the selection there, collapsed or not: its header
+      // is what sits at the bottom of the viewport.
       if (clampedAtBottom(pane)) {
-        const last = entries[entries.length - 1].key;
+        const last = visibleEntries[visibleEntries.length - 1].key;
         setActiveKey((previous) => (previous === last ? previous : last));
         return;
       }
+      // Only rendered file bodies can own top-edge inference. A collapsed file
+      // is a 36px header and scroll clamping can leave it under the top edge
+      // after a jump to a short last file, so letting it win would steal the
+      // highlight from the file the user just opened.
+      const entries = visibleEntries.filter(({ key }) =>
+        expandedRef.current.has(key),
+      );
+      if (entries.length === 0) return;
+      const threshold = pane.getBoundingClientRect().top + 1;
       const sections: SectionRect[] = [];
       for (const { key } of entries) {
         const element = sectionRefs.current.get(key);
