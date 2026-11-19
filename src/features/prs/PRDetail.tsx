@@ -15,6 +15,7 @@ import { DetailTabs, type DetailTab, type TabDef } from "./detail/DetailTabs";
 import { DiffTab } from "./detail/DiffTab";
 import { ExplainTab } from "./detail/ExplainTab";
 import { PRDetailBar } from "./detail/PRDetailBar";
+import { PRDetailProvider } from "./detail/PRDetailProvider";
 import { PRHeader } from "./detail/PRHeader";
 import { PRSummary } from "./detail/PRSummary";
 import { ReviewPanel } from "./detail/ReviewPanel";
@@ -215,79 +216,76 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <PRDetailBar
-        repo={repo}
-        number={number}
-        pr={pr}
-        review={review}
-        mutations={mutations}
-        fullscreen={fullscreen}
-        onClose={closeDetail}
-        onToggleFullscreen={toggleFullscreen}
-      />
+    <PRDetailProvider value={{ repo, number, pr, mutations, review }}>
+      <div className="flex h-full min-h-0 flex-col">
+        <PRDetailBar
+          fullscreen={fullscreen}
+          onClose={closeDetail}
+          onToggleFullscreen={toggleFullscreen}
+        />
 
-      {isOpen ? <ReviewPanel review={review} /> : null}
-      {pr && isOpen ? <PRStatePanel pr={pr} mutations={mutations} /> : null}
+        {isOpen ? <ReviewPanel /> : null}
+        {pr && isOpen ? <PRStatePanel /> : null}
 
-      <div className="flex min-h-0 flex-1">
-        <div className="flex min-w-0 flex-1 flex-col">
-          {detailQuery.isPending ? (
-            <DetailSkeleton />
-          ) : detailQuery.isError ? (
-            <ErrorState
-              title="Can’t load this pull request"
-              message={describeError(detailQuery.error)}
-              retrying={detailQuery.isFetching}
-              onRetry={() => void detailQuery.refetch()}
-            />
-          ) : pr && !isOpen ? (
-            <PRSummary pr={pr} />
-          ) : pr ? (
-            <>
-              <PRHeader pr={pr} />
-              <DetailTabs tabs={tabs} active={activeTab} onSelect={setTab} />
+        <div className="flex min-h-0 flex-1">
+          <div className="flex min-w-0 flex-1 flex-col">
+            {detailQuery.isPending ? (
+              <DetailSkeleton />
+            ) : detailQuery.isError ? (
+              <ErrorState
+                title="Can’t load this pull request"
+                message={describeError(detailQuery.error)}
+                retrying={detailQuery.isFetching}
+                onRetry={() => void detailQuery.refetch()}
+              />
+            ) : pr && !isOpen ? (
+              <PRSummary pr={pr} />
+            ) : pr ? (
+              <>
+                <PRHeader pr={pr} />
+                <DetailTabs tabs={tabs} active={activeTab} onSelect={setTab} />
 
-              <DetailPanel activeTab={activeTab}>
-                {activeTab === "conversation" ? (
-                  <Conversation pr={pr} comments={comments} />
-                ) : null}
+                <DetailPanel activeTab={activeTab}>
+                  {activeTab === "conversation" ? (
+                    <Conversation pr={pr} comments={comments} />
+                  ) : null}
 
-                {activeTab === "diff" ? (
-                  <DiffTab
-                    pr={pr}
-                    prKey={prKey}
-                    diffQuery={diffQuery}
-                    comments={diffComments}
-                    focusTarget={diffTarget ?? undefined}
-                  />
-                ) : null}
+                  {activeTab === "diff" ? (
+                    <DiffTab
+                      pr={pr}
+                      prKey={prKey}
+                      diffQuery={diffQuery}
+                      comments={diffComments}
+                      focusTarget={diffTarget ?? undefined}
+                    />
+                  ) : null}
 
-                {activeTab === "review" ? (
-                  <ReviewTab
-                    repo={repo}
-                    number={number}
-                    controller={reviewController}
-                    reviewAvailable={configuredRepo?.review.available ?? false}
-                    unavailableReason={configuredRepo?.review.reason}
-                    configPath={configQuery.data?.configPath}
-                    diffFiles={diffQuery.data?.files}
-                    onOpenInDiff={openInDiff}
-                  />
-                ) : null}
+                  {activeTab === "review" ? (
+                    <ReviewTab
+                      controller={reviewController}
+                      reviewAvailable={
+                        configuredRepo?.review.available ?? false
+                      }
+                      unavailableReason={configuredRepo?.review.reason}
+                      configPath={configQuery.data?.configPath}
+                      diffFiles={diffQuery.data?.files}
+                      onOpenInDiff={openInDiff}
+                    />
+                  ) : null}
 
-                {activeTab === "explain" ? (
-                  <ExplainTab controller={explain} />
-                ) : null}
-              </DetailPanel>
-            </>
+                  {activeTab === "explain" ? (
+                    <ExplainTab controller={explain} />
+                  ) : null}
+                </DetailPanel>
+              </>
+            ) : null}
+          </div>
+
+          {pr && isOpen && activeTab !== "diff" ? (
+            <ContextRail diff={diffQuery.data} />
           ) : null}
         </div>
-
-        {pr && isOpen && activeTab !== "diff" ? (
-          <ContextRail pr={pr} diff={diffQuery.data} />
-        ) : null}
       </div>
-    </div>
+    </PRDetailProvider>
   );
 }

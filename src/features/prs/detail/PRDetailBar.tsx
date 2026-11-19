@@ -2,33 +2,22 @@ import { ArrowLeft, ExternalLink, Maximize2, Minimize2 } from "lucide-react";
 import { IconButton } from "../../../components/ui";
 import { cx } from "../../../lib/cx";
 import { openExternal } from "../../../lib/open";
-import type { PR } from "../../../lib/types";
 import { PRStateActions } from "./PRStateActions";
-import type { PRMutationController } from "./usePRMutations";
-import type { ReviewController } from "./useReview";
+import { usePRDetailContext } from "./PRDetailContext";
 import { ReviewHeaderActions } from "./ReviewHeaderActions";
 
 type PRDetailBarProps = {
-  repo: string;
-  number: number;
-  pr?: PR;
-  review: ReviewController;
-  mutations: PRMutationController;
   fullscreen: boolean;
   onClose: () => void;
   onToggleFullscreen: () => void;
 };
 
 export function PRDetailBar({
-  repo,
-  number,
-  pr,
-  review,
-  mutations,
   fullscreen,
   onClose,
   onToggleFullscreen,
 }: PRDetailBarProps) {
+  const { repo, number, pr } = usePRDetailContext();
   return (
     <div
       data-tauri-drag-region
@@ -50,8 +39,8 @@ export function PRDetailBar({
         <span className="px-1 text-line-strong">#</span>
         <span className="text-fg-muted">{number}</span>
       </span>
-      {pr ? <ReviewHeaderActions pr={pr} review={review} /> : null}
-      {pr ? <PRStateActions pr={pr} mutations={mutations} /> : null}
+      {pr ? <ReviewHeaderActions /> : null}
+      {pr ? <PRStateActions /> : null}
       <div className="ml-auto flex shrink-0 items-center gap-1">
         <IconButton
           label={

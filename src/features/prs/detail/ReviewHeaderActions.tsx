@@ -1,16 +1,12 @@
 import { Check, MessageSquare } from "lucide-react";
 import { Button } from "../../../components/ui";
-import type { PR } from "../../../lib/types";
-import { canApprove, canReview, type ReviewController } from "./useReview";
-
-type ReviewHeaderActionsProps = {
-  pr: PR;
-  review: ReviewController;
-};
+import { usePRDetailContext } from "./PRDetailContext";
+import { canApprove, canReview } from "./useReview";
 
 /** Compact review controls for the 44px detail bar. */
-export function ReviewHeaderActions({ pr, review }: ReviewHeaderActionsProps) {
-  if (!canReview(pr)) return null;
+export function ReviewHeaderActions() {
+  const { pr, review } = usePRDetailContext();
+  if (!pr || !canReview(pr)) return null;
 
   return (
     <div className="flex shrink-0 items-center gap-2">
