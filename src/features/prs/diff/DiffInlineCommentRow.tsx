@@ -3,19 +3,18 @@ import { Markdown } from "../../../components/Markdown";
 import { Button } from "../../../components/ui";
 import type { InlineComment } from "../../../lib/types";
 import { formatRelative } from "../../../lib/time";
-import type { DiffCommentsController } from "./useDiffComments";
+import { useDiffCommentsContext } from "./DiffCommentsContext";
 
 type InlineCommentRowProps = {
   comment: InlineComment;
-  comments: DiffCommentsController;
   canDelete: boolean;
 };
 
 export function InlineCommentRow({
   comment,
-  comments,
   canDelete,
 }: InlineCommentRowProps) {
+  const { comments } = useDiffCommentsContext();
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const reply = comment.inReplyToID !== undefined;
