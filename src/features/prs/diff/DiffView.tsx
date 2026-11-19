@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { cx } from "../../../lib/cx";
 import type {
@@ -121,31 +121,19 @@ export function DiffView({
     visible: displayEntries,
     visibleSignature: displaySignature,
     firstVisibleKey: displayFirstKey,
+    focusModeApplies: !pathMode,
     focusTarget,
   });
 
-  // Read inside the step effect: toggling focus mode must not look like a step
-  // change and reset the pane.
-  const focusModeRef = useRef(focusMode);
-  useEffect(() => {
-    focusModeRef.current = focusMode;
-  }, [focusMode]);
-
-  // A step is a commit. Opening it shows its files together, except in focus
-  // mode, which keeps one file at a time. The user can collapse any of them
-  // afterwards.
+  // A step is a commit, so opening it always shows its files together. Focus
+  // mode is a file-list policy and does not apply here; the user can still
+  // collapse individual files afterwards.
   const stepID = activeStep?.id;
   useEffect(() => {
     if (!pathMode) return;
-    const keys = pathFiles.map((entry) => entry.key);
-    const first = keys[0];
-    if (focusModeRef.current && first !== undefined) {
-      selectFile(first);
-    } else {
-      expandFiles(keys);
-    }
+    expandFiles(pathFiles.map((entry) => entry.key));
     if (paneRef.current) paneRef.current.scrollTop = 0;
-  }, [pathMode, stepID, pathFiles, expandFiles, selectFile, paneRef]);
+  }, [pathMode, stepID, pathFiles, expandFiles, paneRef]);
 
   const scrollEdges = useScrollEdges(paneRef);
   const { width: railWidth, rootRef, separatorProps } = useResizableRail();
@@ -324,7 +312,7 @@ export function DiffView({
             paneRef={paneRef}
             files={displayEntries}
             expanded={expanded}
-            singleFile={focusMode}
+            singleFile={!pathMode && focusMode}
             layoutKey={railLayoutKey}
             onJump={selectHunk}
           />

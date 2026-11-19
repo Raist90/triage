@@ -715,7 +715,7 @@ describe("DiffView", () => {
     expect(screen.getByLabelText("Files in this pull request")).toBeDefined();
   });
 
-  test("path mode keeps focus mode and the semantic map working", () => {
+  test("path mode opens a step's files together without a focus toggle", () => {
     const a = fileA();
     a.semantic = [
       {
@@ -749,14 +749,18 @@ describe("DiffView", () => {
 
     expect(screen.getByLabelText("Semantic change map")).toBeDefined();
     expect(screen.getByText("alpha added")).toBeDefined();
-    expect(screen.queryByText("beta added")).toBeNull();
-
-    fireEvent.click(screen.getByRole("button", { name: "Show all files" }));
     expect(screen.getByText("beta added")).toBeDefined();
+    expect(screen.queryByRole("button", { name: "Show all files" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Show one file at a time" }),
+    ).toBeNull();
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "Show one file at a time" }),
-    );
-    expect(screen.queryByText("beta added")).toBeNull();
+    // Collapsing one file of the step must not collapse the other.
+    const section = screen.getByText("alpha added").closest("section");
+    expect(section).not.toBeNull();
+    fireEvent.click(within(section!).getByRole("button", { name: /a\.ts/ }));
+
+    expect(screen.queryByText("alpha added")).toBeNull();
+    expect(screen.getByText("beta added")).toBeDefined();
   });
 });

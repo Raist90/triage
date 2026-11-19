@@ -106,13 +106,15 @@ export function DiffToolbar({
             <ListTree className="size-4" aria-hidden />
           </IconButton>
         ) : null}
-        <IconButton
-          label={focusMode ? "Show all files" : "Show one file at a time"}
-          active={focusMode}
-          onClick={onToggleFocusMode}
-        >
-          <Focus className="size-4" aria-hidden />
-        </IconButton>
+        {pathMode ? null : (
+          <IconButton
+            label={focusMode ? "Show all files" : "Show one file at a time"}
+            active={focusMode}
+            onClick={onToggleFocusMode}
+          >
+            <Focus className="size-4" aria-hidden />
+          </IconButton>
+        )}
         {cosmeticFiles > 0 ? (
           <IconButton
             label="Hide cosmetic-only files"

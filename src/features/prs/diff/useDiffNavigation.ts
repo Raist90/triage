@@ -26,6 +26,8 @@ type UseDiffNavigationOptions = {
   visible: DiffFileEntry[];
   visibleSignature: string;
   firstVisibleKey: string | null;
+  /** False in the grouped path view: there a step opens as a unit. */
+  focusModeApplies: boolean;
   focusTarget?: DiffTarget;
 };
 
@@ -41,6 +43,7 @@ export function useDiffNavigation({
   visible,
   visibleSignature,
   firstVisibleKey,
+  focusModeApplies,
   focusTarget,
 }: UseDiffNavigationOptions) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -64,7 +67,7 @@ export function useDiffNavigation({
   // Keep the latest values reachable from the stable window key handler.
   const visibleRef = useRef(visible);
   const activeKeyRef = useRef(activeKey);
-  const focusModeRef = useRef(focusMode);
+  const singleFileRef = useRef(focusMode && focusModeApplies);
   const expandedRef = useRef(expanded);
   const selectRef = useRef<(key: string) => void>(() => {});
 
@@ -73,7 +76,7 @@ export function useDiffNavigation({
   useEffect(() => {
     visibleRef.current = visible;
     activeKeyRef.current = activeKey;
-    focusModeRef.current = focusMode;
+    singleFileRef.current = focusMode && focusModeApplies;
     expandedRef.current = expanded;
   });
 
@@ -118,7 +121,7 @@ export function useDiffNavigation({
     programmaticScroll.current = true;
     setActiveKey(key);
     setExpanded((current) => {
-      const next = focusModeRef.current ? new Set<string>() : new Set(current);
+      const next = singleFileRef.current ? new Set<string>() : new Set(current);
       next.add(key);
       return next;
     });
@@ -223,7 +226,7 @@ export function useDiffNavigation({
     (key: string) => {
       setActiveKey(key);
       setExpanded((current) => {
-        const next = focusModeRef.current
+        const next = singleFileRef.current
           ? new Set<string>()
           : new Set(current);
         next.add(key);
@@ -240,7 +243,7 @@ export function useDiffNavigation({
     (key: string, hunkIndex: number) => {
       setActiveKey(key);
       setExpanded((current) => {
-        const next = focusModeRef.current
+        const next = singleFileRef.current
           ? new Set<string>()
           : new Set(current);
         next.add(key);
@@ -255,7 +258,7 @@ export function useDiffNavigation({
   const toggleFile = useCallback((key: string) => {
     setActiveKey(key);
     setExpanded((current) => {
-      const next = focusModeRef.current ? new Set<string>() : new Set(current);
+      const next = singleFileRef.current ? new Set<string>() : new Set(current);
       if (current.has(key)) {
         next.delete(key);
       } else {
