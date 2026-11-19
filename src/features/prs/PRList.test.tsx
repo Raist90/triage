@@ -14,6 +14,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
+import { QueryClient } from "@tanstack/react-query";
 import * as actualApi from "../../lib/api";
 import { LIVE_BASE_MS } from "../../lib/liveRefresh";
 import type { PRListResponse } from "../../lib/types";
@@ -134,6 +135,76 @@ describe("PRList", () => {
     await waitFor(() => expect(screen.getAllByRole("option")).toHaveLength(1));
     expect(screen.getByText("Middle change")).toBeDefined();
     expect(getPRs.mock.calls.length).toBe(callCount);
+  });
+
+  test("f still opens filters when the search empties the list", async () => {
+    getPRs.mockImplementation(async () => listResponse());
+    await renderList();
+
+    fireEvent.keyDown(screen.getByRole("listbox"), { key: "/" });
+    fireEvent.change(screen.getByLabelText("Search pull requests"), {
+      target: { value: "no-such-pr" },
+    });
+
+    const empty = await screen.findByRole("group", {
+      name: "All open pull requests",
+    });
+    fireEvent.keyDown(empty, { key: "f" });
+
+    expect(
+      await screen.findByRole("checkbox", { name: "Hide drafts" }),
+    ).toBeDefined();
+  });
+
+  test("keys stay inert while a placeholder load is on screen", async () => {
+    const client = createTestQueryClient();
+    client.setQueryData(["prs", null, "all"], listResponse());
+    getPRs.mockImplementation(() => new Promise<PRListResponse>(() => {}));
+
+    const { rerender } = renderWithQuery(
+      <PRList tabID="all" tabLabel="All open" repo={null} />,
+      { client },
+    );
+    expect(await screen.findAllByRole("option")).toHaveLength(3);
+
+    // A new tab keeps the old rows in `data` while the skeleton renders.
+    rerender(<PRList tabID="mine" tabLabel="My PRs" repo={null} />);
+    await screen.findByText("Loading…");
+
+    const surface = screen.getByRole("group", {
+      name: "My PRs pull requests",
+    });
+    expect(screen.queryAllByRole("option")).toHaveLength(0);
+    expect(surface.getAttribute("aria-activedescendant")).toBeNull();
+
+    act(() => useUIStore.setState({ selectedPR: null }));
+    fireEvent.keyDown(surface, { key: "Enter" });
+    expect(useUIStore.getState().selectedPR).toBeNull();
+  });
+
+  test("keys stay inert while the list is in an error state", async () => {
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, staleTime: 0, gcTime: Infinity },
+      },
+    });
+    client.setQueryData(["prs", null, "all"], listResponse());
+    getPRs.mockImplementation(() => Promise.reject(new Error("boom")));
+
+    renderWithQuery(<PRList tabID="all" tabLabel="All open" repo={null} />, {
+      client,
+    });
+    await screen.findByText(/Can’t load pull requests/);
+
+    const surface = screen.getByRole("group", {
+      name: "All open pull requests",
+    });
+    expect(screen.queryAllByRole("option")).toHaveLength(0);
+    expect(surface.getAttribute("aria-activedescendant")).toBeNull();
+
+    act(() => useUIStore.setState({ selectedPR: null }));
+    fireEvent.keyDown(surface, { key: "Enter" });
+    expect(useUIStore.getState().selectedPR).toBeNull();
   });
 
   test("refresh bypasses the cache and replaces the rows", async () => {
