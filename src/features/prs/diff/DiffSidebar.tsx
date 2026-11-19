@@ -327,7 +327,7 @@ function StepRow({
           : "hover:bg-surface/60"
       }`}
     >
-      <span className="flex min-w-0 items-baseline gap-2">
+      <span className="flex w-full min-w-0 items-baseline gap-2">
         <span className="w-3 shrink-0 font-mono text-micro text-fg-faint tabular-nums">
           {index + 1}
         </span>

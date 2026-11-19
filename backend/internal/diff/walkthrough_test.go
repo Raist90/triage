@@ -159,6 +159,16 @@ func TestBuildWalkthroughOrdersSourceByFocus(t *testing.T) {
 	}
 }
 
+func TestBuildWalkthroughKeepsLongStepTitles(t *testing.T) {
+	name := strings.Repeat("wide", 40)
+	files := []File{walkthroughFile("src/a.go", nil, changed(name))}
+
+	walkthrough := BuildWalkthrough(files)
+	if got, want := walkthrough.Steps[0].Title, "Change "+name; got != want {
+		t.Fatalf("title = %q, want the untruncated title", got)
+	}
+}
+
 func TestBuildWalkthroughCapsSourceSteps(t *testing.T) {
 	files := make([]File, 0, 12)
 	for index := range 12 {

@@ -42,7 +42,6 @@ const (
 	// a deletion and an addition in different files count as a move. Name and
 	// entity type already have to match.
 	moveSimilarity = 0.5
-	maxStepTitle   = 72
 )
 
 // walkthroughUnit is one assignable piece of the diff. hunk is -1 for a file
@@ -202,7 +201,7 @@ func walkthroughCosmeticOnly(file File) bool {
 func newWalkthroughStep(index int, files []File, units []walkthroughUnit, title string) WalkthroughStep {
 	step := WalkthroughStep{
 		ID:    fmt.Sprintf("step-%d", index+1),
-		Title: truncateStepTitle(title),
+		Title: normalizeStepTitle(title),
 		Files: make([]WalkthroughFile, 0, 2),
 	}
 	byPath := make(map[string]int)
@@ -448,11 +447,9 @@ func renameTitle(oldName, newName string) string {
 	return "Rename " + displayName(oldName, "") + " to " + displayName(newName, "")
 }
 
-func truncateStepTitle(title string) string {
-	title = strings.TrimSpace(strings.ReplaceAll(title, "\n", " "))
-	runes := []rune(title)
-	if len(runes) <= maxStepTitle {
-		return title
-	}
-	return string(runes[:maxStepTitle-1]) + "…"
+// normalizeStepTitle folds a generated title onto one line. Length is the
+// sidebar's problem: it truncates with CSS, so the full title stays in the
+// payload and in the row's tooltip.
+func normalizeStepTitle(title string) string {
+	return strings.TrimSpace(strings.ReplaceAll(title, "\n", " "))
 }
