@@ -763,4 +763,43 @@ describe("DiffView", () => {
     expect(screen.queryByText("alpha added")).toBeNull();
     expect(screen.getByText("beta added")).toBeDefined();
   });
+
+  test("j and k move between path steps and stop at the ends", () => {
+    const walkthrough: Walkthrough = {
+      steps: [
+        {
+          id: "step-1",
+          title: "Change a",
+          additions: 1,
+          deletions: 0,
+          files: [{ path: "src/a.ts", hunks: [0] }],
+        },
+        {
+          id: "step-2",
+          title: "Change b",
+          additions: 1,
+          deletions: 0,
+          files: [{ path: "src/b.ts", hunks: [0] }],
+        },
+      ],
+    };
+    renderDiff({ mode: "path", walkthrough });
+
+    expect(screen.getByText("alpha added")).toBeDefined();
+    expect(screen.queryByText("beta added")).toBeNull();
+
+    fireEvent.keyDown(window, { key: "j" });
+    expect(screen.getByText("beta added")).toBeDefined();
+    expect(screen.queryByText("alpha added")).toBeNull();
+
+    fireEvent.keyDown(window, { key: "j" });
+    expect(screen.getByText("beta added")).toBeDefined();
+
+    fireEvent.keyDown(window, { key: "k" });
+    expect(screen.getByText("alpha added")).toBeDefined();
+    expect(screen.queryByText("beta added")).toBeNull();
+
+    fireEvent.keyDown(window, { key: "k" });
+    expect(screen.getByText("alpha added")).toBeDefined();
+  });
 });

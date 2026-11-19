@@ -101,6 +101,13 @@ export function DiffView({
     ? `${activeStep?.id ?? ""}\u0000${pathFiles.map((entry) => entry.key).join("\u0000")}`
     : visibleSignature;
   const displayFirstKey = displayEntries[0]?.key ?? null;
+  const stepNavigation = pathMode
+    ? {
+        ids: walkthrough?.steps.map((step) => step.id) ?? [],
+        activeID: activeStep?.id ?? null,
+        onSelect: setActiveStepID,
+      }
+    : undefined;
 
   const {
     activeKey,
@@ -122,6 +129,7 @@ export function DiffView({
     visibleSignature: displaySignature,
     firstVisibleKey: displayFirstKey,
     focusModeApplies: !pathMode,
+    stepNavigation,
     focusTarget,
   });
 
