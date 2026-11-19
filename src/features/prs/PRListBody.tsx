@@ -60,13 +60,16 @@ export function PRListBody({
   onClearSelection,
 }: PRListBodyProps) {
   const scrollEdges = useScrollEdges(listRef);
-  const hasRows = visible.length > 0;
+  // Only rendered rows are keyboard-reachable: placeholder data and the rows
+  // retained behind an error must not be pickable.
+  const rows = isLoading || query.isError ? [] : visible;
+  const hasRows = rows.length > 0;
 
   const { cursor, handleKeyDown } = usePRListCursor({
-    count: visible.length,
+    count: rows.length,
     scrollRef: listRef,
     onPick: (index) => {
-      const pr = visible[index];
+      const pr = rows[index];
       if (pr) onPick(pr);
     },
     onSearch: onOpenSearch,
@@ -136,7 +139,7 @@ export function PRListBody({
           }
         />
       ) : (
-        visible.map((pr, index) => (
+        rows.map((pr, index) => (
           <PRRow
             key={`${pr.repo}#${pr.number}`}
             optionId={optionId(index)}

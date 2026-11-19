@@ -69,7 +69,9 @@ export function usePRListCursor({
           break;
         case "Enter":
           event.preventDefault();
-          onPick(cursor);
+          // No rendered rows means nothing to open, even if the owner still
+          // holds stale data behind a load or an error.
+          if (count > 0) onPick(cursor);
           break;
         case "Escape":
           event.preventDefault();
@@ -87,7 +89,7 @@ export function usePRListCursor({
           break;
       }
     },
-    [cursor, move, onDismiss, onPick, onSearch, onToggleFilters],
+    [count, cursor, move, onDismiss, onPick, onSearch, onToggleFilters],
   );
 
   return { cursor, handleKeyDown };
