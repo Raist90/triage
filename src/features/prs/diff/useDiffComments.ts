@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useMemo } from "react";
 import {
   deletePRComment,
   describeError,
@@ -9,6 +10,8 @@ import {
 import type { InlineComment } from "../../../lib/types";
 
 type NewComment = Omit<SubmitCommentOptions, "repo" | "number">;
+
+const EMPTY_COMMENTS: InlineComment[] = [];
 
 export type DiffCommentsController = {
   comments: InlineComment[];
@@ -54,27 +57,49 @@ export function useDiffComments(
     onSuccess: refresh,
   });
 
-  return {
-    comments: query.data?.comments ?? [],
-    pending: mutation.isPending,
-    deletingID: deleteMutation.isPending
-      ? (deleteMutation.variables ?? null)
-      : null,
-    submit: async (input) => {
+  // Destructured so the callbacks depend on the stable function itself rather
+  // than on the mutation result object, which is rebuilt every render.
+  const { mutateAsync: submitComment } = mutation;
+  const { mutateAsync: deleteComment } = deleteMutation;
+
+  const submit = useCallback(
+    async (input: NewComment) => {
       try {
-        await mutation.mutateAsync(input);
+        await submitComment(input);
         return null;
       } catch (error) {
         return describeError(error);
       }
     },
-    remove: async (commentID) => {
+    [submitComment],
+  );
+
+  const remove = useCallback(
+    async (commentID: number) => {
       try {
-        await deleteMutation.mutateAsync(commentID);
+        await deleteComment(commentID);
         return null;
       } catch (error) {
         return describeError(error);
       }
     },
-  };
+    [deleteComment],
+  );
+
+  // A stable controller keeps the memoized diff sections from re-rendering
+  // when an unrelated parent render asks for the same data again.
+  const comments = query.data?.comments ?? EMPTY_COMMENTS;
+  const deletingID = deleteMutation.isPending
+    ? (deleteMutation.variables ?? null)
+    : null;
+  return useMemo(
+    () => ({
+      comments,
+      pending: mutation.isPending,
+      deletingID,
+      submit,
+      remove,
+    }),
+    [comments, mutation.isPending, deletingID, submit, remove],
+  );
 }

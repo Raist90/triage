@@ -32,11 +32,14 @@ export function clampedAtBottom(pane: {
 export function activeSectionKey(
   sections: SectionRect[],
   threshold: number,
+  /** Live entries; the scroll handler reuses one buffer, so it can hold more. */
+  count = sections.length,
 ): string | null {
   let firstBelow: string | null = null;
-  for (const { key, top, bottom } of sections) {
+  for (let index = 0; index < count; index += 1) {
+    const { key, top, bottom } = sections[index];
     if (top <= threshold && bottom > threshold) return key;
     if (firstBelow === null && top > threshold) firstBelow = key;
   }
-  return firstBelow ?? sections[sections.length - 1]?.key ?? null;
+  return firstBelow ?? sections[count - 1]?.key ?? null;
 }

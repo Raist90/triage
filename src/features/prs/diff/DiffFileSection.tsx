@@ -1,4 +1,5 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
+import { memo, useCallback } from "react";
 import type { DiffFile } from "../../../lib/types";
 import { isCosmeticFile, reviewSignals, splitPath } from "./diffFile";
 import { FilePatch } from "./DiffPatch";
@@ -15,23 +16,32 @@ type DiffFileSectionProps = {
   file: DiffFile;
   fileKey: string;
   open: boolean;
-  onToggle: () => void;
-  sectionRef: (element: HTMLElement | null) => void;
+  /** Stable across renders: the section supplies its own key. */
+  onToggle: (fileKey: string) => void;
+  /** Stable across renders: the section registers itself in the scroll map. */
+  onSectionRef: (fileKey: string, element: HTMLElement | null) => void;
   comments: DiffCommentsController;
   headSHA: string;
   canComment: boolean;
+  /** Only the section that owns the open composer receives the draft key. */
   draft: string | null;
   onDraftChange: (key: string | null) => void;
   viewerLogin?: string;
+  /** Only the target section receives the flash label. */
   flash: string | null;
 };
 
-export function DiffFileSection({
+/**
+ * Memoized so a selection, jump or draft change with every file expanded only
+ * re-renders the sections whose own props changed. Every prop here must stay
+ * referentially stable; the parent passes shared handlers, never closures.
+ */
+export const DiffFileSection = memo(function DiffFileSection({
   file,
   fileKey,
   open,
   onToggle,
-  sectionRef,
+  onSectionRef,
   comments,
   headSHA,
   canComment,
@@ -48,6 +58,11 @@ export function DiffFileSection({
       comment.commitID === headSHA &&
       comment.line !== undefined,
   ).length;
+  const sectionRef = useCallback(
+    (element: HTMLElement | null) => onSectionRef(fileKey, element),
+    [fileKey, onSectionRef],
+  );
+  const toggle = useCallback(() => onToggle(fileKey), [fileKey, onToggle]);
 
   return (
     <section
@@ -57,7 +72,7 @@ export function DiffFileSection({
     >
       <button
         type="button"
-        onClick={onToggle}
+        onClick={toggle}
         aria-expanded={open}
         className="sticky top-0 z-10 flex h-9 w-full items-center gap-2 border-b border-line bg-canvas px-2 text-left transition-colors hover:bg-surface"
       >
@@ -126,4 +141,4 @@ export function DiffFileSection({
       ) : null}
     </section>
   );
-}
+});

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { findHunkIndex } from "./diffFile";
 import type { DiffFileEntry, DiffTarget } from "./diffSelection";
 import {
@@ -11,6 +11,15 @@ type Jump = {
   key: string;
   hunkIndex?: number;
   token: number;
+};
+
+/**
+ * Briefly highlighted target. `key` names the owning file so only that section
+ * receives the label and the rest can stay memoized.
+ */
+type Flash = {
+  key: string;
+  label: string;
 };
 
 type UseDiffNavigationOptions = {
@@ -38,13 +47,16 @@ export function useDiffNavigation({
   const [focusMode, setFocusMode] = useState(true);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [jump, setJump] = useState<Jump | null>(null);
-  const [flash, setFlash] = useState<string | null>(null);
+  const [flash, setFlash] = useState<Flash | null>(null);
   const initialized = useRef(false);
 
   const paneRef = useRef<HTMLDivElement | null>(null);
   const filterInputRef = useRef<HTMLInputElement | null>(null);
   const sectionRefs = useRef(new Map<string, HTMLElement>());
   const scrollFrame = useRef<number | null>(null);
+  // Reused scratch buffer: the scroll handler runs once per frame over every
+  // expanded section, so it must not allocate a fresh array each time.
+  const sectionRects = useRef<SectionRect[]>([]);
   // Set while a click-driven jump owns the selection. Scroll inference must not
   // overwrite it; it only clears when the user scrolls for real.
   const programmaticScroll = useRef(false);
@@ -110,7 +122,11 @@ export function useDiffNavigation({
       next.add(key);
       return next;
     });
-    setFlash(hunkIndex === undefined ? key : `${key}:${hunkIndex}`);
+    setFlash(
+      hunkIndex === undefined
+        ? { key, label: key }
+        : { key, label: `${key}:${hunkIndex}` },
+    );
     setJump((current) => ({
       key,
       hunkIndex,
@@ -192,39 +208,51 @@ export function useDiffNavigation({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  function requestJump(key: string, hunkIndex?: number) {
+  // Stable so a memoized file section never re-renders because the parent
+  // render handed it a fresh closure. They read mutable state through refs.
+  const requestJump = useCallback((key: string, hunkIndex?: number) => {
     programmaticScroll.current = true;
     setJump((current) => ({
       key,
       hunkIndex,
       token: (current?.token ?? 0) + 1,
     }));
-  }
+  }, []);
 
-  function selectFile(key: string) {
-    setActiveKey(key);
-    setExpanded((current) => {
-      const next = focusModeRef.current ? new Set<string>() : new Set(current);
-      next.add(key);
-      return next;
-    });
-    requestJump(key);
-  }
+  const selectFile = useCallback(
+    (key: string) => {
+      setActiveKey(key);
+      setExpanded((current) => {
+        const next = focusModeRef.current
+          ? new Set<string>()
+          : new Set(current);
+        next.add(key);
+        return next;
+      });
+      requestJump(key);
+    },
+    [requestJump],
+  );
 
   // A semantic tick owns its own hunk target: expand the file, then land on the
   // hunk header instead of the top of the file.
-  function selectHunk(key: string, hunkIndex: number) {
-    setActiveKey(key);
-    setExpanded((current) => {
-      const next = focusModeRef.current ? new Set<string>() : new Set(current);
-      next.add(key);
-      return next;
-    });
-    setFlash(`${key}:${hunkIndex}`);
-    requestJump(key, hunkIndex);
-  }
+  const selectHunk = useCallback(
+    (key: string, hunkIndex: number) => {
+      setActiveKey(key);
+      setExpanded((current) => {
+        const next = focusModeRef.current
+          ? new Set<string>()
+          : new Set(current);
+        next.add(key);
+        return next;
+      });
+      setFlash({ key, label: `${key}:${hunkIndex}` });
+      requestJump(key, hunkIndex);
+    },
+    [requestJump],
+  );
 
-  function toggleFile(key: string) {
+  const toggleFile = useCallback((key: string) => {
     setActiveKey(key);
     setExpanded((current) => {
       const next = focusModeRef.current ? new Set<string>() : new Set(current);
@@ -238,9 +266,9 @@ export function useDiffNavigation({
     // Collapsing or expanding reflows the pane; keep the clicked file selected
     // instead of letting the scroll handler reassign it.
     programmaticScroll.current = true;
-  }
+  }, []);
 
-  function toggleFocusMode() {
+  const toggleFocusMode = useCallback(() => {
     const next = !focusMode;
     setFocusMode(next);
     if (next) {
@@ -251,13 +279,13 @@ export function useDiffNavigation({
       // ones they do not want to read.
       setExpanded(new Set(visible.map(({ key }) => key)));
     }
-  }
+  }, [focusMode, activeKey, firstVisibleKey, visible]);
 
-  function releaseScrollLock() {
+  const releaseScrollLock = useCallback(() => {
     programmaticScroll.current = false;
-  }
+  }, []);
 
-  function handleScroll() {
+  const handleScroll = useCallback(() => {
     if (scrollFrame.current !== null) return;
     scrollFrame.current = requestAnimationFrame(() => {
       scrollFrame.current = null;
@@ -278,27 +306,34 @@ export function useDiffNavigation({
         setActiveKey((previous) => (previous === last ? previous : last));
         return;
       }
-      // Only rendered file bodies can own top-edge inference. A collapsed file
-      // is a 36px header and scroll clamping can leave it under the top edge
-      // after a jump to a short last file, so letting it win would steal the
-      // highlight from the file the user just opened.
-      const entries = visibleEntries.filter(({ key }) =>
-        expandedRef.current.has(key),
-      );
-      if (entries.length === 0) return;
       const threshold = pane.getBoundingClientRect().top + 1;
-      const sections: SectionRect[] = [];
-      for (const { key } of entries) {
+      // Only rendered file bodies can own the scroll selection. A collapsed
+      // file is a 36px header and scroll clamping can leave it under the top
+      // edge after a jump to a short last file, so letting it win would steal
+      // the highlight from the file the user just opened.
+      const sections = sectionRects.current;
+      let count = 0;
+      for (const { key } of visibleEntries) {
+        if (!expandedRef.current.has(key)) continue;
         const element = sectionRefs.current.get(key);
         if (!element) continue;
         const rect = element.getBoundingClientRect();
-        sections.push({ key, top: rect.top, bottom: rect.bottom });
+        let slot = sections[count];
+        if (!slot) {
+          slot = { key, top: 0, bottom: 0 };
+          sections[count] = slot;
+        }
+        slot.key = key;
+        slot.top = rect.top;
+        slot.bottom = rect.bottom;
+        count += 1;
       }
-      const current = activeSectionKey(sections, threshold);
+      if (count === 0) return;
+      const current = activeSectionKey(sections, threshold, count);
       if (!current) return;
       setActiveKey((previous) => (previous === current ? previous : current));
     });
-  }
+  }, []);
 
   useEffect(() => {
     selectRef.current = selectFile;
