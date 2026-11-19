@@ -43,6 +43,9 @@ const initialUIState = useUIStore.getState();
 
 beforeEach(() => {
   useUIStore.setState(initialUIState, true);
+  // The snapshot is taken at module load; an earlier test file in the same
+  // process may have left a selection behind.
+  useUIStore.setState({ selectedPR: null, detailOpen: false });
   getPRs.mockClear();
   getPR.mockClear();
   getPRDiff.mockClear();
@@ -101,13 +104,26 @@ describe("PRList", () => {
     });
   });
 
-  test("j moves the cursor and Enter opens that pull request", async () => {
+  test("j highlights the row at once and opens it when the cursor rests", async () => {
     getPRs.mockImplementation(async () => listResponse());
     await renderList();
 
-    const listbox = screen.getByRole("listbox");
-    fireEvent.keyDown(listbox, { key: "j" });
-    fireEvent.keyDown(listbox, { key: "Enter" });
+    fireEvent.keyDown(screen.getByRole("listbox"), { key: "j" });
+
+    const rows = screen.getAllByRole("option");
+    expect(rows[1].getAttribute("aria-selected")).toBe("true");
+    expect(useUIStore.getState().selectedPR).toBeNull();
+
+    await waitFor(() =>
+      expect(useUIStore.getState().selectedPR).toBe("acme/web#1"),
+    );
+  });
+
+  test("clicking a row opens it without waiting for the cursor", async () => {
+    getPRs.mockImplementation(async () => listResponse());
+    await renderList();
+
+    fireEvent.click(screen.getAllByRole("option")[1]);
 
     expect(useUIStore.getState().selectedPR).toBe("acme/web#1");
   });
@@ -118,9 +134,19 @@ describe("PRList", () => {
 
     const listbox = screen.getByRole("listbox");
     fireEvent.keyDown(listbox, { key: "k" });
-    fireEvent.keyDown(listbox, { key: "Enter" });
 
+    const rows = screen.getAllByRole("option");
+    expect(rows[0].getAttribute("aria-selected")).toBe("true");
+    expect(useUIStore.getState().selectedPR).toBeNull();
+
+    await waitFor(() =>
+      expect(useUIStore.getState().selectedPR).toBe("acme/web#2"),
+    );
+
+    fireEvent.keyDown(listbox, { key: "k" });
+    await act(async () => {});
     expect(useUIStore.getState().selectedPR).toBe("acme/web#2");
+    expect(getPR).not.toHaveBeenCalled();
   });
 
   test("/ opens search and narrows the list without a new request", async () => {
@@ -178,7 +204,7 @@ describe("PRList", () => {
     expect(surface.getAttribute("aria-activedescendant")).toBeNull();
 
     act(() => useUIStore.setState({ selectedPR: null }));
-    fireEvent.keyDown(surface, { key: "Enter" });
+    fireEvent.keyDown(surface, { key: "j" });
     expect(useUIStore.getState().selectedPR).toBeNull();
   });
 
@@ -203,7 +229,7 @@ describe("PRList", () => {
     expect(surface.getAttribute("aria-activedescendant")).toBeNull();
 
     act(() => useUIStore.setState({ selectedPR: null }));
-    fireEvent.keyDown(surface, { key: "Enter" });
+    fireEvent.keyDown(surface, { key: "j" });
     expect(useUIStore.getState().selectedPR).toBeNull();
   });
 
@@ -273,8 +299,11 @@ describe("PRList", () => {
       pr: { ...newest, headSHA: "oldsha" },
     });
 
-    fireEvent.keyDown(screen.getByRole("listbox"), { key: "Enter" });
+    fireEvent.keyDown(screen.getByRole("listbox"), { key: "k" });
 
+    await waitFor(() =>
+      expect(useUIStore.getState().selectedPR).toBe("acme/web#2"),
+    );
     await waitFor(() =>
       expect(getPR).toHaveBeenCalledWith({
         repo: "acme/web",
@@ -282,6 +311,67 @@ describe("PRList", () => {
         refresh: true,
       }),
     );
+  });
+
+  test("j opens only the settled row and stops at the last row", async () => {
+    getPRs.mockImplementation(async () => listResponse());
+    const { client } = await renderList();
+    // A stale detail under the last row is re-read once, when j opens it.
+    client.setQueryData(["pr", "acme/web", 3], {
+      pr: { ...oldest, headSHA: "oldsha" },
+    });
+
+    const listbox = screen.getByRole("listbox");
+    fireEvent.keyDown(listbox, { key: "j" });
+    expect(screen.getAllByRole("option")[1].getAttribute("aria-selected")).toBe(
+      "true",
+    );
+
+    fireEvent.keyDown(listbox, { key: "j" });
+    expect(screen.getAllByRole("option")[2].getAttribute("aria-selected")).toBe(
+      "true",
+    );
+    expect(useUIStore.getState().selectedPR).toBeNull();
+
+    await waitFor(() =>
+      expect(useUIStore.getState().selectedPR).toBe("acme/web#3"),
+    );
+    await waitFor(() => expect(getPR).toHaveBeenCalledTimes(1));
+
+    fireEvent.keyDown(listbox, { key: "j" });
+    await act(async () => {});
+    expect(useUIStore.getState().selectedPR).toBe("acme/web#3");
+    expect(getPR).toHaveBeenCalledTimes(1);
+  });
+
+  test("Escape drops the optimistic highlight and its pending open", () => {
+    getPRs.mockImplementation(async () => listResponse());
+    const client = createTestQueryClient();
+    client.setQueryData(["prs", null, "all"], listResponse());
+    jest.useFakeTimers();
+    try {
+      renderWithQuery(<PRList tabID="all" tabLabel="All open" repo={null} />, {
+        client,
+      });
+      const listbox = screen.getByRole("listbox");
+
+      fireEvent.keyDown(listbox, { key: "j" });
+      expect(
+        screen.getAllByRole("option")[1].getAttribute("aria-selected"),
+      ).toBe("true");
+
+      fireEvent.keyDown(listbox, { key: "Escape" });
+      expect(
+        screen.getAllByRole("option")[1].getAttribute("aria-selected"),
+      ).toBe("false");
+
+      act(() => {
+        jest.advanceTimersByTime(1_000);
+      });
+      expect(useUIStore.getState().selectedPR).toBeNull();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   test("filters the draft row out from the filter popover", async () => {

@@ -174,8 +174,7 @@ function DetailPlaceholder() {
       title="Pick a pull request"
       description="Read the conversation, scan the diff, or run a review."
       hints={[
-        { keys: ["j", "k"], label: "move" },
-        { keys: ["↵"], label: "open" },
+        { keys: ["j", "k"], label: "move · open" },
         { keys: ["/"], label: "search" },
       ]}
     />

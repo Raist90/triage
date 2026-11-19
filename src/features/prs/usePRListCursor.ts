@@ -8,6 +8,8 @@ import {
 type UsePRListCursorOptions = {
   /** Number of rows currently rendered inside the scroll container. */
   count: number;
+  /** Index of the row whose pull request is open, or -1. */
+  selectedIndex: number;
   /** Scroll container whose direct children are the rows. */
   scrollRef: RefObject<HTMLElement | null>;
   onPick: (index: number) => void;
@@ -26,6 +28,7 @@ type UsePRListCursorOptions = {
  */
 export function usePRListCursor({
   count,
+  selectedIndex,
   scrollRef,
   onPick,
   onSearch,
@@ -42,13 +45,20 @@ export function usePRListCursor({
     (index: number) => {
       if (count === 0) return;
       const next = Math.min(Math.max(index, 0), lastIndex);
+      if (next === cursor) {
+        // The cursor is already clamped here, so j/k must not scroll or re-open
+        // the same row; only a different open PR is replaced by this one.
+        if (next !== selectedIndex) onPick(next);
+        return;
+      }
       setCursorState(next);
       const row = scrollRef.current?.children[next];
       if (row instanceof HTMLElement) {
         row.scrollIntoView({ block: "nearest" });
       }
+      onPick(next);
     },
-    [count, lastIndex, scrollRef],
+    [count, cursor, lastIndex, onPick, scrollRef, selectedIndex],
   );
 
   const handleKeyDown = useCallback(
@@ -67,12 +77,6 @@ export function usePRListCursor({
           event.preventDefault();
           move(cursor - 1);
           break;
-        case "Enter":
-          event.preventDefault();
-          // No rendered rows means nothing to open, even if the owner still
-          // holds stale data behind a load or an error.
-          if (count > 0) onPick(cursor);
-          break;
         case "Escape":
           event.preventDefault();
           onDismiss();
@@ -89,7 +93,7 @@ export function usePRListCursor({
           break;
       }
     },
-    [count, cursor, move, onDismiss, onPick, onSearch, onToggleFilters],
+    [cursor, move, onDismiss, onSearch, onToggleFilters],
   );
 
   return { cursor, handleKeyDown };

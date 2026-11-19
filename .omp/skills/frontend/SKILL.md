@@ -92,8 +92,9 @@ stay side by side; reviewing is the only flow that matters.
   [Base UI](https://base-ui.com) is the only exception and only for accessible
   widgets (dialog, popover, menu, tooltip) when hand-rolling one is genuinely
   risky — always headless and styled by us.
-- Keyboard-first where cheap: `j`/`k` list navigation, `Enter` opens, `Esc` closes.
-  Do not build a command palette until the core flow works.
+- Keyboard-first where cheap: `j`/`k` move the list cursor and open that pull
+  request, `Esc` closes. Do not build a command palette until the core flow
+  works.
 
 ## Frontend conventions
 

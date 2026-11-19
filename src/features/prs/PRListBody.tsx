@@ -1,5 +1,11 @@
 import type { UseQueryResult } from "@tanstack/react-query";
-import { useEffect, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import { EmptyState } from "../../components/EmptyState";
 import { ErrorState } from "../../components/ErrorState";
 import { Button } from "../../components/ui";
@@ -36,6 +42,13 @@ type PRListBodyProps = {
 const optionId = (index: number) => `pr-option-${index}`;
 
 /**
+ * How long the cursor must rest before a keyboard move opens its row. Holding
+ * j/k repeats the key, so opening on every move would read every skipped pull
+ * request from GitHub.
+ */
+const OPEN_DELAY_MS = 150;
+
+/**
  * The list viewport. It stays mounted across loading, error and empty answers,
  * so the keyboard surface survives a filter that removes every row.
  */
@@ -65,16 +78,61 @@ export function PRListBody({
   const rows = isLoading || query.isError ? [] : visible;
   const hasRows = rows.length > 0;
 
+  // The cursor moves on every key repeat, but opening each row would fetch its
+  // detail. Highlight the row under the cursor immediately (`pending`) and open
+  // it once the cursor rests; a click still opens immediately.
+  const [pending, setPending] = useState<string | null>(null);
+  const openTimer = useRef<number | null>(null);
+
+  const cancelOpen = useCallback(() => {
+    if (openTimer.current !== null) {
+      window.clearTimeout(openTimer.current);
+      openTimer.current = null;
+    }
+  }, []);
+
+  useEffect(() => cancelOpen, [cancelOpen]);
+
+  const openNow = useCallback(
+    (pr: PR) => {
+      cancelOpen();
+      // The click commits the selection synchronously, so it needs no preview.
+      setPending(null);
+      onPick(pr);
+    },
+    [cancelOpen, onPick],
+  );
+
+  const openSoon = useCallback(
+    (pr: PR) => {
+      cancelOpen();
+      setPending(`${pr.repo}#${pr.number}`);
+      openTimer.current = window.setTimeout(() => {
+        openTimer.current = null;
+        setPending(null);
+        onPick(pr);
+      }, OPEN_DELAY_MS);
+    },
+    [cancelOpen, onPick],
+  );
+
+  const selectedIndex = rows.findIndex(
+    (pr) => `${pr.repo}#${pr.number}` === selectedPR,
+  );
+
   const { cursor, handleKeyDown } = usePRListCursor({
     count: rows.length,
+    selectedIndex,
     scrollRef: listRef,
     onPick: (index) => {
       const pr = rows[index];
-      if (pr) onPick(pr);
+      if (pr) openSoon(pr);
     },
     onSearch: onOpenSearch,
     onToggleFilters,
     onDismiss: () => {
+      cancelOpen();
+      setPending(null);
       onCloseFilters();
       onClearSelection();
     },
@@ -145,10 +203,10 @@ export function PRListBody({
             optionId={optionId(index)}
             pr={pr}
             active={index === cursor}
-            selected={selectedPR === `${pr.repo}#${pr.number}`}
+            selected={(pending ?? selectedPR) === `${pr.repo}#${pr.number}`}
             showRepo={repo === null}
             showAuthor={tabID !== "mine"}
-            onPick={() => onPick(pr)}
+            onPick={() => openNow(pr)}
           />
         ))
       )}
