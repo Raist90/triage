@@ -70,7 +70,7 @@ stay side by side; reviewing is the only flow that matters.
   followed by a proportional severity strip; every finding card carries a 2px
   severity rail.
 - **PR detail:** compact header with title, state, author, branches and change
-  stats; 44px bar; tabs for Conversation (default), Diff, Review (when
+  stats; 44px bar; tabs for Conversation (default), Diff, Verdict (when
   available), Explain (when available). Conversation is one chronological
   timeline: the PR
   body first, then comments, review verdicts and inline review comments. The
