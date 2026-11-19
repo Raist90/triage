@@ -70,6 +70,35 @@ function fileB() {
   });
 }
 
+function mockPaneGeometry(
+  pane: HTMLElement,
+  heights: number[],
+  geometry: { scrollTop: number; clientHeight: number; scrollHeight: number },
+) {
+  const { scrollTop, clientHeight, scrollHeight } = geometry;
+  Object.defineProperties(pane, {
+    scrollTop: { value: scrollTop, configurable: true },
+    clientHeight: { value: clientHeight, configurable: true },
+    scrollHeight: { value: scrollHeight, configurable: true },
+  });
+  Object.defineProperty(pane, "getBoundingClientRect", {
+    configurable: true,
+    value: () => ({ top: 0, bottom: clientHeight }),
+  });
+  let top = -scrollTop;
+  for (const [index, section] of Array.from(
+    pane.querySelectorAll("section"),
+  ).entries()) {
+    const sectionTop = top;
+    const bottom = sectionTop + heights[index];
+    Object.defineProperty(section, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({ top: sectionTop, bottom }),
+    });
+    top = bottom;
+  }
+}
+
 function renderDiff(
   overrides: {
     files?: ReturnType<typeof makeFile>[];
@@ -465,6 +494,82 @@ describe("DiffView", () => {
     expect(
       screen.queryByPlaceholderText("Leave a comment on this line…"),
     ).toBeNull();
+  });
+
+  test("the last file owns the selection when the pane is clamped at the bottom", async () => {
+    const names = ["a", "b", "c", "d", "e"];
+    const files = names.map((name) =>
+      makeFile({
+        path: `src/${name}.ts`,
+        hunks: [
+          makeHunk({
+            lines: [
+              makeLine({ kind: "add", newNumber: 1, text: `${name} added` }),
+            ],
+          }),
+        ],
+      }),
+    );
+    renderDiff({ files });
+    fireEvent.click(screen.getByRole("button", { name: "Show all files" }));
+
+    const pane = screen.getByText("a added").closest("section")!
+      .parentElement as HTMLElement;
+    // 400 + 300 + 200 + 60 + 40px of content, scrolled to the end. The top
+    // edge sits inside b.ts, but the viewport shows d.ts and e.ts below it.
+    mockPaneGeometry(pane, [400, 300, 200, 60, 40], {
+      scrollTop: 500,
+      clientHeight: 500,
+      scrollHeight: 1000,
+    });
+
+    fireEvent.scroll(pane);
+
+    const sidebar = screen.getByLabelText("Files in this pull request");
+    await waitFor(() =>
+      expect(
+        within(sidebar)
+          .getByRole("button", { name: /e\.ts/ })
+          .getAttribute("aria-current"),
+      ).toBe("true"),
+    );
+  });
+
+  test("a collapsed trailing file owns the selection at the bottom", async () => {
+    const names = ["a", "b", "c", "d", "e"];
+    const files = names.map((name) =>
+      makeFile({
+        path: `src/${name}.ts`,
+        hunks: [
+          makeHunk({
+            lines: [
+              makeLine({ kind: "add", newNumber: 1, text: `${name} added` }),
+            ],
+          }),
+        ],
+      }),
+    );
+    // Only the first file is open; b.ts through e.ts are 36px headers.
+    renderDiff({ files });
+
+    const pane = screen.getByText("a added").closest("section")!
+      .parentElement as HTMLElement;
+    mockPaneGeometry(pane, [400, 300, 200, 60, 40], {
+      scrollTop: 500,
+      clientHeight: 500,
+      scrollHeight: 1000,
+    });
+
+    fireEvent.scroll(pane);
+
+    const sidebar = screen.getByLabelText("Files in this pull request");
+    await waitFor(() =>
+      expect(
+        within(sidebar)
+          .getByRole("button", { name: /e\.ts/ })
+          .getAttribute("aria-current"),
+      ).toBe("true"),
+    );
   });
 
   test("a failed submit keeps the composer open with the error", async () => {

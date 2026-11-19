@@ -5,9 +5,29 @@ export type SectionRect = {
 };
 
 /**
+ * True when a scrollable pane cannot scroll any further toward the end. Short
+ * trailing files then sit fully inside the viewport without ever crossing its
+ * top edge, so top-edge inference alone keeps an earlier file selected.
+ *
+ * A pane whose content fits without scrolling is not at the bottom: its top
+ * edge still owns the selection, so the bottom clamp must not apply there.
+ */
+export function clampedAtBottom(pane: {
+  scrollTop: number;
+  clientHeight: number;
+  scrollHeight: number;
+}): boolean {
+  return (
+    pane.scrollHeight > pane.clientHeight &&
+    pane.scrollTop + pane.clientHeight >= pane.scrollHeight - 1
+  );
+}
+
+/**
  * The section that owns the pane's top edge. A section fully above the edge
- * loses to the first one that starts below it, and a jump that clamps to the
- * bottom falls back to the last rendered section.
+ * loses to the first one that starts below it. Clamping at the bottom is not a
+ * top-edge question: the caller checks `clampedAtBottom` and lets the last
+ * rendered body own the selection there.
  */
 export function activeSectionKey(
   sections: SectionRect[],
