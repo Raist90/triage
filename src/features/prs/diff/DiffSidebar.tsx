@@ -41,7 +41,6 @@ type DiffSidebarProps = {
   activeStepID?: string;
   hideLowPriority: boolean;
   lowCount: number;
-  onModeChange: (mode: DiffMode) => void;
   onSelectStep: (stepID: string) => void;
   onSortChange: (sort: DiffSort) => void;
   onToggleLowPriority: () => void;
@@ -66,7 +65,6 @@ export function DiffSidebar({
   activeStepID,
   hideLowPriority,
   lowCount,
-  onModeChange,
   onSelectStep,
   onSortChange,
   onToggleLowPriority,
@@ -93,25 +91,8 @@ export function DiffSidebar({
       className="flex shrink-0 flex-col border-r border-line"
       style={{ width: "var(--diff-rail, 208px)" }}
     >
-      <div className="shrink-0 border-b border-line p-2">
-        <div
-          role="tablist"
-          aria-label="Diff navigation"
-          className="flex h-7 gap-0.5 rounded-sm border border-line p-0.5"
-        >
-          <ModeButton
-            active={activeMode === "files"}
-            label="Files"
-            onClick={() => onModeChange("files")}
-          />
-          <ModeButton
-            active={activeMode === "path"}
-            label="Path"
-            disabled={!walkthrough || walkthrough.steps.length === 0}
-            onClick={() => onModeChange("path")}
-          />
-        </div>
-        <div className={activeMode === "files" ? "contents" : "hidden"}>
+      {activeMode === "files" ? (
+        <div className="shrink-0 border-b border-line p-2">
           <label className="relative block">
             <Search
               className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-fg-faint"
@@ -212,7 +193,7 @@ export function DiffSidebar({
             </>
           ) : null}
         </div>
-      </div>
+      ) : null}
 
       <div className="min-h-0 flex-1 overflow-y-auto py-1">
         {activeMode === "path" && walkthrough ? (
@@ -321,33 +302,6 @@ const FOCUS_DOT: Record<"high" | "medium" | "low", string> = {
   medium: "border-fg-muted bg-fg-muted",
   low: "border-fg-faint bg-transparent",
 };
-
-function ModeButton({
-  active,
-  disabled = false,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  disabled?: boolean;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      disabled={disabled}
-      onClick={onClick}
-      className={`min-w-0 flex-1 rounded-sm px-2 text-meta transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-        active ? "bg-surface text-fg" : "text-fg-faint hover:text-fg-muted"
-      }`}
-    >
-      {label}
-    </button>
-  );
-}
 
 /** One synthetic commit: subject, scope and size, with the path's order. */
 function StepRow({

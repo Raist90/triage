@@ -1,4 +1,4 @@
-import { EyeOff, Focus, PanelRight } from "lucide-react";
+import { EyeOff, Focus, ListTree, PanelRight } from "lucide-react";
 import type { SemanticSummary } from "../../../lib/types";
 import { IconButton } from "../../../components/ui";
 import { summaryText } from "./diffSelection";
@@ -15,8 +15,10 @@ type DiffToolbarProps = {
   hideCosmetic: boolean;
   hasSemantic: boolean;
   showSemanticRail: boolean;
-  pathMode?: boolean;
+  pathMode: boolean;
+  hasPath: boolean;
   stepLabel?: string;
+  onTogglePathMode: () => void;
   onToggleFocusMode: () => void;
   onToggleHideCosmetic: () => void;
   onToggleSemanticRail: () => void;
@@ -35,32 +37,33 @@ export function DiffToolbar({
   hideCosmetic,
   hasSemantic,
   showSemanticRail,
-  pathMode = false,
+  pathMode,
+  hasPath,
   stepLabel,
+  onTogglePathMode,
   onToggleFocusMode,
   onToggleHideCosmetic,
   onToggleSemanticRail,
   onClearFileKinds,
 }: DiffToolbarProps) {
-  const hasSummaryLine = showSummary || highCount > 0;
-
-  if (pathMode) {
-    return (
-      <div className="flex h-9 shrink-0 items-center border-b border-line bg-canvas pr-1 pl-3">
-        <p className="min-w-0 truncate text-meta text-fg-faint">
-          {stepLabel ?? "Review path"}
-        </p>
-      </div>
-    );
-  }
+  const hasSummaryLine =
+    showSummary || highCount > 0 || (pathMode && stepLabel !== undefined);
 
   return (
     <div className="flex h-9 shrink-0 items-center justify-between gap-2 border-b border-line bg-canvas pr-1 pl-3">
       <p className="min-w-0 truncate text-meta text-fg-faint tabular-nums">
-        {showSummary ? summaryText(summary!) : null}
+        {pathMode && stepLabel ? (
+          <span className="text-fg-muted">{stepLabel}</span>
+        ) : null}
+        {showSummary ? (
+          <span>
+            {pathMode && stepLabel ? " · " : ""}
+            {summaryText(summary!)}
+          </span>
+        ) : null}
         {highCount > 0 ? (
           <span>
-            {showSummary ? " · " : ""}
+            {showSummary || (pathMode && stepLabel) ? " · " : ""}
             {highCount} high focus
           </span>
         ) : null}
@@ -94,6 +97,15 @@ export function DiffToolbar({
         ) : null}
       </p>
       <div className="flex shrink-0 items-center gap-0">
+        {hasPath ? (
+          <IconButton
+            label={pathMode ? "Show the file list" : "Group files into steps"}
+            active={pathMode}
+            onClick={onTogglePathMode}
+          >
+            <ListTree className="size-4" aria-hidden />
+          </IconButton>
+        ) : null}
         <IconButton
           label={focusMode ? "Show all files" : "Show one file at a time"}
           active={focusMode}

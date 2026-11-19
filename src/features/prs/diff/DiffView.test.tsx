@@ -689,4 +689,74 @@ describe("DiffView", () => {
     expect(screen.getByText("first hunk")).toBeDefined();
     expect(screen.queryByText("second hunk")).toBeNull();
   });
+
+  test("the toolbar toggles between the file list and the review path", () => {
+    const walkthrough: Walkthrough = {
+      steps: [
+        {
+          id: "step-1",
+          title: "Only step",
+          additions: 1,
+          deletions: 0,
+          files: [{ path: "src/a.ts", hunks: [0] }],
+        },
+      ],
+    };
+    renderDiff({ walkthrough });
+    expect(screen.getByLabelText("Files in this pull request")).toBeDefined();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Group files into steps" }),
+    );
+    expect(screen.getByLabelText("Review path")).toBeDefined();
+    expect(screen.getByText(/Step 1 of 1 · Only step/)).toBeDefined();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show the file list" }));
+    expect(screen.getByLabelText("Files in this pull request")).toBeDefined();
+  });
+
+  test("path mode keeps focus mode and the semantic map working", () => {
+    const a = fileA();
+    a.semantic = [
+      {
+        changeType: "added",
+        entityType: "function",
+        entityName: "checkout",
+        startLine: 2,
+        endLine: 2,
+      },
+    ];
+    const walkthrough: Walkthrough = {
+      steps: [
+        {
+          id: "step-1",
+          title: "Both files",
+          additions: 2,
+          deletions: 0,
+          files: [
+            { path: "src/a.ts", hunks: [0] },
+            { path: "src/b.ts", hunks: [0] },
+          ],
+        },
+      ],
+    };
+    renderDiff({
+      files: [a, fileB()],
+      semantic: true,
+      mode: "path",
+      walkthrough,
+    });
+
+    expect(screen.getByLabelText("Semantic change map")).toBeDefined();
+    expect(screen.getByText("alpha added")).toBeDefined();
+    expect(screen.queryByText("beta added")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show all files" }));
+    expect(screen.getByText("beta added")).toBeDefined();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show one file at a time" }),
+    );
+    expect(screen.queryByText("beta added")).toBeNull();
+  });
 });

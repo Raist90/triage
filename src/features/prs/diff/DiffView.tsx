@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { cx } from "../../../lib/cx";
 import type {
@@ -94,7 +94,8 @@ export function DiffView({
     () => pathEntries(files, activeStep),
     [files, activeStep],
   );
-  const pathMode = diffMode === "path" && (walkthrough?.steps.length ?? 0) > 0;
+  const hasPath = (walkthrough?.steps.length ?? 0) > 0;
+  const pathMode = diffMode === "path" && hasPath;
   const displayEntries = pathMode ? pathFiles : visible;
   const displaySignature = pathMode
     ? `${activeStep?.id ?? ""}\u0000${pathFiles.map((entry) => entry.key).join("\u0000")}`
@@ -123,14 +124,28 @@ export function DiffView({
     focusTarget,
   });
 
-  // A step is a commit, so its files open together. The user can still
-  // collapse any of them afterwards.
+  // Read inside the step effect: toggling focus mode must not look like a step
+  // change and reset the pane.
+  const focusModeRef = useRef(focusMode);
+  useEffect(() => {
+    focusModeRef.current = focusMode;
+  }, [focusMode]);
+
+  // A step is a commit. Opening it shows its files together, except in focus
+  // mode, which keeps one file at a time. The user can collapse any of them
+  // afterwards.
   const stepID = activeStep?.id;
   useEffect(() => {
     if (!pathMode) return;
-    expandFiles(pathFiles.map((entry) => entry.key));
+    const keys = pathFiles.map((entry) => entry.key);
+    const first = keys[0];
+    if (focusModeRef.current && first !== undefined) {
+      selectFile(first);
+    } else {
+      expandFiles(keys);
+    }
     if (paneRef.current) paneRef.current.scrollTop = 0;
-  }, [pathMode, stepID, pathFiles, expandFiles, paneRef]);
+  }, [pathMode, stepID, pathFiles, expandFiles, selectFile, paneRef]);
 
   const scrollEdges = useScrollEdges(paneRef);
   const { width: railWidth, rootRef, separatorProps } = useResizableRail();
@@ -195,11 +210,13 @@ export function DiffView({
         hasSemantic={hasSemantic}
         showSemanticRail={showSemanticRail}
         pathMode={pathMode}
+        hasPath={hasPath}
         stepLabel={
           activeStep && walkthrough
             ? `Step ${walkthrough.steps.indexOf(activeStep) + 1} of ${walkthrough.steps.length} · ${activeStep.title}`
             : undefined
         }
+        onTogglePathMode={() => setDiffMode(pathMode ? "files" : "path")}
         onToggleFocusMode={toggleFocusMode}
         onToggleHideCosmetic={() => setHideCosmetic((current) => !current)}
         onToggleSemanticRail={toggleSemanticRail}
@@ -223,7 +240,6 @@ export function DiffView({
           activeStepID={activeStep?.id}
           hideLowPriority={hideLowPriority}
           lowCount={lowCount}
-          onModeChange={setDiffMode}
           onSelectStep={setActiveStepID}
           onSortChange={setDiffSort}
           onToggleLowPriority={toggleLowPriority}
@@ -303,10 +319,10 @@ export function DiffView({
           })}
         </div>
 
-        {!pathMode && visibleSemantic && showSemanticRail ? (
+        {visibleSemantic && showSemanticRail ? (
           <SemanticRail
             paneRef={paneRef}
-            files={visible}
+            files={displayEntries}
             expanded={expanded}
             singleFile={focusMode}
             layoutKey={railLayoutKey}
