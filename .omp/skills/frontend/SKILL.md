@@ -103,6 +103,12 @@ stay side by side; reviewing is the only flow that matters.
   (`["prs", repo, tab]`, `["pr", repo, number]`). Mutations invalidate precisely.
 - Zustand only for ephemeral UI state (selected repo, active tab, toggles).
   Never duplicate server data into a store.
+- React Context is transport, not ownership. Use it only for a value that
+  crosses three or more levels inside one pane and is fixed for that pane's
+  lifetime (`DiffCommentsContext`, `PRDetailContext`). The provider owns
+  nothing; state stays in `useState` or the store. Split contexts by change
+  frequency and keep per-interaction values (`draft`, `flash`, `open`) as props,
+  because a context change re-renders consumers through `memo`.
 - API calls live in `src/lib/api.ts`; components never `fetch` directly.
 - Types come from the generated contract. `src/lib/types.ts` re-exports them
   under the names the app uses and keeps only what OpenAPI cannot express, such

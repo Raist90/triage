@@ -2,8 +2,8 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { memo, useCallback } from "react";
 import type { DiffFile } from "../../../lib/types";
 import { isCosmeticFile, reviewSignals, splitPath } from "./diffFile";
+import { useDiffCommentsContext } from "./DiffCommentsContext";
 import { FilePatch } from "./DiffPatch";
-import type { DiffCommentsController } from "./useDiffComments";
 
 const STATUS_LABEL: Record<DiffFile["status"], string> = {
   added: "Added",
@@ -20,13 +20,9 @@ type DiffFileSectionProps = {
   onToggle: (fileKey: string) => void;
   /** Stable across renders: the section registers itself in the scroll map. */
   onSectionRef: (fileKey: string, element: HTMLElement | null) => void;
-  comments: DiffCommentsController;
-  headSHA: string;
-  canComment: boolean;
   /** Only the section that owns the open composer receives the draft key. */
   draft: string | null;
   onDraftChange: (key: string | null) => void;
-  viewerLogin?: string;
   /** Only the target section receives the flash label. */
   flash: string | null;
 };
@@ -35,6 +31,7 @@ type DiffFileSectionProps = {
  * Memoized so a selection, jump or draft change with every file expanded only
  * re-renders the sections whose own props changed. Every prop here must stay
  * referentially stable; the parent passes shared handlers, never closures.
+ * The review surface comes from context and is fixed for the diff's lifetime.
  */
 export const DiffFileSection = memo(function DiffFileSection({
   file,
@@ -42,14 +39,11 @@ export const DiffFileSection = memo(function DiffFileSection({
   open,
   onToggle,
   onSectionRef,
-  comments,
-  headSHA,
-  canComment,
   draft,
   onDraftChange,
-  viewerLogin,
   flash,
 }: DiffFileSectionProps) {
+  const { comments, headSHA } = useDiffCommentsContext();
   const { dir, name } = splitPath(file.path);
   const signals = reviewSignals(file);
   const fileCommentCount = comments.comments.filter(
@@ -130,12 +124,8 @@ export const DiffFileSection = memo(function DiffFileSection({
         <FilePatch
           file={file}
           fileKey={fileKey}
-          comments={comments}
-          headSHA={headSHA}
-          canComment={canComment}
           draft={draft}
           onDraftChange={onDraftChange}
-          viewerLogin={viewerLogin}
           flash={flash}
         />
       ) : null}

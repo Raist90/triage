@@ -3,8 +3,8 @@ import type { DiffLine, InlineComment } from "../../../lib/types";
 import { anchorKey, type CommentAnchor } from "./diffAnchors";
 import { codeClasses, rowTint, spanClasses } from "./diffRows";
 import { CommentComposer } from "./DiffCommentComposer";
+import { useDiffCommentsContext } from "./DiffCommentsContext";
 import { InlineCommentRow } from "./DiffInlineCommentRow";
-import type { DiffCommentsController } from "./useDiffComments";
 
 export const ROW_GRID = "grid grid-cols-[1.5rem_2.75rem_2.75rem_auto]";
 
@@ -12,25 +12,18 @@ type LineRowProps = {
   line: DiffLine;
   anchor: CommentAnchor | null;
   anchorComments: InlineComment[];
-  canComment: boolean;
   draft: string | null;
   onDraftChange: (key: string | null) => void;
-  comments: DiffCommentsController;
-  headSHA: string;
-  viewerLogin?: string;
 };
 
 export function LineRow({
   line,
   anchor,
   anchorComments,
-  canComment,
   draft,
   onDraftChange,
-  comments,
-  headSHA,
-  viewerLogin,
 }: LineRowProps) {
+  const { canComment, viewerLogin } = useDiffCommentsContext();
   const gutter =
     "select-none border-r border-line px-2 text-right text-fg-faint";
   const key = anchor ? anchorKey(anchor) : null;
@@ -74,7 +67,6 @@ export function LineRow({
             <InlineCommentRow
               key={comment.id}
               comment={comment}
-              comments={comments}
               canDelete={
                 viewerLogin !== undefined &&
                 viewerLogin !== "" &&
@@ -87,12 +79,7 @@ export function LineRow({
 
       {composing && anchor ? (
         <div className="border-b border-line bg-surface/40 px-3 py-2">
-          <CommentComposer
-            anchor={anchor}
-            headSHA={headSHA}
-            comments={comments}
-            onDone={() => onDraftChange(null)}
-          />
+          <CommentComposer anchor={anchor} onDone={() => onDraftChange(null)} />
         </div>
       ) : null}
     </>
