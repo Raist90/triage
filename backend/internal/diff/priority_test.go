@@ -259,6 +259,24 @@ func TestCanRetainContent(t *testing.T) {
 	}
 }
 
+func TestCanRetainMoveContent(t *testing.T) {
+	if !canRetainMoveContent("added", "", "body", 0) {
+		t.Fatal("small added entity should keep its body")
+	}
+	if !canRetainMoveContent("deleted", "body", "", 0) {
+		t.Fatal("small deleted entity should keep its body")
+	}
+	if canRetainMoveContent("modified", "a", "b", 0) {
+		t.Fatal("modified entities belong to rewrite retention")
+	}
+	if canRetainMoveContent("added", "", "", 0) {
+		t.Fatal("added entity without a body should not be retained")
+	}
+	if canRetainMoveContent("added", "", "body", maxMoveContent) {
+		t.Fatal("over-budget move content should not be retained")
+	}
+}
+
 func TestParseSemanticReportRetainsContent(t *testing.T) {
 	report, err := parseSemanticReport([]byte(`{"summary":{"total":1},"changes":[
 		{"filePath":"a.go","entityType":"function","entityName":"Run","changeType":"modified",
@@ -270,5 +288,25 @@ func TestParseSemanticReportRetainsContent(t *testing.T) {
 	change := report.Changes["a.go"][0]
 	if change.before != "old" || change.after != "new" {
 		t.Fatalf("retained content = %q/%q, want old/new", change.before, change.after)
+	}
+}
+
+func TestParseSemanticReportRetainsMoveContent(t *testing.T) {
+	report, err := parseSemanticReport([]byte(`{"summary":{"total":2},"changes":[
+		{"filePath":"a.go","entityType":"function","entityName":"Run","changeType":"deleted",
+		 "startLine":1,"endLine":9,"beforeContent":"body","structuralChange":true},
+		{"filePath":"b.go","entityType":"function","entityName":"Run","changeType":"added",
+		 "startLine":1,"endLine":9,"afterContent":"body","structuralChange":true}
+	]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	deleted := report.Changes["a.go"][0]
+	added := report.Changes["b.go"][0]
+	if deleted.before != "body" || deleted.after != "" {
+		t.Fatalf("deleted content = %q/%q, want body/empty", deleted.before, deleted.after)
+	}
+	if added.before != "" || added.after != "body" {
+		t.Fatalf("added content = %q/%q, want empty/body", added.before, added.after)
 	}
 }

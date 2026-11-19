@@ -15,6 +15,8 @@ type DiffToolbarProps = {
   hideCosmetic: boolean;
   hasSemantic: boolean;
   showSemanticRail: boolean;
+  pathMode?: boolean;
+  stepLabel?: string;
   onToggleFocusMode: () => void;
   onToggleHideCosmetic: () => void;
   onToggleSemanticRail: () => void;
@@ -33,12 +35,24 @@ export function DiffToolbar({
   hideCosmetic,
   hasSemantic,
   showSemanticRail,
+  pathMode = false,
+  stepLabel,
   onToggleFocusMode,
   onToggleHideCosmetic,
   onToggleSemanticRail,
   onClearFileKinds,
 }: DiffToolbarProps) {
   const hasSummaryLine = showSummary || highCount > 0;
+
+  if (pathMode) {
+    return (
+      <div className="flex h-9 shrink-0 items-center border-b border-line bg-canvas pr-1 pl-3">
+        <p className="min-w-0 truncate text-meta text-fg-faint">
+          {stepLabel ?? "Review path"}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-9 shrink-0 items-center justify-between gap-2 border-b border-line bg-canvas pr-1 pl-3">

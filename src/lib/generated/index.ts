@@ -139,4 +139,7 @@ export type {
   UserConfig,
   Verdict,
   Viewer,
+  Walkthrough,
+  WalkthroughFile,
+  WalkthroughStep,
 } from "./types.gen";

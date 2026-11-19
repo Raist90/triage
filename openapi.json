@@ -1069,6 +1069,10 @@
           },
           "semanticSummary": {
             "$ref": "#/components/schemas/SemanticSummary"
+          },
+          "walkthrough": {
+            "$ref": "#/components/schemas/Walkthrough",
+            "description": "Deterministic ordered path through the changed hunks"
           }
         },
         "required": [
@@ -1381,6 +1385,77 @@
         "required": [
           "login",
           "name"
+        ],
+        "type": "object"
+      },
+      "Walkthrough": {
+        "additionalProperties": false,
+        "properties": {
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/WalkthroughStep"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "steps"
+        ],
+        "type": "object"
+      },
+      "WalkthroughFile": {
+        "additionalProperties": false,
+        "properties": {
+          "hunks": {
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "oldPath": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "hunks"
+        ],
+        "type": "object"
+      },
+      "WalkthroughStep": {
+        "additionalProperties": false,
+        "properties": {
+          "additions": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "deletions": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/WalkthroughFile"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "files",
+          "additions",
+          "deletions"
         ],
         "type": "object"
       }

@@ -281,6 +281,11 @@ export function useDiffNavigation({
     }
   }, [focusMode, activeKey, firstVisibleKey, visible]);
 
+  /** Path steps open as a unit; collapse remains available per file. */
+  const expandFiles = useCallback((keys: string[]) => {
+    setExpanded(new Set(keys));
+  }, []);
+
   const releaseScrollLock = useCallback(() => {
     programmaticScroll.current = false;
   }, []);
@@ -351,6 +356,7 @@ export function useDiffNavigation({
     selectHunk,
     toggleFile,
     toggleFocusMode,
+    expandFiles,
     handleScroll,
     releaseScrollLock,
   };

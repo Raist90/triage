@@ -386,6 +386,10 @@ export type Response = {
   headSHA: string;
   semanticAvailable: boolean;
   semanticSummary?: SemanticSummary;
+  /**
+   * Deterministic ordered path through the changed hunks
+   */
+  walkthrough?: Walkthrough;
 };
 
 export type Review = {
@@ -487,6 +491,24 @@ export type Verdict = {
 export type Viewer = {
   login: string;
   name: string;
+};
+
+export type Walkthrough = {
+  steps: Array<WalkthroughStep>;
+};
+
+export type WalkthroughFile = {
+  hunks: Array<number>;
+  oldPath?: string;
+  path: string;
+};
+
+export type WalkthroughStep = {
+  additions: number;
+  deletions: number;
+  files: Array<WalkthroughFile>;
+  id: string;
+  title: string;
 };
 
 export type ClearArtifactsData = {

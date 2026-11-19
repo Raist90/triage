@@ -41,6 +41,7 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
   const closeDetail = useUIStore((state) => state.closeDetail);
   const fullscreen = useUIStore((state) => state.detailFullscreen);
   const toggleFullscreen = useUIStore((state) => state.toggleDetailFullscreen);
+  const setDiffMode = useUIStore((state) => state.setDiffMode);
   const prKey = `${repo}#${number}`;
   const [tabState, setTabState] = useState<{
     key: string;
@@ -52,6 +53,9 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
   // findings in the same file; the target is never cleared after consumption.
   const [diffTarget, setDiffTarget] = useState<DiffTarget | null>(null);
   function openInDiff(finding: ReviewFinding) {
+    // A finding jump targets one file and line; leave the guided path so the
+    // target is always mounted, regardless of which step owns it.
+    setDiffMode("files");
     setDiffTarget({
       path: finding.file,
       line: finding.line,
