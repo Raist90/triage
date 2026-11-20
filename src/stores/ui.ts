@@ -12,6 +12,9 @@ export type PRFilterSection = "review" | "checks" | "authors" | "repos";
 /** Sidebar ordering for the diff file list. */
 export type DiffSort = "priority" | "path";
 
+/** The diff rail either lists files or walks the deterministic review path. */
+export type DiffMode = "files" | "path";
+
 /**
  * Client-side view over the loaded list. Filters never change the query key, so
  * toggling one costs no GitHub request and keeps the list mounted.
@@ -49,6 +52,8 @@ type UIState = {
   hiddenFileKinds: DiffFileKind[];
   /** Priority keeps the highest-focus file first; path restores patch order. */
   diffSort: DiffSort;
+  /** Files keeps the filterable file list; path walks the synthetic commits. */
+  diffMode: DiffMode;
   /** Whether low-focus files are hidden from the diff file list. */
   hideLowPriority: boolean;
   /** Whether the diff shows the semantic change map on its right edge. */
@@ -66,6 +71,7 @@ type UIState = {
   toggleFileKind: (kind: DiffFileKind) => void;
   clearFileKinds: () => void;
   setDiffSort: (sort: DiffSort) => void;
+  setDiffMode: (mode: DiffMode) => void;
   toggleLowPriority: () => void;
   toggleSemanticRail: () => void;
   setDiffSidebarWidth: (width: number) => void;
@@ -91,6 +97,7 @@ export const useUIStore = create<UIState>((set) => ({
   detailFullscreen: false,
   hiddenFileKinds: [],
   diffSort: "priority",
+  diffMode: "files",
   hideLowPriority: false,
   showSemanticRail: true,
   diffSidebarWidth: 208,
@@ -126,6 +133,7 @@ export const useUIStore = create<UIState>((set) => ({
     })),
   clearFileKinds: () => set({ hiddenFileKinds: [] }),
   setDiffSort: (sort) => set({ diffSort: sort }),
+  setDiffMode: (mode) => set({ diffMode: mode }),
   toggleLowPriority: () =>
     set((state) => ({ hideLowPriority: !state.hideLowPriority })),
   toggleSemanticRail: () =>

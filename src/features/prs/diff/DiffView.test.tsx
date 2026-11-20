@@ -7,6 +7,7 @@ import {
   within,
 } from "@testing-library/react";
 import { useUIStore } from "../../../stores/ui";
+import type { Walkthrough } from "../../../lib/types";
 import {
   makeCommentsController,
   makeFile,
@@ -106,13 +107,20 @@ function renderDiff(
     focusTarget?: { path: string; line?: number; token: number };
     comments?: DiffCommentsController;
     semantic?: boolean;
+    walkthrough?: Walkthrough;
+    mode?: "files" | "path";
   } = {},
 ) {
   const files = overrides.files ?? [fileA(), fileB()];
+  if (overrides.mode) {
+    useUIStore.setState({ diffMode: overrides.mode });
+  }
   return render(
     <DiffView
       files={files}
       semanticAvailable={overrides.semantic ?? false}
+      semanticSummary={undefined}
+      walkthrough={overrides.walkthrough}
       comments={overrides.comments ?? makeCommentsController()}
       headSHA={headSHA}
       canComment={overrides.canComment ?? false}
@@ -594,5 +602,204 @@ describe("DiffView", () => {
     expect(
       screen.getByPlaceholderText("Leave a comment on this line…"),
     ).toBeDefined();
+  });
+
+  test("path mode shows only the active step and switches steps from the rail", () => {
+    const walkthrough: Walkthrough = {
+      steps: [
+        {
+          id: "step-1",
+          title: "Change a",
+          additions: 1,
+          deletions: 0,
+          files: [{ path: "src/a.ts", hunks: [0] }],
+        },
+        {
+          id: "step-2",
+          title: "Change b",
+          additions: 1,
+          deletions: 0,
+          files: [{ path: "src/b.ts", hunks: [0] }],
+        },
+      ],
+    };
+    renderDiff({ mode: "path", walkthrough });
+
+    expect(screen.getByText("alpha added")).toBeDefined();
+    expect(screen.queryByText("beta added")).toBeNull();
+
+    const rail = screen.getByLabelText("Review path");
+    fireEvent.click(within(rail).getByRole("button", { name: /Change b/ }));
+
+    expect(screen.getByText("beta added")).toBeDefined();
+    expect(screen.queryByText("alpha added")).toBeNull();
+  });
+
+  test("path mode renders only the hunks a step owns", () => {
+    const file = makeFile({
+      path: "src/a.ts",
+      hunks: [
+        makeHunk({
+          header: "@@ -1,1 +1,2 @@",
+          oldStart: 1,
+          oldCount: 1,
+          newStart: 1,
+          newCount: 2,
+          lines: [
+            makeLine({
+              kind: "context",
+              oldNumber: 1,
+              newNumber: 1,
+              text: "first context",
+            }),
+            makeLine({ kind: "add", newNumber: 2, text: "first hunk" }),
+          ],
+        }),
+        makeHunk({
+          header: "@@ -10,1 +10,2 @@",
+          oldStart: 10,
+          oldCount: 1,
+          newStart: 10,
+          newCount: 2,
+          lines: [
+            makeLine({
+              kind: "context",
+              oldNumber: 10,
+              newNumber: 10,
+              text: "second context",
+            }),
+            makeLine({ kind: "add", newNumber: 11, text: "second hunk" }),
+          ],
+        }),
+      ],
+    });
+    const walkthrough: Walkthrough = {
+      steps: [
+        {
+          id: "step-1",
+          title: "First hunk",
+          additions: 1,
+          deletions: 0,
+          files: [{ path: "src/a.ts", hunks: [0] }],
+        },
+      ],
+    };
+    renderDiff({ files: [file], mode: "path", walkthrough });
+
+    expect(screen.getByText("first hunk")).toBeDefined();
+    expect(screen.queryByText("second hunk")).toBeNull();
+  });
+
+  test("the toolbar toggles between the file list and the review path", () => {
+    const walkthrough: Walkthrough = {
+      steps: [
+        {
+          id: "step-1",
+          title: "Only step",
+          additions: 1,
+          deletions: 0,
+          files: [{ path: "src/a.ts", hunks: [0] }],
+        },
+      ],
+    };
+    renderDiff({ walkthrough });
+    expect(screen.getByLabelText("Files in this pull request")).toBeDefined();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Group files into steps" }),
+    );
+    expect(screen.getByLabelText("Review path")).toBeDefined();
+    expect(screen.getByText(/Step 1 of 1 · Only step/)).toBeDefined();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show the file list" }));
+    expect(screen.getByLabelText("Files in this pull request")).toBeDefined();
+  });
+
+  test("path mode opens a step's files together without a focus toggle", () => {
+    const a = fileA();
+    a.semantic = [
+      {
+        changeType: "added",
+        entityType: "function",
+        entityName: "checkout",
+        startLine: 2,
+        endLine: 2,
+      },
+    ];
+    const walkthrough: Walkthrough = {
+      steps: [
+        {
+          id: "step-1",
+          title: "Both files",
+          additions: 2,
+          deletions: 0,
+          files: [
+            { path: "src/a.ts", hunks: [0] },
+            { path: "src/b.ts", hunks: [0] },
+          ],
+        },
+      ],
+    };
+    renderDiff({
+      files: [a, fileB()],
+      semantic: true,
+      mode: "path",
+      walkthrough,
+    });
+
+    expect(screen.getByLabelText("Semantic change map")).toBeDefined();
+    expect(screen.getByText("alpha added")).toBeDefined();
+    expect(screen.getByText("beta added")).toBeDefined();
+    expect(screen.queryByRole("button", { name: "Show all files" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Show one file at a time" }),
+    ).toBeNull();
+
+    // Collapsing one file of the step must not collapse the other.
+    const section = screen.getByText("alpha added").closest("section");
+    expect(section).not.toBeNull();
+    fireEvent.click(within(section!).getByRole("button", { name: /a\.ts/ }));
+
+    expect(screen.queryByText("alpha added")).toBeNull();
+    expect(screen.getByText("beta added")).toBeDefined();
+  });
+
+  test("j and k move between path steps and stop at the ends", () => {
+    const walkthrough: Walkthrough = {
+      steps: [
+        {
+          id: "step-1",
+          title: "Change a",
+          additions: 1,
+          deletions: 0,
+          files: [{ path: "src/a.ts", hunks: [0] }],
+        },
+        {
+          id: "step-2",
+          title: "Change b",
+          additions: 1,
+          deletions: 0,
+          files: [{ path: "src/b.ts", hunks: [0] }],
+        },
+      ],
+    };
+    renderDiff({ mode: "path", walkthrough });
+
+    expect(screen.getByText("alpha added")).toBeDefined();
+    expect(screen.queryByText("beta added")).toBeNull();
+
+    fireEvent.keyDown(window, { key: "j" });
+    expect(screen.getByText("beta added")).toBeDefined();
+    expect(screen.queryByText("alpha added")).toBeNull();
+
+    fireEvent.keyDown(window, { key: "j" });
+    expect(screen.getByText("beta added")).toBeDefined();
+
+    fireEvent.keyDown(window, { key: "k" });
+    expect(screen.getByText("alpha added")).toBeDefined();
+    expect(screen.queryByText("beta added")).toBeNull();
+
+    fireEvent.keyDown(window, { key: "k" });
+    expect(screen.getByText("alpha added")).toBeDefined();
   });
 });

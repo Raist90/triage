@@ -11,6 +11,8 @@ import type { DiffCommentsController } from "./useDiffComments";
 type FilePatchProps = {
   file: DiffFile;
   fileKey: string;
+  /** Hunk indices a path step owns; undefined renders every hunk. */
+  hunks?: number[];
   comments: DiffCommentsController;
   headSHA: string;
   canComment: boolean;
@@ -24,6 +26,7 @@ type FilePatchProps = {
 export function FilePatch({
   file,
   fileKey,
+  hunks: scopedHunks,
   comments,
   headSHA,
   canComment,
@@ -47,6 +50,20 @@ export function FilePatch({
     return <RawPatch patch={file.patch} />;
   }
 
+  const visible =
+    scopedHunks === undefined
+      ? hunks.map((hunk, index) => ({ hunk, index }))
+      : scopedHunks
+          .filter((index) => index >= 0 && index < hunks.length)
+          .map((index) => ({ hunk: hunks[index], index }));
+  if (visible.length === 0) {
+    return (
+      <p className="border-t border-line bg-canvas px-3 py-2 text-meta text-fg-faint">
+        No hunks from this step in this file.
+      </p>
+    );
+  }
+
   const byAnchor = groupCommentsByAnchor(comments.comments, file.path, headSHA);
   const changes = file.semantic ?? [];
   const { byHunk, unanchored } = anchorSemanticChanges(
@@ -58,7 +75,7 @@ export function FilePatch({
   return (
     <div className="overflow-x-auto border-t border-line bg-canvas">
       <div className="min-w-max font-mono text-code">
-        {unanchored.length > 0 ? (
+        {scopedHunks === undefined && unanchored.length > 0 ? (
           <div className="border-b border-line">
             <button
               type="button"
@@ -92,7 +109,7 @@ export function FilePatch({
           </div>
         ) : null}
 
-        {hunks.map((hunk, index) => (
+        {visible.map(({ hunk, index }) => (
           <div key={`${hunk.header}:${index}`}>
             <HunkRows
               hunk={hunk}
