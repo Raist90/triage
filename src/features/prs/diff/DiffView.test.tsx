@@ -169,6 +169,19 @@ describe("DiffView", () => {
     expect(screen.getByText("alpha added")).toBeDefined();
   });
 
+  test("the file filter also narrows keyboard navigation", () => {
+    renderDiff({ files: [fileA(), fileB(), makeFile({ path: "src/c.ts" })] });
+    const sidebar = screen.getByLabelText("Files in this pull request");
+
+    fireEvent.change(within(sidebar).getByLabelText("Filter files"), {
+      target: { value: "a.ts" },
+    });
+    fireEvent.keyDown(window, { key: "j" });
+
+    const current = sidebar.querySelector('[aria-current="location"]');
+    expect(current?.textContent).toContain("a.ts");
+  });
+
   test("the file rail separator resizes by keyboard and resets on double-click", () => {
     renderDiff();
     const separator = screen.getByRole("separator");
@@ -387,12 +400,30 @@ describe("DiffView", () => {
 
     fireEvent.click(
       within(sidebar).getByRole("button", {
-        name: "Hide 1 low-focus file",
+        name: "Low focus, 1 file, shown",
       }),
     );
 
     expect(within(sidebar).queryByText("a.ts")).toBeNull();
     expect(screen.getByText(/1 low focus hidden/)).toBeDefined();
+  });
+
+  test("the sort choice is a radio group and arrow keys move it", () => {
+    const a = fileA();
+    a.review = { band: "low", score: 10, changes: {}, signals: {} };
+    renderDiff({ files: [a, fileB()] });
+    const group = screen.getByRole("radiogroup", { name: "Sort diff files" });
+    const priority = within(group).getByRole("radio", { name: "Priority" });
+
+    expect(priority.getAttribute("aria-checked")).toBe("true");
+
+    fireEvent.keyDown(priority, { key: "ArrowRight" });
+
+    expect(
+      within(group)
+        .getByRole("radio", { name: "Path" })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
   });
 
   test("binary files and empty patches have their own copy", () => {

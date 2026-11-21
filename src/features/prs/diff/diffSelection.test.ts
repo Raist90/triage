@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { makeFile } from "../../../test/fixtures";
-import { selectDiffFiles, summaryText } from "./diffSelection";
+import {
+  filterDiffEntries,
+  selectDiffFiles,
+  summaryText,
+} from "./diffSelection";
 
 function review(band: "high" | "medium" | "low", score: number) {
   return { band, score, changes: {}, signals: {} };
@@ -121,6 +125,24 @@ describe("selectDiffFiles", () => {
     expect(selection.visible.map(({ file }) => file.path)).toEqual([
       "src/b.ts",
     ]);
+  });
+});
+
+describe("filterDiffEntries", () => {
+  test("matches paths case-insensitively and keeps the prepared order", () => {
+    const entries = ["src/Alpha.ts", "src/beta.ts", "src/alphabet.md"].map(
+      (path, index) => ({
+        file: makeFile({ path }),
+        index,
+        key: `${path}:${index}`,
+      }),
+    );
+
+    expect(filterDiffEntries(entries, " ALPHA ").map(({ key }) => key)).toEqual(
+      ["src/Alpha.ts:0", "src/alphabet.md:2"],
+    );
+    expect(filterDiffEntries(entries, "")).toBe(entries);
+    expect(filterDiffEntries(entries, "missing")).toEqual([]);
   });
 });
 

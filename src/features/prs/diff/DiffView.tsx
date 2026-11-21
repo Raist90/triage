@@ -9,7 +9,11 @@ import type {
 import { scrollEdgeClass, useScrollEdges } from "../../../lib/useScrollEdges";
 import { useUIStore } from "../../../stores/ui";
 import { DiffFileSection } from "./DiffFileSection";
-import { selectDiffFiles, type DiffTarget } from "./diffSelection";
+import {
+  filterDiffEntries,
+  selectDiffFiles,
+  type DiffTarget,
+} from "./diffSelection";
 import { DiffSidebar } from "./DiffSidebar";
 import { DiffToolbar } from "./DiffToolbar";
 import { SemanticRail } from "./SemanticRail";
@@ -81,10 +85,16 @@ export function DiffView({
     hasReview,
     highCount,
     lowCount,
-    hiddenCount,
     visible,
-    visibleSignature,
   } = selection;
+
+  // Search narrows the rail and the keyboard walk, never the pane: typing must
+  // not close the patch being reviewed. One list feeds both, so the rail and
+  // `j`/`k` cannot disagree about which files are reachable.
+  const matched = useMemo(
+    () => filterDiffEntries(visible, filter),
+    [visible, filter],
+  );
 
   const [activeStepID, setActiveStepID] = useState<string | null>(null);
   const activeStep =
@@ -96,11 +106,12 @@ export function DiffView({
   );
   const hasPath = (walkthrough?.steps.length ?? 0) > 0;
   const pathMode = diffMode === "path" && hasPath;
-  const displayEntries = pathMode ? pathFiles : visible;
-  const displaySignature = pathMode
+  const paneEntries = pathMode ? pathFiles : visible;
+  const navEntries = pathMode ? pathFiles : matched;
+  const navSignature = pathMode
     ? `${activeStep?.id ?? ""}\u0000${pathFiles.map((entry) => entry.key).join("\u0000")}`
-    : visibleSignature;
-  const displayFirstKey = displayEntries[0]?.key ?? null;
+    : matched.map((entry) => entry.key).join("\u0000");
+  const navFirstKey = navEntries[0]?.key ?? null;
   const stepNavigation = pathMode
     ? {
         ids: walkthrough?.steps.map((step) => step.id) ?? [],
@@ -125,9 +136,9 @@ export function DiffView({
     handleScroll,
     releaseScrollLock,
   } = useDiffNavigation({
-    visible: displayEntries,
-    visibleSignature: displaySignature,
-    firstVisibleKey: displayFirstKey,
+    visible: navEntries,
+    visibleSignature: navSignature,
+    firstVisibleKey: navFirstKey,
     focusModeApplies: !pathMode,
     stepNavigation,
     focusTarget,
@@ -148,13 +159,13 @@ export function DiffView({
 
   const railLayoutKey = useMemo(
     () =>
-      displayEntries
+      paneEntries
         .map(
           ({ key, file }) =>
             `${key}:${expanded.has(key) ? "open" : "closed"}:${file.semantic?.length ?? 0}`,
         )
         .join("\u0000"),
-    [displayEntries, expanded],
+    [paneEntries, expanded],
   );
   const hasSemantic = useMemo(
     () =>
@@ -165,8 +176,8 @@ export function DiffView({
   const visibleSemantic = useMemo(
     () =>
       hasSemantic &&
-      displayEntries.some(({ file }) => (file.semantic?.length ?? 0) > 0),
-    [hasSemantic, displayEntries],
+      paneEntries.some(({ file }) => (file.semantic?.length ?? 0) > 0),
+    [hasSemantic, paneEntries],
   );
   const showSummary = semanticAvailable && (semanticSummary?.total ?? 0) > 0;
 
@@ -221,17 +232,17 @@ export function DiffView({
 
       <div className="flex min-h-0 flex-1">
         <DiffSidebar
-          files={visible}
+          files={matched}
           activeKey={activeKey}
           filter={filter}
           filterInputRef={filterInputRef}
           kindCounts={kindCounts}
           hiddenKinds={hiddenKinds}
           totalCount={files.length}
-          hiddenCount={hiddenCount}
+          hiddenCount={files.length - matched.length}
           hasReview={hasReview}
           sort={diffSort}
-          mode={diffMode}
+          pathMode={pathMode}
           walkthrough={walkthrough}
           activeStepID={activeStep?.id}
           hideLowPriority={hideLowPriority}
@@ -260,7 +271,7 @@ export function DiffView({
             scrollEdgeClass(scrollEdges),
           )}
         >
-          {displayEntries.length === 0 ? (
+          {paneEntries.length === 0 ? (
             pathMode ? (
               <p className="border-b border-line p-3 text-meta text-fg-faint">
                 This step has no renderable hunks.
@@ -290,7 +301,7 @@ export function DiffView({
             )
           ) : null}
 
-          {displayEntries.map((entry) => {
+          {paneEntries.map((entry) => {
             const hunks = pathMode ? (entry as PathFileEntry).hunks : undefined;
             return (
               <DiffFileSection
@@ -318,7 +329,7 @@ export function DiffView({
         {visibleSemantic && showSemanticRail ? (
           <SemanticRail
             paneRef={paneRef}
-            files={displayEntries}
+            files={paneEntries}
             expanded={expanded}
             singleFile={!pathMode && focusMode}
             layoutKey={railLayoutKey}

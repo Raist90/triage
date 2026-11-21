@@ -50,6 +50,20 @@ export type DiffSelection = {
 };
 
 /**
+ * Case-insensitive path search over a prepared rail list. Search is a rail and
+ * keyboard concern, not a pane filter: the pane keeps rendering the filtered
+ * files so typing does not close the patch being reviewed.
+ */
+export function filterDiffEntries(
+  entries: DiffFileEntry[],
+  query: string,
+): DiffFileEntry[] {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return entries;
+  return entries.filter(({ file }) => file.path.toLowerCase().includes(needle));
+}
+
+/**
  * Applies the kind, cosmetic and low-focus filters, then the priority order.
  * Kept pure so the counters and the sidebar receive exactly the same list the
  * pane renders.
