@@ -8,10 +8,12 @@ its Linear issue so you get context before reading a single line of diff.
 The product is a **triage and review cockpit**, not a GitHub client. Every feature
 must reduce the time between "I need to review this" and "review submitted".
 
-This file is the index. Detailed conventions live in `.omp/skills/<name>/SKILL.md`
-(omp: `skill://<name>`); read the owning skill before editing, and every listed
-skill when a change spans directories. Hard, always-on rules are in
-`.omp/RULES.md`.
+This file is the index. Detailed conventions live in `.skills/<name>/SKILL.md`
+(omp: `skill://<name>`; OpenCode: the skill of the same name). `.omp/skills` and
+`.opencode/skills` are symlinks to `.skills`, so each agent finds them at its own
+default path; `.skills` is the only copy. Read the owning skill before editing,
+and every listed skill when a change spans directories. Hard, always-on rules
+are in `.omp/RULES.md`.
 
 ## Stack
 
@@ -165,7 +167,7 @@ Out (do not build yet):
 - Prefer deleting a placeholder over implementing it speculatively.
 - No new dependency, abstraction, or config layer without a concrete need.
 - Remove the demo `greet` command and example view once real views exist.
-- One owner per rule. Update the owning `.omp/skills/<name>/SKILL.md` when a rule
+- One owner per rule. Update the owning `.skills/<name>/SKILL.md` when a rule
   changes; this hub only routes.
 - `.omp/RULES.md` intentionally repeats the handful of rules that must survive
   compaction and reach subagents; keep it short and in sync.
