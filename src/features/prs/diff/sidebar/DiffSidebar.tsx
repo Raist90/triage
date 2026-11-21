@@ -6,16 +6,9 @@ import type {
   Walkthrough,
 } from "../../../../lib/types";
 import type { DiffMode, DiffSort } from "../../../../stores/ui";
-import {
-  DIFF_FILE_KINDS,
-  FILE_KIND_LABEL,
-  FILE_STATUS_MARK,
-  focusBand,
-  isCosmeticFile,
-  reviewSignals,
-  splitPath,
-} from "../diffFile";
-import { Row } from "./Row";
+import { DIFF_FILE_KINDS, FILE_KIND_LABEL, focusBand } from "../diffFile";
+import { FileRow } from "./FileRow";
+import { StepRow } from "./StepRow";
 
 type FileEntry = {
   key: string;
@@ -198,57 +191,29 @@ export function DiffSidebar({
       <div className="min-h-0 flex-1 overflow-y-auto py-1">
         {activeMode === "path" && walkthrough ? (
           <div className="flex flex-col">
-            {walkthrough.steps.map((step, index) => {
-              const active = step.id === activeStepID;
-              const title = `${step.title} · ${step.files.length} files`;
-              return (
-                <Row
-                  key={step.id}
-                  active={step.id === activeStepID}
-                  onSelect={() => onSelectStep(step.id)}
-                  title={title}
-                  className="flex w-full flex-col gap-0.5 p-2 text-left"
-                >
-                  <Row.Step index={index} active={active} step={step} />
-                </Row>
-              );
-            })}
+            {walkthrough.steps.map((step, index) => (
+              <StepRow
+                key={step.id}
+                index={index}
+                active={step.id === activeStepID}
+                onSelect={() => onSelectStep(step.id)}
+                step={step}
+              />
+            ))}
           </div>
         ) : null}
         {activeMode === "files" ? (
           rows.length === 0 ? (
             <p className="p-2 text-meta text-fg-faint">No files match.</p>
           ) : (
-            rows.map(({ key, file }) => {
-              const active = key === activeKey;
-              const status = FILE_STATUS_MARK[file.status];
-              const { dir, name } = splitPath(file.path);
-              const band = focusBand(file);
-              const signals = reviewSignals(file);
-              const focusTitle = file.review
-                ? `${band} focus ${file.review.score}/100${signals.length > 0 ? ` · ${signals.join(" · ")}` : ""}`
-                : "";
-              return (
-                <Row
-                  key={key}
-                  active={active}
-                  onSelect={() => onSelect(key)}
-                  title={`${file.oldPath ? `${file.path} (from ${file.oldPath})` : file.path}${focusTitle ? ` · ${focusTitle}` : ""}`}
-                  className="flex h-9 w-full items-center gap-2 px-2 text-left"
-                >
-                  <Row.File
-                    active={active}
-                    band={band}
-                    dir={dir}
-                    file={file}
-                    focusTitle={focusTitle}
-                    isCosmeticFile={isCosmeticFile(file)}
-                    name={name}
-                    status={status}
-                  />
-                </Row>
-              );
-            })
+            rows.map(({ key, file }) => (
+              <FileRow
+                key={key}
+                file={file}
+                active={key === activeKey}
+                onSelect={() => onSelect(key)}
+              />
+            ))
           )
         ) : null}
       </div>
