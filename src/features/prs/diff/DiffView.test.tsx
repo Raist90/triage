@@ -539,7 +539,7 @@ describe("DiffView", () => {
         within(sidebar)
           .getByRole("button", { name: /e\.ts/ })
           .getAttribute("aria-current"),
-      ).toBe("true"),
+      ).toBe("location"),
     );
   });
 
@@ -576,7 +576,7 @@ describe("DiffView", () => {
         within(sidebar)
           .getByRole("button", { name: /e\.ts/ })
           .getAttribute("aria-current"),
-      ).toBe("true"),
+      ).toBe("location"),
     );
   });
 
@@ -633,6 +633,54 @@ describe("DiffView", () => {
 
     expect(screen.getByText("beta added")).toBeDefined();
     expect(screen.queryByText("alpha added")).toBeNull();
+  });
+
+  test("the rail marks the open file and the open step as current", () => {
+    const walkthrough: Walkthrough = {
+      steps: [
+        {
+          id: "step-1",
+          title: "Change a",
+          additions: 1,
+          deletions: 0,
+          files: [{ path: "src/a.ts", hunks: [0] }],
+        },
+        {
+          id: "step-2",
+          title: "Change b",
+          additions: 1,
+          deletions: 0,
+          files: [{ path: "src/b.ts", hunks: [0] }],
+        },
+      ],
+    };
+    renderDiff({ walkthrough, mode: "path" });
+
+    const rail = screen.getByLabelText("Review path");
+    expect(
+      within(rail)
+        .getByRole("button", { name: /Change a/ })
+        .getAttribute("aria-current"),
+    ).toBe("step");
+    expect(
+      within(rail)
+        .getByRole("button", { name: /Change b/ })
+        .getAttribute("aria-current"),
+    ).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show the file list" }));
+
+    const files = screen.getByLabelText("Files in this pull request");
+    expect(
+      within(files)
+        .getByRole("button", { name: /a\.ts/ })
+        .getAttribute("aria-current"),
+    ).toBe("location");
+    expect(
+      within(files)
+        .getByRole("button", { name: /b\.ts/ })
+        .getAttribute("aria-current"),
+    ).toBeNull();
   });
 
   test("path mode renders only the hunks a step owns", () => {

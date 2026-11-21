@@ -7,7 +7,8 @@ import type {
 } from "../../../../lib/types";
 import type { DiffMode, DiffSort } from "../../../../stores/ui";
 import { DIFF_FILE_KINDS, FILE_KIND_LABEL, focusBand } from "../diffFile";
-import { FileRow, StepRow } from "./Rows";
+import { FileRow } from "./FileRow";
+import { StepRow } from "./StepRow";
 
 type FileEntry = {
   key: string;
