@@ -108,8 +108,10 @@ stay side by side; reviewing is the only flow that matters.
   under the names the app uses and keeps only what OpenAPI cannot express, such
   as `ActionStreamEvent`. Never hand-write a response shape; change the Go type
   and run `make api`. Never edit `src/lib/generated` by hand.
-- Components: named exports, one component per file, props typed inline or with a
-  local `type`. Semantic HTML first.
+- Components: named exports, props typed inline or with a local `type`. Semantic
+  HTML first. A file may hold a parent component with its private children, or a
+  component with its private helpers; name the file after what it exports, not
+  after the category the parts belong to.
 - Tailwind classes sorted by ESLint and Prettier; do not hand-order them.
 - Class strings are checked by `eslint-plugin-tailwindcss` against
   `src/index.css` (`settings.tailwindcss.cssConfigPath`). It enforces class order,
