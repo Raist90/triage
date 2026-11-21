@@ -240,10 +240,10 @@ export function DiffView({
           hiddenKinds={hiddenKinds}
           totalCount={files.length}
           hiddenCount={files.length - matched.length}
+          highCount={highCount}
           hasReview={hasReview}
           sort={diffSort}
-          pathMode={pathMode}
-          walkthrough={walkthrough}
+          steps={pathMode ? walkthrough?.steps : undefined}
           activeStepID={activeStep?.id}
           hideLowPriority={hideLowPriority}
           lowCount={lowCount}

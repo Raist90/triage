@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { makeFile } from "../../../test/fixtures";
 import {
+  filesSummary,
   filterDiffEntries,
   selectDiffFiles,
+  stepsSummary,
   summaryText,
 } from "./diffSelection";
 
@@ -194,5 +196,25 @@ describe("summaryText", () => {
         total: 0,
       }),
     ).toBe("0 semantic changes");
+  });
+});
+
+describe("filesSummary", () => {
+  test("counts total files and singularizes one", () => {
+    expect(filesSummary(1, 1, 0, 0)).toBe("1 file");
+    expect(filesSummary(4, 4, 0, 0)).toBe("4 files");
+  });
+
+  test("shows visible of total with hidden and high counts", () => {
+    expect(filesSummary(2, 5, 3, 0)).toBe("2 of 5 files · 3 hidden");
+    expect(filesSummary(2, 5, 3, 1)).toBe("2 of 5 files · 3 hidden · 1 high");
+    expect(filesSummary(4, 4, 0, 2)).toBe("4 files · 2 high");
+  });
+});
+
+describe("stepsSummary", () => {
+  test("singularizes one step", () => {
+    expect(stepsSummary(1)).toBe("1 step · every change covered");
+    expect(stepsSummary(3)).toBe("3 steps · every change covered");
   });
 });

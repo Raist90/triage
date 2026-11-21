@@ -148,3 +148,22 @@ export function summaryText(summary: SemanticSummary): string {
     parts.length > 0 ? ` · ${parts.join(" · ")}` : ""
   }`;
 }
+
+/** Rail footer while the file list is showing. */
+export function filesSummary(
+  visibleCount: number,
+  totalCount: number,
+  hiddenCount: number,
+  highCount: number,
+): string {
+  const counts =
+    hiddenCount === 0
+      ? `${totalCount} ${totalCount === 1 ? "file" : "files"}`
+      : `${visibleCount} of ${totalCount} files · ${hiddenCount} hidden`;
+  return highCount > 0 ? `${counts} · ${highCount} high` : counts;
+}
+
+/** Rail footer while path mode lists the steps. */
+export function stepsSummary(stepCount: number): string {
+  return `${stepCount} ${stepCount === 1 ? "step" : "steps"} · every change covered`;
+}
