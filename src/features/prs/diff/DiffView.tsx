@@ -10,7 +10,7 @@ import { scrollEdgeClass, useScrollEdges } from "../../../lib/useScrollEdges";
 import { useUIStore } from "../../../stores/ui";
 import { DiffFileSection } from "./DiffFileSection";
 import { selectDiffFiles, type DiffTarget } from "./diffSelection";
-import { DiffSidebar } from "./sidebar/DiffSidebar";
+import { DiffSidebar } from "./DiffSidebar";
 import { DiffToolbar } from "./DiffToolbar";
 import { SemanticRail } from "./SemanticRail";
 import type { DiffCommentsController } from "./useDiffComments";
