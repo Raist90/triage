@@ -104,9 +104,11 @@ stay side by side; reviewing is the only flow that matters.
 - Zustand only for ephemeral UI state (selected repo, active tab, toggles).
   Never duplicate server data into a store.
 - React Context is transport, not ownership. Reach for it when a value crosses
-  three or more levels inside one pane (`DiffCommentsContext`), or when a pane's
-  chrome shares one loaded object with several direct children
-  (`PRDetailContext`). Mount the loaded kind only where the data exists, so the
+  three or more levels inside one pane (`DiffCommentsContext`), or when several
+  direct children read the same loaded object plus its controllers
+  (`PRDetailContext`: the PR and its mutation and review controllers). One or
+  two scalars stay props: the detail bar and the review tab take `repo` and
+  `number` directly. Mount the loaded kind only where the data exists, so the
   value is non-optional and consumers never re-check it. Memoize the value and
   keep its controllers referentially stable; a context change re-renders
   consumers through `memo`. Split contexts by change frequency and keep

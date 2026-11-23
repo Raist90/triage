@@ -3,9 +3,10 @@ import type { ReactNode } from "react";
 import { IconButton } from "../../../components/ui";
 import { cx } from "../../../lib/cx";
 import { openExternal } from "../../../lib/open";
-import { usePRChrome } from "./PRDetailContext";
 
 type PRDetailBarProps = {
+  repo: string;
+  number: number;
   fullscreen: boolean;
   onClose: () => void;
   onToggleFullscreen: () => void;
@@ -16,13 +17,14 @@ type PRDetailBarProps = {
 };
 
 export function PRDetailBar({
+  repo,
+  number,
   fullscreen,
   onClose,
   onToggleFullscreen,
   children,
   url,
 }: PRDetailBarProps) {
-  const { repo, number } = usePRChrome();
   return (
     <div
       data-tauri-drag-region

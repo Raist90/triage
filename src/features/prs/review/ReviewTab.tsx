@@ -3,12 +3,13 @@ import { StateView } from "../../../components/StateView";
 import { Button } from "../../../components/ui";
 import type { DiffFile, ReviewFinding } from "../../../lib/types";
 import type { ClaudeActionController } from "../action/useClaudeAction";
-import { usePRChrome } from "../detail/PRDetailContext";
 import { ReviewFindings } from "./ReviewFindings";
 import { ReviewStages } from "./ReviewStages";
 import { useApplyFinding } from "./useApplyFinding";
 
 type ReviewTabProps = {
+  repo: string;
+  number: number;
   controller: ClaudeActionController;
   reviewAvailable: boolean;
   unavailableReason?: string;
@@ -20,6 +21,8 @@ type ReviewTabProps = {
 };
 
 export function ReviewTab({
+  repo,
+  number,
   controller,
   reviewAvailable,
   unavailableReason,
@@ -27,7 +30,6 @@ export function ReviewTab({
   diffFiles,
   onOpenInDiff,
 }: ReviewTabProps) {
-  const { repo, number } = usePRChrome();
   const { artifact, error, phase, review, running, stale } = controller;
   const configFile = configPath ?? "~/.triage/config.json";
   const { applying, failure, apply } = useApplyFinding(
