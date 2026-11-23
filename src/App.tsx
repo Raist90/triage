@@ -98,9 +98,11 @@ export function App() {
 
       {/* Title bar: the window controls and nothing else. Transparent, so the
           light behind it carries it into the chrome band below. */}
-      <div data-tauri-drag-region className="relative h-7 shrink-0" />
+      <div data-tauri-drag-region className="relative h-10 shrink-0" />
 
-      <div className="relative flex min-h-0 flex-1">
+      {/* The app box: one border across the top closes it off from the window
+          chrome, so the panes read as a single framed surface. */}
+      <div className="relative flex min-h-0 flex-1 border-t border-line">
         {/* One seam under the whole 44px chrome band. */}
         <div
           aria-hidden="true"
