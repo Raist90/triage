@@ -332,15 +332,6 @@ export function useDiffNavigation({
       if (programmaticScroll.current) return;
       const visibleEntries = visibleRef.current;
       if (visibleEntries.length === 0) return;
-      // At the end of the pane the top edge can never reach the last files, so
-      // short trailing files would never win the top-edge test. The last
-      // visible section owns the selection there, collapsed or not: its header
-      // is what sits at the bottom of the viewport.
-      if (clampedAtBottom(pane)) {
-        const last = visibleEntries[visibleEntries.length - 1].key;
-        setActiveKey((previous) => (previous === last ? previous : last));
-        return;
-      }
       const threshold = pane.getBoundingClientRect().top + 1;
       // Only rendered file bodies can own the scroll selection. A collapsed
       // file is a 36px header and scroll clamping can leave it under the top
@@ -362,6 +353,19 @@ export function useDiffNavigation({
         slot.top = rect.top;
         slot.bottom = rect.bottom;
         count += 1;
+      }
+      // At the end of the pane the top edge can never reach the last files, so
+      // short trailing files would never win the top-edge test. The last
+      // rendered body owns the selection there. Never a collapsed header: in
+      // focus mode the single open file is the only body, so scrolling through
+      // it must keep it selected instead of jumping to the last header below.
+      if (clampedAtBottom(pane)) {
+        const last =
+          count > 0
+            ? sections[count - 1].key
+            : visibleEntries[visibleEntries.length - 1].key;
+        setActiveKey((previous) => (previous === last ? previous : last));
+        return;
       }
       if (count === 0) return;
       const current = activeSectionKey(sections, threshold, count);

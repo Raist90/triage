@@ -600,7 +600,7 @@ describe("DiffView", () => {
     );
   });
 
-  test("a collapsed trailing file owns the selection at the bottom", async () => {
+  test("scrolling to the end in focus mode keeps the open file selected", async () => {
     const names = ["a", "b", "c", "d", "e"];
     const files = names.map((name) =>
       makeFile({
@@ -614,7 +614,9 @@ describe("DiffView", () => {
         ],
       }),
     );
-    // Only the first file is open; b.ts through e.ts are 36px headers.
+    // Only the first file is open; b.ts through e.ts are 36px headers. Their
+    // headers sit at the bottom of the scroll content, but no file changed:
+    // the user simply finished reading a.ts.
     renderDiff({ files });
 
     const pane = screen.getByText("a added").closest("section")!
@@ -631,7 +633,112 @@ describe("DiffView", () => {
     await waitFor(() =>
       expect(
         within(sidebar)
-          .getByRole("button", { name: /e\.ts/ })
+          .getByRole("button", { name: /a\.ts/ })
+          .getAttribute("aria-current"),
+      ).toBe("location"),
+    );
+    expect(
+      within(sidebar)
+        .getByRole("button", { name: /e\.ts/ })
+        .getAttribute("aria-current"),
+    ).toBeNull();
+    // The open body did not change either.
+    expect(screen.getByText("a added")).toBeDefined();
+    expect(screen.queryByText("e added")).toBeNull();
+  });
+
+  test("focus mode ignores the bottom clamp while scrolling a lone open file", async () => {
+    const names = ["a", "b", "c", "d"];
+    const files = names.map((name) =>
+      makeFile({
+        path: `src/${name}.ts`,
+        hunks: [
+          makeHunk({
+            lines: [
+              makeLine({ kind: "add", newNumber: 1, text: `${name} added` }),
+            ],
+          }),
+        ],
+      }),
+    );
+    renderDiff({ files });
+    const sidebar = screen.getByLabelText("Files in this pull request");
+    const current = () =>
+      sidebar
+        .querySelector('[aria-current="location"]')
+        ?.getAttribute("data-rail-key") ?? null;
+
+    const pane = screen.getByText("a added").closest("section")!
+      .parentElement as HTMLElement;
+
+    // Mid-scroll: no clamp involved, top edge still inside a.ts.
+    mockPaneGeometry(pane, [400, 300, 200, 100], {
+      scrollTop: 120,
+      clientHeight: 500,
+      scrollHeight: 1000,
+    });
+    fireEvent.scroll(pane);
+    await waitFor(() => expect(current()).toBe("src/a.ts:0"));
+
+    // Then the very end of the content.
+    mockPaneGeometry(pane, [400, 300, 200, 100], {
+      scrollTop: 500,
+      clientHeight: 500,
+      scrollHeight: 1000,
+    });
+    fireEvent.scroll(pane);
+    await waitFor(() => expect(current()).toBe("src/a.ts:0"));
+  });
+
+  test("the opening file stays selected after the pane clamps at the bottom and the user continues to an expanded file", async () => {
+    const names = ["a", "b", "c", "d"];
+    const files = names.map((name) =>
+      makeFile({
+        path: `src/${name}.ts`,
+        hunks: [
+          makeHunk({
+            lines: [
+              makeLine({ kind: "add", newNumber: 1, text: `${name} added` }),
+            ],
+          }),
+        ],
+      }),
+    );
+    renderDiff({ files });
+    const sidebar = screen.getByLabelText("Files in this pull request");
+
+    // Expanding the second file through the rail must not be undone by a
+    // scroll event fired while the pane is at its end. Releasing the
+    // programmatic lock first makes the scroll handler actually run.
+    fireEvent.click(within(sidebar).getByRole("button", { name: /b\.ts/ }));
+    const pane = screen.getByText("b added").closest("section")!
+      .parentElement as HTMLElement;
+    mockPaneGeometry(pane, [400, 300, 200, 100], {
+      scrollTop: 500,
+      clientHeight: 500,
+      scrollHeight: 1000,
+    });
+    fireEvent.pointerDown(pane);
+    fireEvent.scroll(pane);
+
+    await waitFor(() =>
+      expect(
+        within(sidebar)
+          .getByRole("button", { name: /b\.ts/ })
+          .getAttribute("aria-current"),
+      ).toBe("location"),
+    );
+    expect(screen.getByText("b added")).toBeDefined();
+
+    // Keyboard navigation still leaves the clamped bottom: the only rendered
+    // body follows the selection.
+    fireEvent.keyDown(window, { key: "j" });
+    expect(screen.getByText("c added")).toBeDefined();
+    expect(screen.queryByText("b added")).toBeNull();
+    await waitFor(() =>
+      expect(
+        within(sidebar)
+          .getByRole("button", { name: /c\.ts/ })
           .getAttribute("aria-current"),
       ).toBe("location"),
     );
