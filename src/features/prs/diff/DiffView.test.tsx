@@ -312,6 +312,32 @@ describe("DiffView", () => {
     expect(screen.queryByText("beta added")).toBeNull();
   });
 
+  test("the rail marks the row j moved to", () => {
+    const files = ["a", "b", "c", "d"].map((name) =>
+      makeFile({
+        path: `src/${name}.ts`,
+        hunks: [
+          makeHunk({
+            lines: [
+              makeLine({ kind: "add", newNumber: 1, text: `${name} added` }),
+            ],
+          }),
+        ],
+      }),
+    );
+    renderDiff({ files });
+    const sidebar = screen.getByLabelText("Files in this pull request");
+    const current = () =>
+      sidebar
+        .querySelector('[aria-current="location"]')
+        ?.getAttribute("data-rail-key") ?? null;
+
+    fireEvent.keyDown(window, { key: "j" });
+    expect(current()).toBe("src/b.ts:1");
+    expect(screen.getByText("b added")).toBeDefined();
+    expect(screen.queryByText("a added")).toBeNull();
+  });
+
   test("slash focuses the file filter", () => {
     renderDiff();
 

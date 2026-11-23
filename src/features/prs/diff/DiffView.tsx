@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { cx } from "../../../lib/cx";
 import type {
@@ -155,6 +155,9 @@ export function DiffView({
   }, [pathMode, stepID, pathFiles, expandFiles, paneRef]);
 
   const scrollEdges = useScrollEdges(paneRef);
+  // The rail's scroller lives one component down, so it reports its node up.
+  const railRef = useRef<HTMLDivElement | null>(null);
+  const railEdges = useScrollEdges(railRef);
   const { width: railWidth, rootRef, separatorProps } = useResizableRail();
 
   const railLayoutKey = useMemo(
@@ -236,6 +239,8 @@ export function DiffView({
           activeKey={activeKey}
           filter={filter}
           filterInputRef={filterInputRef}
+          railRef={railRef}
+          edgeClassName={scrollEdgeClass(railEdges)}
           kindCounts={kindCounts}
           hiddenKinds={hiddenKinds}
           totalCount={files.length}

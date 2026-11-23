@@ -11,6 +11,8 @@ export function DiffSidebar({
   activeKey,
   filter,
   filterInputRef,
+  railRef,
+  edgeClassName,
   kindCounts,
   hiddenKinds,
   totalCount,
@@ -34,6 +36,10 @@ export function DiffSidebar({
   activeKey: string | null;
   filter: string;
   filterInputRef: RefObject<HTMLInputElement | null>;
+  /** The rail's row scroller, so the owner can attach scroll-edge fades. */
+  railRef: RefObject<HTMLDivElement | null>;
+  /** Clipped-edge fade for the row scroller. */
+  edgeClassName: string;
   kindCounts: Record<DiffFileKind, number>;
   hiddenKinds: DiffFileKind[];
   /** Every file in the diff, before kinds, cosmetic, priority and search. */
@@ -91,6 +97,10 @@ export function DiffSidebar({
         activeStepID={activeStepID}
         onSelectStep={onSelectStep}
         onSelect={onSelect}
+        onScrollerRef={(node) => {
+          railRef.current = node;
+        }}
+        edgeClassName={edgeClassName}
       />
 
       <div className="shrink-0 border-t border-line p-2 font-mono text-micro text-fg-faint tabular-nums">

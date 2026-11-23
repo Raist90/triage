@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { cx } from "../../../lib/cx";
 import type { DiffFile, WalkthroughStep } from "../../../lib/types";
@@ -13,6 +14,10 @@ import type { DiffFileEntry } from "./diffSelection";
 /**
  * Rows the rail shows: the path's steps in path mode, the search-matched file
  * list otherwise, or one notice when the search matches nothing.
+ *
+ * `activeKey`, or `activeStepID` in path mode, names the selected row. The
+ * active row is kept inside the scroller, so `j`/`k` past the visible rows
+ * never moves a highlight the user cannot see.
  */
 export function DiffRailList({
   files,
@@ -21,6 +26,8 @@ export function DiffRailList({
   activeStepID,
   onSelectStep,
   onSelect,
+  onScrollerRef,
+  edgeClassName,
 }: {
   files: DiffFileEntry[];
   /** The resolved path steps; undefined renders the file list. */
@@ -29,7 +36,25 @@ export function DiffRailList({
   activeStepID?: string;
   onSelectStep: (stepID: string) => void;
   onSelect: (key: string) => void;
+  /** The scrolling element, so the owner can attach scroll-edge fades. */
+  onScrollerRef?: (node: HTMLDivElement | null) => void;
+  /** Clipped-edge fade classes from the owner's `useScrollEdges`. */
+  edgeClassName?: string;
 }) {
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const activeID = steps ? (activeStepID ?? null) : activeKey;
+
+  // `nearest` leaves a row that is already fully visible alone, so a click
+  // never shifts the list; a row past an edge is brought in just far enough.
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller || activeID === null) return;
+    const row = Array.from(
+      scroller.querySelectorAll<HTMLElement>("[data-rail-key]"),
+    ).find((candidate) => candidate.dataset.railKey === activeID);
+    row?.scrollIntoView({ block: "nearest" });
+  }, [activeID]);
+
   let rows: ReactNode;
   if (steps) {
     rows = steps.map((step, index) => (
@@ -47,6 +72,7 @@ export function DiffRailList({
     rows = files.map(({ key, file }) => (
       <FileRow
         key={key}
+        fileKey={key}
         file={file}
         active={key === activeKey}
         onSelect={() => onSelect(key)}
@@ -57,7 +83,18 @@ export function DiffRailList({
   // `isolate` gives the scroller its own stacking context. Without it WebKit
   // paints the rows' positioned fills above the overlay scrollbar.
   return (
-    <div className="isolate min-h-0 flex-1 overflow-y-auto py-1">{rows}</div>
+    <div
+      ref={(node) => {
+        scrollerRef.current = node;
+        onScrollerRef?.(node);
+      }}
+      className={cx(
+        "isolate min-h-0 flex-1 overflow-y-auto py-1",
+        edgeClassName,
+      )}
+    >
+      {rows}
+    </div>
   );
 }
 
@@ -69,10 +106,13 @@ const FOCUS_DOT: Record<"high" | "medium" | "low", string> = {
 
 function FileRow({
   active,
+  fileKey,
   file,
   onSelect,
 }: {
   active: boolean;
+  /** The rail key, exposed so the scroller can find the active row. */
+  fileKey: string;
   file: DiffFile;
   onSelect: () => void;
 }) {
@@ -91,6 +131,7 @@ function FileRow({
       current="location"
       onSelect={onSelect}
       title={title}
+      dataKey={fileKey}
       className="flex h-9 items-center gap-2 px-2"
     >
       <span
@@ -156,6 +197,7 @@ function StepRow({
       current="step"
       onSelect={onSelect}
       title={`${step.title} · ${step.files.length} files`}
+      dataKey={step.id}
       className="flex flex-col gap-0.5 p-2"
     >
       <span className="flex w-full min-w-0 items-baseline gap-2">
@@ -190,6 +232,7 @@ function SidebarRow({
   current,
   children,
   className,
+  dataKey,
   onSelect,
   title,
 }: {
@@ -198,6 +241,8 @@ function SidebarRow({
   current: "location" | "step";
   children: ReactNode;
   className: string;
+  /** Stable row identity, matched by the scroller's active-row lookup. */
+  dataKey: string;
   onSelect: () => void;
   title: string;
 }) {
@@ -206,6 +251,7 @@ function SidebarRow({
       type="button"
       onClick={onSelect}
       aria-current={active ? current : undefined}
+      data-rail-key={dataKey}
       title={title}
       className={cx(
         "relative w-full text-left transition-colors",
