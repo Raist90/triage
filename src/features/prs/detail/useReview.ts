@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { describeError, submitReview } from "../../../lib/api";
 import type { PR, ReviewEvent } from "../../../lib/types";
 
@@ -38,17 +38,43 @@ export function useReview(repo: string, number: number): ReviewController {
     },
   });
 
-  return {
-    pending: mutation.isPending,
-    submitting: mutation.isPending ? (mutation.variables?.event ?? null) : null,
-    error: mutation.isError ? describeError(mutation.error) : null,
-    open,
-    togglePanel,
-    closePanel,
-    comment,
-    setComment,
-    submit: (event, body = comment) => mutation.mutate({ event, body }),
-  };
+  // Destructured so `submit` depends on the stable function, not on the
+  // result object that TanStack rebuilds every render.
+  const { mutate } = mutation;
+  const submit = useCallback(
+    (event: ReviewEvent, body?: string) => {
+      mutate({ event, body: body ?? comment });
+    },
+    [mutate, comment],
+  );
+
+  // A stable controller keeps the detail context from waking its consumers
+  // when an unrelated pane render asks for the same review state again.
+  const { isPending, isError, error, variables } = mutation;
+  return useMemo(
+    () => ({
+      pending: isPending,
+      submitting: isPending ? (variables?.event ?? null) : null,
+      error: isError ? describeError(error) : null,
+      open,
+      togglePanel,
+      closePanel,
+      comment,
+      setComment,
+      submit,
+    }),
+    [
+      isPending,
+      isError,
+      error,
+      variables,
+      open,
+      togglePanel,
+      closePanel,
+      comment,
+      submit,
+    ],
+  );
 }
 
 /** Only open, non-draft PRs accept a review, and GitHub rejects self-approval. */

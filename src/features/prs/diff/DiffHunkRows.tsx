@@ -8,7 +8,6 @@ import type {
 import { ChangeAnnotation } from "./DiffAnnotation";
 import { anchorKey, lineAnchor, lineAnchors } from "./diffAnchors";
 import { LineRow, ROW_GRID } from "./DiffLineRow";
-import type { DiffCommentsController } from "./useDiffComments";
 import {
   badgeClassName,
   changeMark,
@@ -23,13 +22,9 @@ type HunkRowsProps = {
   changes: SemanticChange[];
   flash: boolean;
   path: string;
-  comments: DiffCommentsController;
-  headSHA: string;
   byAnchor: Map<string, InlineComment[]>;
-  canComment: boolean;
   draft: string | null;
   onDraftChange: (key: string | null) => void;
-  viewerLogin?: string;
 };
 
 export function HunkRows({
@@ -38,13 +33,9 @@ export function HunkRows({
   changes,
   flash,
   path,
-  comments,
-  headSHA,
   byAnchor,
-  canComment,
   draft,
   onDraftChange,
-  viewerLogin,
 }: HunkRowsProps) {
   const [open, setOpen] = useState(false);
   const tally = changes.length > 0 ? tallyChanges(changes) : null;
@@ -114,12 +105,8 @@ export function HunkRows({
             line={line}
             anchor={anchor}
             anchorComments={anchorComments}
-            canComment={canComment}
             draft={draft}
             onDraftChange={onDraftChange}
-            comments={comments}
-            headSHA={headSHA}
-            viewerLogin={viewerLogin}
           />
         );
       })}

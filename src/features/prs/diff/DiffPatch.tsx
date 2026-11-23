@@ -6,19 +6,15 @@ import { groupCommentsByAnchor } from "./diffAnchors";
 import { anchorSemanticChanges } from "./diffFile";
 import { HunkRows } from "./DiffHunkRows";
 import { RawPatch } from "./DiffRawPatch";
-import type { DiffCommentsController } from "./useDiffComments";
+import { useDiffCommentsContext } from "./DiffCommentsContext";
 
 type FilePatchProps = {
   file: DiffFile;
   fileKey: string;
   /** Hunk indices a path step owns; undefined renders every hunk. */
   hunks?: number[];
-  comments: DiffCommentsController;
-  headSHA: string;
-  canComment: boolean;
   draft: string | null;
   onDraftChange: (key: string | null) => void;
-  viewerLogin?: string;
   /** `${fileKey}:${hunkIndex}` of a rail jump, highlighted briefly. */
   flash: string | null;
 };
@@ -27,14 +23,11 @@ export function FilePatch({
   file,
   fileKey,
   hunks: scopedHunks,
-  comments,
-  headSHA,
-  canComment,
   draft,
   onDraftChange,
-  viewerLogin,
   flash,
 }: FilePatchProps) {
+  const { comments, headSHA } = useDiffCommentsContext();
   const [showUnanchored, setShowUnanchored] = useState(false);
 
   if (file.binary) {
@@ -117,13 +110,9 @@ export function FilePatch({
               changes={byHunk[index] ?? []}
               flash={flash === `${fileKey}:${index}`}
               path={file.path}
-              comments={comments}
-              headSHA={headSHA}
               byAnchor={byAnchor}
-              canComment={canComment}
               draft={draft}
               onDraftChange={onDraftChange}
-              viewerLogin={viewerLogin}
             />
           </div>
         ))}

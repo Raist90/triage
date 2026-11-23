@@ -43,10 +43,7 @@ export type DiffSelection = {
   hasReview: boolean;
   highCount: number;
   lowCount: number;
-  hiddenCount: number;
   visible: DiffFileEntry[];
-  firstVisibleKey: string | null;
-  visibleSignature: string;
 };
 
 /**
@@ -65,7 +62,7 @@ export function filterDiffEntries(
 
 /**
  * Applies the kind, cosmetic and low-focus filters, then the priority order.
- * Kept pure so the counters and the sidebar receive exactly the same list the
+ * Kept pure so the counters and the rail receive exactly the same list the
  * pane renders.
  */
 export function selectDiffFiles(
@@ -104,10 +101,6 @@ export function selectDiffFiles(
   const lowCount = baseVisible.filter(
     ({ file }) => file.review?.band === "low",
   ).length;
-  const hiddenCount =
-    hiddenByKind +
-    (hideCosmetic ? cosmeticFiles : 0) +
-    (hideLowPriority ? lowCount : 0);
   const visible = baseVisible
     .filter(({ file }) => !(hideLowPriority && file.review?.band === "low"))
     .sort((a, b) =>
@@ -124,11 +117,64 @@ export function selectDiffFiles(
     hasReview,
     highCount,
     lowCount,
-    hiddenCount,
     visible,
-    firstVisibleKey: visible[0]?.key ?? null,
-    visibleSignature: visible.map(({ key }) => key).join("\u0000"),
   };
+}
+
+export type DiffSummaryPart = {
+  key: "step" | "summary" | "high" | "cosmetic" | "hidden" | "low";
+  text: string;
+};
+
+/**
+ * Text shown in the diff toolbar, in display order. Separators are the
+ * caller's job so a part can stay a plain string and a conditional control
+ * (the hidden-kinds Clear) can sit next to its own part.
+ */
+export function diffSummaryParts({
+  summary,
+  showSummary,
+  selection,
+  hideLowPriority,
+  pathMode,
+  stepLabel,
+}: {
+  summary?: SemanticSummary;
+  showSummary: boolean;
+  selection: DiffSelection;
+  hideLowPriority: boolean;
+  pathMode: boolean;
+  stepLabel?: string;
+}): DiffSummaryPart[] {
+  const parts: DiffSummaryPart[] = [];
+  if (pathMode && stepLabel) parts.push({ key: "step", text: stepLabel });
+  if (showSummary && summary)
+    parts.push({ key: "summary", text: summaryText(summary) });
+  if (selection.highCount > 0)
+    parts.push({
+      key: "high",
+      text: `${selection.highCount} high focus`,
+    });
+  if (selection.cosmeticFiles > 0)
+    parts.push({
+      key: "cosmetic",
+      text: `${selection.cosmeticFiles} cosmetic-only ${
+        selection.cosmeticFiles === 1 ? "file" : "files"
+      }`,
+    });
+  if (selection.hiddenByKind > 0)
+    parts.push({
+      key: "hidden",
+      text: `${selection.hiddenByKind} ${
+        selection.hiddenByKind === 1 ? "file" : "files"
+      } hidden`,
+    });
+  if (hideLowPriority && selection.lowCount > 0)
+    parts.push({
+      key: "low",
+      text: `${selection.lowCount} low focus hidden`,
+    });
+  return parts;
 }
 
 export function summaryText(summary: SemanticSummary): string {

@@ -59,7 +59,7 @@ type UIState = {
   /** Whether the diff shows the semantic change map on its right edge. */
   showSemanticRail: boolean;
   /** Width in px of the diff file rail, session-only. */
-  diffSidebarWidth: number;
+  diffRailWidth: number;
   /** PR list facets and search, session-wide. */
   prFilters: PRFilters;
   selectRepo: (repo: string | null) => void;
@@ -74,7 +74,7 @@ type UIState = {
   setDiffMode: (mode: DiffMode) => void;
   toggleLowPriority: () => void;
   toggleSemanticRail: () => void;
-  setDiffSidebarWidth: (width: number) => void;
+  setDiffRailWidth: (width: number) => void;
   setFilterQuery: (query: string) => void;
   toggleFilterFacet: (section: PRFilterSection, value: string) => void;
   setFilterFacet: (section: PRFilterSection, values: string[]) => void;
@@ -100,7 +100,7 @@ export const useUIStore = create<UIState>((set) => ({
   diffMode: "files",
   hideLowPriority: false,
   showSemanticRail: true,
-  diffSidebarWidth: 208,
+  diffRailWidth: 208,
   prFilters: EMPTY_PR_FILTERS,
   selectRepo: (repo) =>
     set((state) => ({
@@ -138,7 +138,7 @@ export const useUIStore = create<UIState>((set) => ({
     set((state) => ({ hideLowPriority: !state.hideLowPriority })),
   toggleSemanticRail: () =>
     set((state) => ({ showSemanticRail: !state.showSemanticRail })),
-  setDiffSidebarWidth: (width) => set({ diffSidebarWidth: width }),
+  setDiffRailWidth: (width) => set({ diffRailWidth: width }),
   setFilterQuery: (query) =>
     set((state) => ({ prFilters: { ...state.prFilters, query } })),
   toggleFilterFacet: (section, value) =>

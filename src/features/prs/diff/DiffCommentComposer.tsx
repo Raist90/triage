@@ -1,21 +1,15 @@
 import { useState } from "react";
 import { Button } from "../../../components/ui";
 import type { CommentAnchor } from "./diffAnchors";
-import type { DiffCommentsController } from "./useDiffComments";
+import { useDiffCommentsContext } from "./DiffCommentsContext";
 
 type CommentComposerProps = {
   anchor: CommentAnchor;
-  headSHA: string;
-  comments: DiffCommentsController;
   onDone: () => void;
 };
 
-export function CommentComposer({
-  anchor,
-  headSHA,
-  comments,
-  onDone,
-}: CommentComposerProps) {
+export function CommentComposer({ anchor, onDone }: CommentComposerProps) {
+  const { comments, headSHA } = useDiffCommentsContext();
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
 

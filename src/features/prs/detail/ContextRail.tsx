@@ -2,17 +2,18 @@ import { Check, Copy } from "lucide-react";
 import { useRef } from "react";
 import { StatusIcon } from "../../../components/StatusBadge";
 import { cx } from "../../../lib/cx";
-import type { PR, PRDiffResponse } from "../../../lib/types";
+import type { PRDiffResponse } from "../../../lib/types";
 import { useCopy } from "../../../lib/useCopy";
 import { scrollEdgeClass, useScrollEdges } from "../../../lib/useScrollEdges";
 import { ComplexityMeter } from "./ComplexityMeter";
+import { usePRDetail } from "./PRDetailContext";
 
 type ContextRailProps = {
-  pr: PR;
   diff?: PRDiffResponse;
 };
 
-export function ContextRail({ pr, diff }: ContextRailProps) {
+export function ContextRail({ diff }: ContextRailProps) {
+  const { pr } = usePRDetail();
   const railRef = useRef<HTMLElement | null>(null);
   const scrollEdges = useScrollEdges(railRef);
   const { copied, copy } = useCopy(pr.headSHA);

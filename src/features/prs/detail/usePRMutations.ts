@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { closePR, describeError, mergePR, setPRDraft } from "../../../lib/api";
 
 /** GitHub's search index lags a merge, close or draft change by a moment. */
@@ -90,50 +90,90 @@ export function usePRMutations(
     onError: refreshDetail,
   });
 
-  const error = draftMutation.isError
-    ? describeError(draftMutation.error)
-    : mergeMutation.isError
-      ? describeError(mergeMutation.error)
-      : closeMutation.isError
-        ? describeError(closeMutation.error)
-        : null;
+  // Destructured so the callbacks depend on the stable mutation functions,
+  // not on the result objects TanStack rebuilds every render.
+  const { reset: resetDraft, mutate: mutateDraft } = draftMutation;
+  const { reset: resetMerge, mutate: mutateMerge } = mergeMutation;
+  const { reset: resetClose, mutate: mutateClose } = closeMutation;
 
-  return {
-    pending:
-      draftMutation.isPending ||
-      mergeMutation.isPending ||
-      closeMutation.isPending,
-    submitting: draftMutation.isPending
-      ? "draft"
-      : mergeMutation.isPending
-        ? "merge"
-        : closeMutation.isPending
-          ? "close"
-          : null,
-    error,
-    confirming,
-    openMergeConfirm: () => {
-      draftMutation.reset();
-      mergeMutation.reset();
-      closeMutation.reset();
-      setConfirming("merge");
+  const openMergeConfirm = useCallback(() => {
+    resetDraft();
+    resetMerge();
+    resetClose();
+    setConfirming("merge");
+  }, [resetDraft, resetMerge, resetClose]);
+
+  const openCloseConfirm = useCallback(() => {
+    resetDraft();
+    resetMerge();
+    resetClose();
+    setConfirming("close");
+  }, [resetDraft, resetMerge, resetClose]);
+
+  const toggleDraft = useCallback(
+    (draft: boolean) => {
+      resetMerge();
+      resetClose();
+      resetDraft();
+      mutateDraft(draft);
     },
-    openCloseConfirm: () => {
-      draftMutation.reset();
-      mergeMutation.reset();
-      closeMutation.reset();
-      setConfirming("close");
-    },
-    closeConfirm,
-    toggleDraft: (draft) => {
-      mergeMutation.reset();
-      closeMutation.reset();
-      draftMutation.reset();
-      draftMutation.mutate(draft);
-    },
-    merge: (sha) => mergeMutation.mutate(sha),
-    close: () => closeMutation.mutate(),
-  };
+    [resetDraft, resetMerge, resetClose, mutateDraft],
+  );
+
+  const merge = useCallback((sha: string) => mutateMerge(sha), [mutateMerge]);
+  const close = useCallback(() => mutateClose(), [mutateClose]);
+
+  let error: string | null = null;
+  if (draftMutation.isError) {
+    error = describeError(draftMutation.error);
+  } else if (mergeMutation.isError) {
+    error = describeError(mergeMutation.error);
+  } else if (closeMutation.isError) {
+    error = describeError(closeMutation.error);
+  }
+
+  const pending =
+    draftMutation.isPending ||
+    mergeMutation.isPending ||
+    closeMutation.isPending;
+
+  let submitting: PRStateAction | null = null;
+  if (draftMutation.isPending) {
+    submitting = "draft";
+  } else if (mergeMutation.isPending) {
+    submitting = "merge";
+  } else if (closeMutation.isPending) {
+    submitting = "close";
+  }
+
+  // A stable controller keeps the detail context from waking its consumers
+  // when an unrelated pane render asks for the same mutation state again.
+  return useMemo(
+    () => ({
+      pending,
+      submitting,
+      error,
+      confirming,
+      openMergeConfirm,
+      openCloseConfirm,
+      closeConfirm,
+      toggleDraft,
+      merge,
+      close,
+    }),
+    [
+      pending,
+      submitting,
+      error,
+      confirming,
+      openMergeConfirm,
+      openCloseConfirm,
+      closeConfirm,
+      toggleDraft,
+      merge,
+      close,
+    ],
+  );
 }
 
 /** Only your own open PR can be drafted, merged or closed from Triage. */

@@ -22,11 +22,11 @@ const initialUIState = useUIStore.getState();
 
 beforeEach(() => {
   useUIStore.setState(initialUIState, true);
-  useUIStore.setState({ diffSidebarWidth: 208 });
+  useUIStore.setState({ diffRailWidth: 208 });
 });
 
 afterEach(() => {
-  useUIStore.setState({ diffSidebarWidth: 208 });
+  useUIStore.setState({ diffRailWidth: 208 });
 });
 
 const headSHA = "abc1234def5678";
@@ -137,11 +137,11 @@ describe("DiffView", () => {
     expect(screen.queryByText("beta added")).toBeNull();
   });
 
-  test("selecting a file in the sidebar expands it and collapses the previous one", () => {
+  test("selecting a file in the rail expands it and collapses the previous one", () => {
     renderDiff();
-    const sidebar = screen.getByLabelText("Files in this pull request");
+    const rail = screen.getByLabelText("Files in this pull request");
 
-    fireEvent.click(within(sidebar).getByRole("button", { name: /b\.ts/ }));
+    fireEvent.click(within(rail).getByRole("button", { name: /b\.ts/ }));
 
     expect(screen.getByText("beta added")).toBeDefined();
     expect(screen.queryByText("alpha added")).toBeNull();
@@ -155,30 +155,30 @@ describe("DiffView", () => {
     expect(screen.queryByText("alpha added")).toBeNull();
   });
 
-  test("the file filter narrows the sidebar without closing the open file", () => {
+  test("the file filter narrows the rail without closing the open file", () => {
     renderDiff();
-    const sidebar = screen.getByLabelText("Files in this pull request");
+    const rail = screen.getByLabelText("Files in this pull request");
 
-    fireEvent.change(within(sidebar).getByLabelText("Filter files"), {
+    fireEvent.change(within(rail).getByLabelText("Filter files"), {
       target: { value: "b.ts" },
     });
 
-    expect(within(sidebar).queryByText("a.ts")).toBeNull();
-    expect(within(sidebar).getByText("b.ts")).toBeDefined();
-    expect(within(sidebar).getByText(/1 of 2 files/)).toBeDefined();
+    expect(within(rail).queryByText("a.ts")).toBeNull();
+    expect(within(rail).getByText("b.ts")).toBeDefined();
+    expect(within(rail).getByText(/1 of 2 files/)).toBeDefined();
     expect(screen.getByText("alpha added")).toBeDefined();
   });
 
   test("the file filter also narrows keyboard navigation", () => {
     renderDiff({ files: [fileA(), fileB(), makeFile({ path: "src/c.ts" })] });
-    const sidebar = screen.getByLabelText("Files in this pull request");
+    const rail = screen.getByLabelText("Files in this pull request");
 
-    fireEvent.change(within(sidebar).getByLabelText("Filter files"), {
+    fireEvent.change(within(rail).getByLabelText("Filter files"), {
       target: { value: "a.ts" },
     });
     fireEvent.keyDown(window, { key: "j" });
 
-    const current = sidebar.querySelector('[aria-current="location"]');
+    const current = rail.querySelector('[aria-current="location"]');
     expect(current?.textContent).toContain("a.ts");
   });
 
@@ -326,9 +326,9 @@ describe("DiffView", () => {
       }),
     );
     renderDiff({ files });
-    const sidebar = screen.getByLabelText("Files in this pull request");
+    const rail = screen.getByLabelText("Files in this pull request");
     const current = () =>
-      sidebar
+      rail
         .querySelector('[aria-current="location"]')
         ?.getAttribute("data-rail-key") ?? null;
 
@@ -377,21 +377,21 @@ describe("DiffView", () => {
     const a = fileA();
     a.kinds = ["test"];
     renderDiff({ files: [a, fileB()] });
-    const sidebar = screen.getByLabelText("Files in this pull request");
+    const rail = screen.getByLabelText("Files in this pull request");
 
     fireEvent.click(
-      within(sidebar).getByRole("button", {
+      within(rail).getByRole("button", {
         name: "Tests, 1 file, shown",
       }),
     );
 
-    expect(within(sidebar).queryByText("a.ts")).toBeNull();
+    expect(within(rail).queryByText("a.ts")).toBeNull();
     expect(screen.queryByText("alpha added")).toBeNull();
     expect(screen.getByText(/1 file hidden/)).toBeDefined();
 
     fireEvent.click(screen.getByRole("button", { name: "Clear" }));
-    expect(within(sidebar).getByText("a.ts")).toBeDefined();
-    expect(within(sidebar).getByText("2 files")).toBeDefined();
+    expect(within(rail).getByText("a.ts")).toBeDefined();
+    expect(within(rail).getByText("2 files")).toBeDefined();
   });
 
   test("cosmetic-only files are hidden by default and can be shown", () => {
@@ -405,15 +405,15 @@ describe("DiffView", () => {
       },
     ];
     renderDiff({ files: [a, fileB()] });
-    const sidebar = screen.getByLabelText("Files in this pull request");
+    const rail = screen.getByLabelText("Files in this pull request");
 
-    expect(within(sidebar).queryByText("a.ts")).toBeNull();
+    expect(within(rail).queryByText("a.ts")).toBeNull();
     expect(screen.getByText(/1 cosmetic-only file/)).toBeDefined();
 
     fireEvent.click(
       screen.getByRole("button", { name: "Hide cosmetic-only files" }),
     );
-    expect(within(sidebar).getByText("a.ts")).toBeDefined();
+    expect(within(rail).getByText("a.ts")).toBeDefined();
   });
 
   test("low-focus files can be hidden and are named in the toolbar", () => {
@@ -422,15 +422,15 @@ describe("DiffView", () => {
     const b = fileB();
     b.review = { band: "high", score: 90, changes: {}, signals: {} };
     renderDiff({ files: [a, b] });
-    const sidebar = screen.getByLabelText("Files in this pull request");
+    const rail = screen.getByLabelText("Files in this pull request");
 
     fireEvent.click(
-      within(sidebar).getByRole("button", {
+      within(rail).getByRole("button", {
         name: "Low focus, 1 file, shown",
       }),
     );
 
-    expect(within(sidebar).queryByText("a.ts")).toBeNull();
+    expect(within(rail).queryByText("a.ts")).toBeNull();
     expect(screen.getByText(/1 low focus hidden/)).toBeDefined();
   });
 
@@ -590,17 +590,17 @@ describe("DiffView", () => {
 
     fireEvent.scroll(pane);
 
-    const sidebar = screen.getByLabelText("Files in this pull request");
+    const rail = screen.getByLabelText("Files in this pull request");
     await waitFor(() =>
       expect(
-        within(sidebar)
+        within(rail)
           .getByRole("button", { name: /e\.ts/ })
           .getAttribute("aria-current"),
       ).toBe("location"),
     );
   });
 
-  test("a collapsed trailing file owns the selection at the bottom", async () => {
+  test("scrolling to the end in focus mode keeps the open file selected", async () => {
     const names = ["a", "b", "c", "d", "e"];
     const files = names.map((name) =>
       makeFile({
@@ -614,7 +614,9 @@ describe("DiffView", () => {
         ],
       }),
     );
-    // Only the first file is open; b.ts through e.ts are 36px headers.
+    // Only the first file is open; b.ts through e.ts are 36px headers. Their
+    // headers sit at the bottom of the scroll content, but no file changed:
+    // the user simply finished reading a.ts.
     renderDiff({ files });
 
     const pane = screen.getByText("a added").closest("section")!
@@ -627,14 +629,170 @@ describe("DiffView", () => {
 
     fireEvent.scroll(pane);
 
-    const sidebar = screen.getByLabelText("Files in this pull request");
+    const rail = screen.getByLabelText("Files in this pull request");
     await waitFor(() =>
       expect(
-        within(sidebar)
+        within(rail)
+          .getByRole("button", { name: /a\.ts/ })
+          .getAttribute("aria-current"),
+      ).toBe("location"),
+    );
+    expect(
+      within(rail)
+        .getByRole("button", { name: /e\.ts/ })
+        .getAttribute("aria-current"),
+    ).toBeNull();
+    // The open body did not change either.
+    expect(screen.getByText("a added")).toBeDefined();
+    expect(screen.queryByText("e added")).toBeNull();
+  });
+
+  test("focus mode ignores the bottom clamp while scrolling a lone open file", async () => {
+    const names = ["a", "b", "c", "d"];
+    const files = names.map((name) =>
+      makeFile({
+        path: `src/${name}.ts`,
+        hunks: [
+          makeHunk({
+            lines: [
+              makeLine({ kind: "add", newNumber: 1, text: `${name} added` }),
+            ],
+          }),
+        ],
+      }),
+    );
+    renderDiff({ files });
+    const rail = screen.getByLabelText("Files in this pull request");
+    const current = () =>
+      rail
+        .querySelector('[aria-current="location"]')
+        ?.getAttribute("data-rail-key") ?? null;
+
+    const pane = screen.getByText("a added").closest("section")!
+      .parentElement as HTMLElement;
+
+    // Mid-scroll: no clamp involved, top edge still inside a.ts.
+    mockPaneGeometry(pane, [400, 300, 200, 100], {
+      scrollTop: 120,
+      clientHeight: 500,
+      scrollHeight: 1000,
+    });
+    fireEvent.scroll(pane);
+    await waitFor(() => expect(current()).toBe("src/a.ts:0"));
+
+    // Then the very end of the content.
+    mockPaneGeometry(pane, [400, 300, 200, 100], {
+      scrollTop: 500,
+      clientHeight: 500,
+      scrollHeight: 1000,
+    });
+    fireEvent.scroll(pane);
+    await waitFor(() => expect(current()).toBe("src/a.ts:0"));
+  });
+
+  test("the opening file stays selected after the pane clamps at the bottom and the user continues to an expanded file", async () => {
+    const names = ["a", "b", "c", "d"];
+    const files = names.map((name) =>
+      makeFile({
+        path: `src/${name}.ts`,
+        hunks: [
+          makeHunk({
+            lines: [
+              makeLine({ kind: "add", newNumber: 1, text: `${name} added` }),
+            ],
+          }),
+        ],
+      }),
+    );
+    renderDiff({ files });
+    const rail = screen.getByLabelText("Files in this pull request");
+
+    // Expanding the second file through the rail must not be undone by a
+    // scroll event fired while the pane is at its end. Releasing the
+    // programmatic lock first makes the scroll handler actually run.
+    fireEvent.click(within(rail).getByRole("button", { name: /b\.ts/ }));
+    const pane = screen.getByText("b added").closest("section")!
+      .parentElement as HTMLElement;
+    mockPaneGeometry(pane, [400, 300, 200, 100], {
+      scrollTop: 500,
+      clientHeight: 500,
+      scrollHeight: 1000,
+    });
+    fireEvent.pointerDown(pane);
+    fireEvent.scroll(pane);
+
+    await waitFor(() =>
+      expect(
+        within(rail)
+          .getByRole("button", { name: /b\.ts/ })
+          .getAttribute("aria-current"),
+      ).toBe("location"),
+    );
+    expect(screen.getByText("b added")).toBeDefined();
+
+    // Keyboard navigation still leaves the clamped bottom: the only rendered
+    // body follows the selection.
+    fireEvent.keyDown(window, { key: "j" });
+    expect(screen.getByText("c added")).toBeDefined();
+    expect(screen.queryByText("b added")).toBeNull();
+    await waitFor(() =>
+      expect(
+        within(rail)
+          .getByRole("button", { name: /c\.ts/ })
+          .getAttribute("aria-current"),
+      ).toBe("location"),
+    );
+  });
+
+  test("a collapsed tail taller than the pane owns the selection in files mode", async () => {
+    const names = ["a", "b", "c", "d", "e"];
+    const files = names.map((name) =>
+      makeFile({
+        path: `src/${name}.ts`,
+        hunks: [
+          makeHunk({
+            lines: [
+              makeLine({ kind: "add", newNumber: 1, text: `${name} added` }),
+            ],
+          }),
+        ],
+      }),
+    );
+    renderDiff({ files });
+    const rail = screen.getByLabelText("Files in this pull request");
+
+    // Leave focus mode so several bodies are open, then collapse the tail from
+    // its section headers. A rail click would open the file again.
+    fireEvent.click(screen.getByRole("button", { name: "Show all files" }));
+    for (const name of ["c", "d", "e"]) {
+      const section = screen.getByText(`${name} added`).closest("section")!;
+      fireEvent.click(within(section).getByRole("button", { expanded: true }));
+    }
+
+    // At the end of the pane only the three collapsed headers are on screen:
+    // a.ts and b.ts have scrolled out above the top edge.
+    const pane = screen.getByText("a added").closest("section")!
+      .parentElement as HTMLElement;
+    mockPaneGeometry(pane, [400, 100, 36, 36, 36], {
+      scrollTop: 500,
+      clientHeight: 100,
+      scrollHeight: 600,
+    });
+    fireEvent.pointerDown(pane);
+    fireEvent.scroll(pane);
+
+    await waitFor(() =>
+      expect(
+        within(rail)
           .getByRole("button", { name: /e\.ts/ })
           .getAttribute("aria-current"),
       ).toBe("location"),
     );
+    expect(
+      within(rail)
+        .getByRole("button", { name: /b\.ts/ })
+        .getAttribute("aria-current"),
+    ).toBeNull();
   });
 
   test("a failed submit keeps the composer open with the error", async () => {

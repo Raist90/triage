@@ -332,15 +332,6 @@ export function useDiffNavigation({
       if (programmaticScroll.current) return;
       const visibleEntries = visibleRef.current;
       if (visibleEntries.length === 0) return;
-      // At the end of the pane the top edge can never reach the last files, so
-      // short trailing files would never win the top-edge test. The last
-      // visible section owns the selection there, collapsed or not: its header
-      // is what sits at the bottom of the viewport.
-      if (clampedAtBottom(pane)) {
-        const last = visibleEntries[visibleEntries.length - 1].key;
-        setActiveKey((previous) => (previous === last ? previous : last));
-        return;
-      }
       const threshold = pane.getBoundingClientRect().top + 1;
       // Only rendered file bodies can own the scroll selection. A collapsed
       // file is a 36px header and scroll clamping can leave it under the top
@@ -362,6 +353,24 @@ export function useDiffNavigation({
         slot.top = rect.top;
         slot.bottom = rect.bottom;
         count += 1;
+      }
+      // At the end of the pane the top edge can never reach the last files, so
+      // short trailing files would never win the top-edge test. The last
+      // rendered body owns the selection there while it still reaches below
+      // the top edge. Once the collapsed headers below it fill the viewport,
+      // the selection returns to the last rail row: that header is what the
+      // user is looking at. Focus mode keeps the open file instead: it is the
+      // only body, and scrolling through it must not jump to a header below.
+      if (clampedAtBottom(pane)) {
+        const lastRow = visibleEntries[visibleEntries.length - 1].key;
+        const lastBody = count > 0 ? sections[count - 1] : null;
+        const last =
+          lastBody !== null &&
+          (singleFileRef.current || lastBody.bottom > threshold)
+            ? lastBody.key
+            : lastRow;
+        setActiveKey((previous) => (previous === last ? previous : last));
+        return;
       }
       if (count === 0) return;
       const current = activeSectionKey(sections, threshold, count);
