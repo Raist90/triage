@@ -51,7 +51,7 @@ describe("row styling", () => {
     expect(rowTint("del")).toBe("bg-diff-del-line");
     expect(rowTint("context")).toBe("");
     expect(codeClasses("add")).toBe("text-fg");
-    expect(codeClasses("del")).toBe("text-fg-body");
+    expect(codeClasses("del")).toBe("text-fg");
     expect(codeClasses("context")).toBe("text-fg-muted");
   });
 
@@ -75,10 +75,8 @@ describe("row styling", () => {
     expect(lineClasses("@@ -1 +1 @@")).toBe(
       "bg-surface px-3 py-1 text-fg-faint",
     );
-    expect(lineClasses("+new")).toContain("bg-diff-add-line");
-    expect(lineClasses("-old")).toContain("bg-diff-del-line");
-    expect(lineClasses(" context")).toBe(
-      "border-l-2 border-l-transparent px-3 text-fg-muted",
-    );
+    expect(lineClasses("+new")).toBe("bg-diff-add-line px-3 text-fg");
+    expect(lineClasses("-old")).toBe("bg-diff-del-line px-3 text-fg");
+    expect(lineClasses(" context")).toBe("px-3 text-fg-muted");
   });
 });
