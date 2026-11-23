@@ -13,7 +13,7 @@ import { DIFF_FILE_KINDS, FILE_KIND_LABEL } from "./diffFile";
  * controls own their store subscription instead of threading it through the
  * rail.
  */
-export function DiffSidebarFilters({
+export function DiffRailFilters({
   filter,
   filterInputRef,
   kindCounts,

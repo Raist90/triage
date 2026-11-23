@@ -1,7 +1,7 @@
 import type { ReactNode, RefObject } from "react";
 import type { WalkthroughStep } from "../../../lib/types";
+import { DiffRailFilters } from "./DiffRailFilters";
 import { DiffRailList } from "./DiffRailList";
-import { DiffSidebarFilters } from "./DiffSidebarFilters";
 import type { DiffFileEntry, DiffSelection } from "./diffSelection";
 import { filesSummary, stepsSummary } from "./diffSelection";
 
@@ -68,7 +68,7 @@ export function FileRail({
         selection.highCount,
       )}
     >
-      <DiffSidebarFilters
+      <DiffRailFilters
         filter={filter}
         filterInputRef={filterInputRef}
         kindCounts={selection.kindCounts}

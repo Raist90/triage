@@ -29,8 +29,8 @@ function restoreBodyStyles(drag: DragState) {
  * property changes, so the syntax-highlighted diff pane does not re-render.
  */
 export function useResizableRail() {
-  const width = useUIStore((state) => state.diffSidebarWidth);
-  const setDiffSidebarWidth = useUIStore((state) => state.setDiffSidebarWidth);
+  const width = useUIStore((state) => state.diffRailWidth);
+  const setDiffRailWidth = useUIStore((state) => state.setDiffRailWidth);
   const rootRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
 
@@ -80,7 +80,7 @@ export function useResizableRail() {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
     restoreBodyStyles(drag);
-    setDiffSidebarWidth(drag.width);
+    setDiffRailWidth(drag.width);
   };
 
   const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -102,7 +102,7 @@ export function useResizableRail() {
     }
     if (next === null) return;
     event.preventDefault();
-    setDiffSidebarWidth(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, next)));
+    setDiffRailWidth(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, next)));
   };
 
   return {
@@ -122,7 +122,7 @@ export function useResizableRail() {
       onPointerUp: finishDrag,
       onPointerCancel: finishDrag,
       onKeyDown,
-      onDoubleClick: () => setDiffSidebarWidth(DEFAULT_WIDTH),
+      onDoubleClick: () => setDiffRailWidth(DEFAULT_WIDTH),
     },
   };
 }

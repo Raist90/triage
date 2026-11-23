@@ -22,11 +22,11 @@ const initialUIState = useUIStore.getState();
 
 beforeEach(() => {
   useUIStore.setState(initialUIState, true);
-  useUIStore.setState({ diffSidebarWidth: 208 });
+  useUIStore.setState({ diffRailWidth: 208 });
 });
 
 afterEach(() => {
-  useUIStore.setState({ diffSidebarWidth: 208 });
+  useUIStore.setState({ diffRailWidth: 208 });
 });
 
 const headSHA = "abc1234def5678";
@@ -137,11 +137,11 @@ describe("DiffView", () => {
     expect(screen.queryByText("beta added")).toBeNull();
   });
 
-  test("selecting a file in the sidebar expands it and collapses the previous one", () => {
+  test("selecting a file in the rail expands it and collapses the previous one", () => {
     renderDiff();
-    const sidebar = screen.getByLabelText("Files in this pull request");
+    const rail = screen.getByLabelText("Files in this pull request");
 
-    fireEvent.click(within(sidebar).getByRole("button", { name: /b\.ts/ }));
+    fireEvent.click(within(rail).getByRole("button", { name: /b\.ts/ }));
 
     expect(screen.getByText("beta added")).toBeDefined();
     expect(screen.queryByText("alpha added")).toBeNull();
@@ -155,30 +155,30 @@ describe("DiffView", () => {
     expect(screen.queryByText("alpha added")).toBeNull();
   });
 
-  test("the file filter narrows the sidebar without closing the open file", () => {
+  test("the file filter narrows the rail without closing the open file", () => {
     renderDiff();
-    const sidebar = screen.getByLabelText("Files in this pull request");
+    const rail = screen.getByLabelText("Files in this pull request");
 
-    fireEvent.change(within(sidebar).getByLabelText("Filter files"), {
+    fireEvent.change(within(rail).getByLabelText("Filter files"), {
       target: { value: "b.ts" },
     });
 
-    expect(within(sidebar).queryByText("a.ts")).toBeNull();
-    expect(within(sidebar).getByText("b.ts")).toBeDefined();
-    expect(within(sidebar).getByText(/1 of 2 files/)).toBeDefined();
+    expect(within(rail).queryByText("a.ts")).toBeNull();
+    expect(within(rail).getByText("b.ts")).toBeDefined();
+    expect(within(rail).getByText(/1 of 2 files/)).toBeDefined();
     expect(screen.getByText("alpha added")).toBeDefined();
   });
 
   test("the file filter also narrows keyboard navigation", () => {
     renderDiff({ files: [fileA(), fileB(), makeFile({ path: "src/c.ts" })] });
-    const sidebar = screen.getByLabelText("Files in this pull request");
+    const rail = screen.getByLabelText("Files in this pull request");
 
-    fireEvent.change(within(sidebar).getByLabelText("Filter files"), {
+    fireEvent.change(within(rail).getByLabelText("Filter files"), {
       target: { value: "a.ts" },
     });
     fireEvent.keyDown(window, { key: "j" });
 
-    const current = sidebar.querySelector('[aria-current="location"]');
+    const current = rail.querySelector('[aria-current="location"]');
     expect(current?.textContent).toContain("a.ts");
   });
 
@@ -326,9 +326,9 @@ describe("DiffView", () => {
       }),
     );
     renderDiff({ files });
-    const sidebar = screen.getByLabelText("Files in this pull request");
+    const rail = screen.getByLabelText("Files in this pull request");
     const current = () =>
-      sidebar
+      rail
         .querySelector('[aria-current="location"]')
         ?.getAttribute("data-rail-key") ?? null;
 
@@ -377,21 +377,21 @@ describe("DiffView", () => {
     const a = fileA();
     a.kinds = ["test"];
     renderDiff({ files: [a, fileB()] });
-    const sidebar = screen.getByLabelText("Files in this pull request");
+    const rail = screen.getByLabelText("Files in this pull request");
 
     fireEvent.click(
-      within(sidebar).getByRole("button", {
+      within(rail).getByRole("button", {
         name: "Tests, 1 file, shown",
       }),
     );
 
-    expect(within(sidebar).queryByText("a.ts")).toBeNull();
+    expect(within(rail).queryByText("a.ts")).toBeNull();
     expect(screen.queryByText("alpha added")).toBeNull();
     expect(screen.getByText(/1 file hidden/)).toBeDefined();
 
     fireEvent.click(screen.getByRole("button", { name: "Clear" }));
-    expect(within(sidebar).getByText("a.ts")).toBeDefined();
-    expect(within(sidebar).getByText("2 files")).toBeDefined();
+    expect(within(rail).getByText("a.ts")).toBeDefined();
+    expect(within(rail).getByText("2 files")).toBeDefined();
   });
 
   test("cosmetic-only files are hidden by default and can be shown", () => {
@@ -405,15 +405,15 @@ describe("DiffView", () => {
       },
     ];
     renderDiff({ files: [a, fileB()] });
-    const sidebar = screen.getByLabelText("Files in this pull request");
+    const rail = screen.getByLabelText("Files in this pull request");
 
-    expect(within(sidebar).queryByText("a.ts")).toBeNull();
+    expect(within(rail).queryByText("a.ts")).toBeNull();
     expect(screen.getByText(/1 cosmetic-only file/)).toBeDefined();
 
     fireEvent.click(
       screen.getByRole("button", { name: "Hide cosmetic-only files" }),
     );
-    expect(within(sidebar).getByText("a.ts")).toBeDefined();
+    expect(within(rail).getByText("a.ts")).toBeDefined();
   });
 
   test("low-focus files can be hidden and are named in the toolbar", () => {
@@ -422,15 +422,15 @@ describe("DiffView", () => {
     const b = fileB();
     b.review = { band: "high", score: 90, changes: {}, signals: {} };
     renderDiff({ files: [a, b] });
-    const sidebar = screen.getByLabelText("Files in this pull request");
+    const rail = screen.getByLabelText("Files in this pull request");
 
     fireEvent.click(
-      within(sidebar).getByRole("button", {
+      within(rail).getByRole("button", {
         name: "Low focus, 1 file, shown",
       }),
     );
 
-    expect(within(sidebar).queryByText("a.ts")).toBeNull();
+    expect(within(rail).queryByText("a.ts")).toBeNull();
     expect(screen.getByText(/1 low focus hidden/)).toBeDefined();
   });
 
@@ -590,10 +590,10 @@ describe("DiffView", () => {
 
     fireEvent.scroll(pane);
 
-    const sidebar = screen.getByLabelText("Files in this pull request");
+    const rail = screen.getByLabelText("Files in this pull request");
     await waitFor(() =>
       expect(
-        within(sidebar)
+        within(rail)
           .getByRole("button", { name: /e\.ts/ })
           .getAttribute("aria-current"),
       ).toBe("location"),
@@ -629,16 +629,16 @@ describe("DiffView", () => {
 
     fireEvent.scroll(pane);
 
-    const sidebar = screen.getByLabelText("Files in this pull request");
+    const rail = screen.getByLabelText("Files in this pull request");
     await waitFor(() =>
       expect(
-        within(sidebar)
+        within(rail)
           .getByRole("button", { name: /a\.ts/ })
           .getAttribute("aria-current"),
       ).toBe("location"),
     );
     expect(
-      within(sidebar)
+      within(rail)
         .getByRole("button", { name: /e\.ts/ })
         .getAttribute("aria-current"),
     ).toBeNull();
@@ -662,9 +662,9 @@ describe("DiffView", () => {
       }),
     );
     renderDiff({ files });
-    const sidebar = screen.getByLabelText("Files in this pull request");
+    const rail = screen.getByLabelText("Files in this pull request");
     const current = () =>
-      sidebar
+      rail
         .querySelector('[aria-current="location"]')
         ?.getAttribute("data-rail-key") ?? null;
 
@@ -705,12 +705,12 @@ describe("DiffView", () => {
       }),
     );
     renderDiff({ files });
-    const sidebar = screen.getByLabelText("Files in this pull request");
+    const rail = screen.getByLabelText("Files in this pull request");
 
     // Expanding the second file through the rail must not be undone by a
     // scroll event fired while the pane is at its end. Releasing the
     // programmatic lock first makes the scroll handler actually run.
-    fireEvent.click(within(sidebar).getByRole("button", { name: /b\.ts/ }));
+    fireEvent.click(within(rail).getByRole("button", { name: /b\.ts/ }));
     const pane = screen.getByText("b added").closest("section")!
       .parentElement as HTMLElement;
     mockPaneGeometry(pane, [400, 300, 200, 100], {
@@ -723,7 +723,7 @@ describe("DiffView", () => {
 
     await waitFor(() =>
       expect(
-        within(sidebar)
+        within(rail)
           .getByRole("button", { name: /b\.ts/ })
           .getAttribute("aria-current"),
       ).toBe("location"),
@@ -737,7 +737,7 @@ describe("DiffView", () => {
     expect(screen.queryByText("b added")).toBeNull();
     await waitFor(() =>
       expect(
-        within(sidebar)
+        within(rail)
           .getByRole("button", { name: /c\.ts/ })
           .getAttribute("aria-current"),
       ).toBe("location"),
@@ -759,7 +759,7 @@ describe("DiffView", () => {
       }),
     );
     renderDiff({ files });
-    const sidebar = screen.getByLabelText("Files in this pull request");
+    const rail = screen.getByLabelText("Files in this pull request");
 
     // Leave focus mode so several bodies are open, then collapse the tail from
     // its section headers. A rail click would open the file again.
@@ -783,13 +783,13 @@ describe("DiffView", () => {
 
     await waitFor(() =>
       expect(
-        within(sidebar)
+        within(rail)
           .getByRole("button", { name: /e\.ts/ })
           .getAttribute("aria-current"),
       ).toBe("location"),
     );
     expect(
-      within(sidebar)
+      within(rail)
         .getByRole("button", { name: /b\.ts/ })
         .getAttribute("aria-current"),
     ).toBeNull();
