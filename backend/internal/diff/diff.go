@@ -79,6 +79,7 @@ type Response struct {
 	SemanticAvailable bool             `json:"semanticAvailable"`
 	SemanticSummary   *SemanticSummary `json:"semanticSummary,omitempty"`
 	Complexity        *Complexity      `json:"complexity,omitempty"`
+	Walkthrough       *Walkthrough     `json:"walkthrough,omitempty" doc:"Deterministic ordered path through the changed hunks"`
 }
 
 // Parse splits a unified diff into files. Malformed input still produces
@@ -226,6 +227,7 @@ func parseSemanticReport(output []byte) (Report, error) {
 
 	changes := make(map[string][]SemanticChange)
 	retainedContent := 0
+	retainedMove := 0
 	for _, change := range payload.Changes {
 		if change.FilePath == "" {
 			continue
@@ -254,6 +256,10 @@ func parseSemanticReport(output []byte) (Report, error) {
 			item.before = change.BeforeContent
 			item.after = change.AfterContent
 			retainedContent += len(change.BeforeContent) + len(change.AfterContent)
+		} else if canRetainMoveContent(change.ChangeType, change.BeforeContent, change.AfterContent, retainedMove) {
+			item.before = change.BeforeContent
+			item.after = change.AfterContent
+			retainedMove += len(change.BeforeContent) + len(change.AfterContent)
 		}
 		changes[change.FilePath] = append(changes[change.FilePath], item)
 	}
@@ -263,6 +269,8 @@ func parseSemanticReport(output []byte) (Report, error) {
 const (
 	maxSemanticEntityBytes = 8 << 10
 	maxSemanticContent     = 2 << 20
+	// maxMoveContent bounds the bodies kept only for cross-file move pairing.
+	maxMoveContent = 1 << 20
 )
 
 // canRetainContent bounds the entity bodies kept in memory for rewrite
@@ -274,6 +282,27 @@ func canRetainContent(changeType, before, after string, retained int) bool {
 	}
 	size := len(before) + len(after)
 	return size <= maxSemanticEntityBytes && retained+size <= maxSemanticContent
+}
+
+// canRetainMoveContent keeps the one body an added or deleted entity has so a
+// deletion and an addition with the same name and near-identical body can be
+// paired into a cross-file move. It has its own budget: move pairing must not
+// starve rewrite detection for modified entities.
+func canRetainMoveContent(changeType, before, after string, retained int) bool {
+	switch changeType {
+	case "added":
+		if after == "" {
+			return false
+		}
+	case "deleted":
+		if before == "" {
+			return false
+		}
+	default:
+		return false
+	}
+	size := len(before) + len(after)
+	return size <= maxSemanticEntityBytes && retained+size <= maxMoveContent
 }
 
 func diffHeaderPath(header string) string {

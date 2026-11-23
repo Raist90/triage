@@ -72,6 +72,7 @@ func buildDiffResponse(ctx context.Context, body []byte, sha string) diff.Respon
 		Files:             files,
 		SemanticAvailable: available,
 		Complexity:        diff.ComplexityFor(files),
+		Walkthrough:       diff.BuildWalkthrough(files),
 	}
 	if available {
 		summary := report.Summary

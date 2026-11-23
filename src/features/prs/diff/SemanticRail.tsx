@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 import type { DiffFile, SemanticChange } from "../../../lib/types";
 import { anchorSemanticChanges } from "./diffFile";
+import type { DiffFileEntry } from "./diffSelection";
 import {
   changeTitle,
   tallyChanges,
@@ -9,15 +10,10 @@ import {
   tickClassName,
 } from "./semantics";
 
-type RailFile = {
-  key: string;
-  file: DiffFile;
-};
-
 type SemanticRailProps = {
   paneRef: RefObject<HTMLDivElement | null>;
   /** Visible files in rendered order, after every filter. */
-  files: RailFile[];
+  files: DiffFileEntry[];
   expanded: Set<string>;
   /** Focus mode renders one file, so collapsed files must not be clickable. */
   singleFile: boolean;
@@ -73,7 +69,7 @@ export function SemanticRail({
 
   // Keep the latest rows reachable from the layout effect without making the
   // file arrays an effect dependency; they are rebuilt on every render.
-  const dataRef = useRef<RailFile[]>(files);
+  const dataRef = useRef<DiffFileEntry[]>(files);
   const expandedRef = useRef<Set<string>>(expanded);
   useLayoutEffect(() => {
     dataRef.current = files;

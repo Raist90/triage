@@ -50,6 +50,20 @@ export type DiffSelection = {
 };
 
 /**
+ * Case-insensitive path search over a prepared rail list. Search is a rail and
+ * keyboard concern, not a pane filter: the pane keeps rendering the filtered
+ * files so typing does not close the patch being reviewed.
+ */
+export function filterDiffEntries(
+  entries: DiffFileEntry[],
+  query: string,
+): DiffFileEntry[] {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return entries;
+  return entries.filter(({ file }) => file.path.toLowerCase().includes(needle));
+}
+
+/**
  * Applies the kind, cosmetic and low-focus filters, then the priority order.
  * Kept pure so the counters and the sidebar receive exactly the same list the
  * pane renders.
@@ -133,4 +147,23 @@ export function summaryText(summary: SemanticSummary): string {
   return `${total} semantic ${total === 1 ? "change" : "changes"}${
     parts.length > 0 ? ` · ${parts.join(" · ")}` : ""
   }`;
+}
+
+/** Rail footer while the file list is showing. */
+export function filesSummary(
+  visibleCount: number,
+  totalCount: number,
+  hiddenCount: number,
+  highCount: number,
+): string {
+  const counts =
+    hiddenCount === 0
+      ? `${totalCount} ${totalCount === 1 ? "file" : "files"}`
+      : `${visibleCount} of ${totalCount} files · ${hiddenCount} hidden`;
+  return highCount > 0 ? `${counts} · ${highCount} high` : counts;
+}
+
+/** Rail footer while path mode lists the steps. */
+export function stepsSummary(stepCount: number): string {
+  return `${stepCount} ${stepCount === 1 ? "step" : "steps"} · every change covered`;
 }

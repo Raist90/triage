@@ -36,6 +36,9 @@ export type {
   SemanticSummary,
   Span as DiffSpan,
   TabConfig as Tab,
+  Walkthrough,
+  WalkthroughFile,
+  WalkthroughStep,
 } from "./generated";
 
 /** Handshake payload written by `triage-server` and read by the shell. */

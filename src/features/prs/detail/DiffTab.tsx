@@ -66,6 +66,7 @@ export function DiffTab({
             files={diffQuery.data.files}
             semanticAvailable={diffQuery.data.semanticAvailable}
             semanticSummary={diffQuery.data.semanticSummary}
+            walkthrough={diffQuery.data.walkthrough}
             comments={comments}
             headSHA={pr.headSHA}
             canComment={pr.state === "open" && pr.headSHA !== ""}

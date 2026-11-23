@@ -26,6 +26,14 @@ type UseDiffNavigationOptions = {
   visible: DiffFileEntry[];
   visibleSignature: string;
   firstVisibleKey: string | null;
+  /** False in the grouped path view: there a step opens as a unit. */
+  focusModeApplies: boolean;
+  /** Present in the grouped path view: `j`/`k` move between steps, not files. */
+  stepNavigation?: {
+    ids: string[];
+    activeID: string | null;
+    onSelect: (id: string) => void;
+  };
   focusTarget?: DiffTarget;
 };
 
@@ -41,6 +49,8 @@ export function useDiffNavigation({
   visible,
   visibleSignature,
   firstVisibleKey,
+  focusModeApplies,
+  stepNavigation,
   focusTarget,
 }: UseDiffNavigationOptions) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -64,7 +74,8 @@ export function useDiffNavigation({
   // Keep the latest values reachable from the stable window key handler.
   const visibleRef = useRef(visible);
   const activeKeyRef = useRef(activeKey);
-  const focusModeRef = useRef(focusMode);
+  const singleFileRef = useRef(focusMode && focusModeApplies);
+  const stepNavigationRef = useRef(stepNavigation);
   const expandedRef = useRef(expanded);
   const selectRef = useRef<(key: string) => void>(() => {});
 
@@ -73,7 +84,8 @@ export function useDiffNavigation({
   useEffect(() => {
     visibleRef.current = visible;
     activeKeyRef.current = activeKey;
-    focusModeRef.current = focusMode;
+    singleFileRef.current = focusMode && focusModeApplies;
+    stepNavigationRef.current = stepNavigation;
     expandedRef.current = expanded;
   });
 
@@ -118,7 +130,7 @@ export function useDiffNavigation({
     programmaticScroll.current = true;
     setActiveKey(key);
     setExpanded((current) => {
-      const next = focusModeRef.current ? new Set<string>() : new Set(current);
+      const next = singleFileRef.current ? new Set<string>() : new Set(current);
       next.add(key);
       return next;
     });
@@ -193,6 +205,24 @@ export function useDiffNavigation({
       }
       if (event.key !== "j" && event.key !== "k") return;
 
+      // The grouped path view's unit is the step: the rail lists steps, so the
+      // keyboard moves between them instead of the files inside one.
+      const steps = stepNavigationRef.current;
+      if (steps && steps.ids.length > 0) {
+        const current = steps.activeID ? steps.ids.indexOf(steps.activeID) : -1;
+        const base = current === -1 ? (event.key === "j" ? -1 : 0) : current;
+        const delta = event.key === "j" ? 1 : -1;
+        const nextIndex = Math.min(
+          Math.max(base + delta, 0),
+          steps.ids.length - 1,
+        );
+        const next = steps.ids[nextIndex];
+        if (next === undefined) return;
+        event.preventDefault();
+        steps.onSelect(next);
+        return;
+      }
+
       const keys = visibleRef.current.map((entry) => entry.key);
       if (keys.length === 0) return;
       event.preventDefault();
@@ -223,7 +253,7 @@ export function useDiffNavigation({
     (key: string) => {
       setActiveKey(key);
       setExpanded((current) => {
-        const next = focusModeRef.current
+        const next = singleFileRef.current
           ? new Set<string>()
           : new Set(current);
         next.add(key);
@@ -240,7 +270,7 @@ export function useDiffNavigation({
     (key: string, hunkIndex: number) => {
       setActiveKey(key);
       setExpanded((current) => {
-        const next = focusModeRef.current
+        const next = singleFileRef.current
           ? new Set<string>()
           : new Set(current);
         next.add(key);
@@ -255,7 +285,7 @@ export function useDiffNavigation({
   const toggleFile = useCallback((key: string) => {
     setActiveKey(key);
     setExpanded((current) => {
-      const next = focusModeRef.current ? new Set<string>() : new Set(current);
+      const next = singleFileRef.current ? new Set<string>() : new Set(current);
       if (current.has(key)) {
         next.delete(key);
       } else {
@@ -280,6 +310,11 @@ export function useDiffNavigation({
       setExpanded(new Set(visible.map(({ key }) => key)));
     }
   }, [focusMode, activeKey, firstVisibleKey, visible]);
+
+  /** Path steps open as a unit; collapse remains available per file. */
+  const expandFiles = useCallback((keys: string[]) => {
+    setExpanded(new Set(keys));
+  }, []);
 
   const releaseScrollLock = useCallback(() => {
     programmaticScroll.current = false;
@@ -351,6 +386,7 @@ export function useDiffNavigation({
     selectHunk,
     toggleFile,
     toggleFocusMode,
+    expandFiles,
     handleScroll,
     releaseScrollLock,
   };

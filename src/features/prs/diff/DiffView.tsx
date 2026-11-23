@@ -1,17 +1,27 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { cx } from "../../../lib/cx";
-import type { DiffFile, SemanticSummary } from "../../../lib/types";
+import type {
+  DiffFile,
+  SemanticSummary,
+  Walkthrough,
+} from "../../../lib/types";
 import { scrollEdgeClass, useScrollEdges } from "../../../lib/useScrollEdges";
 import { useUIStore } from "../../../stores/ui";
 import { DiffFileSection } from "./DiffFileSection";
-import { selectDiffFiles, type DiffTarget } from "./diffSelection";
+import {
+  filterDiffEntries,
+  selectDiffFiles,
+  type DiffTarget,
+} from "./diffSelection";
 import { DiffSidebar } from "./DiffSidebar";
 import { DiffToolbar } from "./DiffToolbar";
 import { SemanticRail } from "./SemanticRail";
 import type { DiffCommentsController } from "./useDiffComments";
 import { useDiffNavigation } from "./useDiffNavigation";
 import { useResizableRail } from "./useResizableRail";
+import { pathEntries } from "./walkthrough";
+import type { PathFileEntry } from "./walkthrough";
 
 export type { DiffTarget } from "./diffSelection";
 
@@ -19,6 +29,7 @@ type DiffViewProps = {
   files: DiffFile[];
   semanticAvailable: boolean;
   semanticSummary?: SemanticSummary;
+  walkthrough?: Walkthrough;
   comments: DiffCommentsController;
   headSHA: string;
   canComment: boolean;
@@ -31,6 +42,7 @@ export function DiffView({
   files,
   semanticAvailable,
   semanticSummary,
+  walkthrough,
   comments,
   headSHA,
   canComment,
@@ -50,6 +62,8 @@ export function DiffView({
   const toggleLowPriority = useUIStore((state) => state.toggleLowPriority);
   const showSemanticRail = useUIStore((state) => state.showSemanticRail);
   const toggleSemanticRail = useUIStore((state) => state.toggleSemanticRail);
+  const diffMode = useUIStore((state) => state.diffMode);
+  const setDiffMode = useUIStore((state) => state.setDiffMode);
 
   // Filters and the priority sort are pure but O(files); a selection render
   // must not recompute them.
@@ -71,11 +85,40 @@ export function DiffView({
     hasReview,
     highCount,
     lowCount,
-    hiddenCount,
     visible,
-    firstVisibleKey,
-    visibleSignature,
   } = selection;
+
+  // Search narrows the rail and the keyboard walk, never the pane: typing must
+  // not close the patch being reviewed. One list feeds both, so the rail and
+  // `j`/`k` cannot disagree about which files are reachable.
+  const matched = useMemo(
+    () => filterDiffEntries(visible, filter),
+    [visible, filter],
+  );
+
+  const [activeStepID, setActiveStepID] = useState<string | null>(null);
+  const activeStep =
+    walkthrough?.steps.find((step) => step.id === activeStepID) ??
+    walkthrough?.steps[0];
+  const pathFiles = useMemo(
+    () => pathEntries(files, activeStep),
+    [files, activeStep],
+  );
+  const hasPath = (walkthrough?.steps.length ?? 0) > 0;
+  const pathMode = diffMode === "path" && hasPath;
+  const paneEntries = pathMode ? pathFiles : visible;
+  const navEntries = pathMode ? pathFiles : matched;
+  const navSignature = pathMode
+    ? `${activeStep?.id ?? ""}\u0000${pathFiles.map((entry) => entry.key).join("\u0000")}`
+    : matched.map((entry) => entry.key).join("\u0000");
+  const navFirstKey = navEntries[0]?.key ?? null;
+  const stepNavigation = pathMode
+    ? {
+        ids: walkthrough?.steps.map((step) => step.id) ?? [],
+        activeID: activeStep?.id ?? null,
+        onSelect: setActiveStepID,
+      }
+    : undefined;
 
   const {
     activeKey,
@@ -89,27 +132,43 @@ export function DiffView({
     selectHunk,
     toggleFile,
     toggleFocusMode,
+    expandFiles,
     handleScroll,
     releaseScrollLock,
   } = useDiffNavigation({
-    visible,
-    visibleSignature,
-    firstVisibleKey,
+    visible: navEntries,
+    visibleSignature: navSignature,
+    firstVisibleKey: navFirstKey,
+    focusModeApplies: !pathMode,
+    stepNavigation,
     focusTarget,
   });
 
+  // A step is a commit, so opening it always shows its files together. Focus
+  // mode is a file-list policy and does not apply here; the user can still
+  // collapse individual files afterwards.
+  const stepID = activeStep?.id;
+  useEffect(() => {
+    if (!pathMode) return;
+    expandFiles(pathFiles.map((entry) => entry.key));
+    if (paneRef.current) paneRef.current.scrollTop = 0;
+  }, [pathMode, stepID, pathFiles, expandFiles, paneRef]);
+
   const scrollEdges = useScrollEdges(paneRef);
+  // The rail's scroller lives one component down, so it reports its node up.
+  const railRef = useRef<HTMLDivElement | null>(null);
+  const railEdges = useScrollEdges(railRef);
   const { width: railWidth, rootRef, separatorProps } = useResizableRail();
 
   const railLayoutKey = useMemo(
     () =>
-      visible
+      paneEntries
         .map(
           ({ key, file }) =>
             `${key}:${expanded.has(key) ? "open" : "closed"}:${file.semantic?.length ?? 0}`,
         )
         .join("\u0000"),
-    [visible, expanded],
+    [paneEntries, expanded],
   );
   const hasSemantic = useMemo(
     () =>
@@ -120,8 +179,8 @@ export function DiffView({
   const visibleSemantic = useMemo(
     () =>
       hasSemantic &&
-      visible.some(({ file }) => (file.semantic?.length ?? 0) > 0),
-    [hasSemantic, visible],
+      paneEntries.some(({ file }) => (file.semantic?.length ?? 0) > 0),
+    [hasSemantic, paneEntries],
   );
   const showSummary = semanticAvailable && (semanticSummary?.total ?? 0) > 0;
 
@@ -160,6 +219,14 @@ export function DiffView({
         hideCosmetic={hideCosmetic}
         hasSemantic={hasSemantic}
         showSemanticRail={showSemanticRail}
+        pathMode={pathMode}
+        hasPath={hasPath}
+        stepLabel={
+          activeStep && walkthrough
+            ? `Step ${walkthrough.steps.indexOf(activeStep) + 1} of ${walkthrough.steps.length} · ${activeStep.title}`
+            : undefined
+        }
+        onTogglePathMode={() => setDiffMode(pathMode ? "files" : "path")}
         onToggleFocusMode={toggleFocusMode}
         onToggleHideCosmetic={() => setHideCosmetic((current) => !current)}
         onToggleSemanticRail={toggleSemanticRail}
@@ -168,18 +235,24 @@ export function DiffView({
 
       <div className="flex min-h-0 flex-1">
         <DiffSidebar
-          files={visible}
+          files={matched}
           activeKey={activeKey}
           filter={filter}
           filterInputRef={filterInputRef}
+          railRef={railRef}
+          edgeClassName={scrollEdgeClass(railEdges)}
           kindCounts={kindCounts}
           hiddenKinds={hiddenKinds}
           totalCount={files.length}
-          hiddenCount={hiddenCount}
+          hiddenCount={files.length - matched.length}
+          highCount={highCount}
           hasReview={hasReview}
           sort={diffSort}
+          steps={pathMode ? walkthrough?.steps : undefined}
+          activeStepID={activeStep?.id}
           hideLowPriority={hideLowPriority}
           lowCount={lowCount}
+          onSelectStep={setActiveStepID}
           onSortChange={setDiffSort}
           onToggleLowPriority={toggleLowPriority}
           onFilterChange={setFilter}
@@ -203,8 +276,12 @@ export function DiffView({
             scrollEdgeClass(scrollEdges),
           )}
         >
-          {visible.length === 0 ? (
-            kindFiltered.length === 0 ? (
+          {paneEntries.length === 0 ? (
+            pathMode ? (
+              <p className="border-b border-line p-3 text-meta text-fg-faint">
+                This step has no renderable hunks.
+              </p>
+            ) : kindFiltered.length === 0 ? (
               <p className="border-b border-line p-3 text-meta text-fg-faint">
                 All files are hidden by filters.{" "}
                 <button
@@ -229,31 +306,37 @@ export function DiffView({
             )
           ) : null}
 
-          {visible.map(({ file, key }) => (
-            <DiffFileSection
-              key={key}
-              file={file}
-              fileKey={key}
-              open={expanded.has(key)}
-              onToggle={toggleFile}
-              onSectionRef={onSectionRef}
-              comments={comments}
-              headSHA={headSHA}
-              canComment={canComment}
-              draft={draftPath === file.path ? draft : null}
-              onDraftChange={setDraft}
-              viewerLogin={viewerLogin}
-              flash={flash !== null && flash.key === key ? flash.label : null}
-            />
-          ))}
+          {paneEntries.map((entry) => {
+            const hunks = pathMode ? (entry as PathFileEntry).hunks : undefined;
+            return (
+              <DiffFileSection
+                key={entry.key}
+                file={entry.file}
+                fileKey={entry.key}
+                hunks={hunks}
+                open={expanded.has(entry.key)}
+                onToggle={toggleFile}
+                onSectionRef={onSectionRef}
+                comments={comments}
+                headSHA={headSHA}
+                canComment={canComment}
+                draft={draftPath === entry.file.path ? draft : null}
+                onDraftChange={setDraft}
+                viewerLogin={viewerLogin}
+                flash={
+                  flash !== null && flash.key === entry.key ? flash.label : null
+                }
+              />
+            );
+          })}
         </div>
 
         {visibleSemantic && showSemanticRail ? (
           <SemanticRail
             paneRef={paneRef}
-            files={visible}
+            files={paneEntries}
             expanded={expanded}
-            singleFile={focusMode}
+            singleFile={!pathMode && focusMode}
             layoutKey={railLayoutKey}
             onJump={selectHunk}
           />

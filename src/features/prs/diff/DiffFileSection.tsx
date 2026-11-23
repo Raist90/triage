@@ -15,6 +15,8 @@ const STATUS_LABEL: Record<DiffFile["status"], string> = {
 type DiffFileSectionProps = {
   file: DiffFile;
   fileKey: string;
+  /** Hunk indices a path step owns; undefined renders the whole file. */
+  hunks?: number[];
   open: boolean;
   /** Stable across renders: the section supplies its own key. */
   onToggle: (fileKey: string) => void;
@@ -39,6 +41,7 @@ type DiffFileSectionProps = {
 export const DiffFileSection = memo(function DiffFileSection({
   file,
   fileKey,
+  hunks,
   open,
   onToggle,
   onSectionRef,
@@ -130,6 +133,7 @@ export const DiffFileSection = memo(function DiffFileSection({
         <FilePatch
           file={file}
           fileKey={fileKey}
+          hunks={hunks}
           comments={comments}
           headSHA={headSHA}
           canComment={canComment}
