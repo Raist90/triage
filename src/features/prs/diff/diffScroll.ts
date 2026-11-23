@@ -27,7 +27,8 @@ export function clampedAtBottom(pane: {
  * The section that owns the pane's top edge. A section fully above the edge
  * loses to the first one that starts below it. Clamping at the bottom is not a
  * top-edge question: the caller checks `clampedAtBottom` and lets the last
- * rendered body own the selection there.
+ * rendered body own the selection there while that body still reaches below
+ * the edge.
  */
 export function activeSectionKey(
   sections: SectionRect[],

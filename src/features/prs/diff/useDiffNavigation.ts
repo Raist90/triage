@@ -356,14 +356,19 @@ export function useDiffNavigation({
       }
       // At the end of the pane the top edge can never reach the last files, so
       // short trailing files would never win the top-edge test. The last
-      // rendered body owns the selection there. Never a collapsed header: in
-      // focus mode the single open file is the only body, so scrolling through
-      // it must keep it selected instead of jumping to the last header below.
+      // rendered body owns the selection there while it still reaches below
+      // the top edge. Once the collapsed headers below it fill the viewport,
+      // the selection returns to the last rail row: that header is what the
+      // user is looking at. Focus mode keeps the open file instead: it is the
+      // only body, and scrolling through it must not jump to a header below.
       if (clampedAtBottom(pane)) {
+        const lastRow = visibleEntries[visibleEntries.length - 1].key;
+        const lastBody = count > 0 ? sections[count - 1] : null;
         const last =
-          count > 0
-            ? sections[count - 1].key
-            : visibleEntries[visibleEntries.length - 1].key;
+          lastBody !== null &&
+          (singleFileRef.current || lastBody.bottom > threshold)
+            ? lastBody.key
+            : lastRow;
         setActiveKey((previous) => (previous === last ? previous : last));
         return;
       }

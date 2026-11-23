@@ -744,6 +744,57 @@ describe("DiffView", () => {
     );
   });
 
+  test("a collapsed tail taller than the pane owns the selection in files mode", async () => {
+    const names = ["a", "b", "c", "d", "e"];
+    const files = names.map((name) =>
+      makeFile({
+        path: `src/${name}.ts`,
+        hunks: [
+          makeHunk({
+            lines: [
+              makeLine({ kind: "add", newNumber: 1, text: `${name} added` }),
+            ],
+          }),
+        ],
+      }),
+    );
+    renderDiff({ files });
+    const sidebar = screen.getByLabelText("Files in this pull request");
+
+    // Leave focus mode so several bodies are open, then collapse the tail from
+    // its section headers. A rail click would open the file again.
+    fireEvent.click(screen.getByRole("button", { name: "Show all files" }));
+    for (const name of ["c", "d", "e"]) {
+      const section = screen.getByText(`${name} added`).closest("section")!;
+      fireEvent.click(within(section).getByRole("button", { expanded: true }));
+    }
+
+    // At the end of the pane only the three collapsed headers are on screen:
+    // a.ts and b.ts have scrolled out above the top edge.
+    const pane = screen.getByText("a added").closest("section")!
+      .parentElement as HTMLElement;
+    mockPaneGeometry(pane, [400, 100, 36, 36, 36], {
+      scrollTop: 500,
+      clientHeight: 100,
+      scrollHeight: 600,
+    });
+    fireEvent.pointerDown(pane);
+    fireEvent.scroll(pane);
+
+    await waitFor(() =>
+      expect(
+        within(sidebar)
+          .getByRole("button", { name: /e\.ts/ })
+          .getAttribute("aria-current"),
+      ).toBe("location"),
+    );
+    expect(
+      within(sidebar)
+        .getByRole("button", { name: /b\.ts/ })
+        .getAttribute("aria-current"),
+    ).toBeNull();
+  });
+
   test("a failed submit keeps the composer open with the error", async () => {
     const comments = makeCommentsController({
       submit: async () => "Could not post",
