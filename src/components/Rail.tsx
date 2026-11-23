@@ -36,7 +36,7 @@ export function Rail({
     <nav
       aria-label="Primary"
       data-tauri-drag-region
-      className="flex w-16 shrink-0 flex-col items-center border-r border-line bg-canvas pt-11 pb-2"
+      className="flex w-12 shrink-0 flex-col items-center border-r border-line py-2"
     >
       <button
         type="button"
