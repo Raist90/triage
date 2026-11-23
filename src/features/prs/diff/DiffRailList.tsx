@@ -20,29 +20,29 @@ import type { DiffFileEntry } from "./diffSelection";
  * never moves a highlight the user cannot see.
  */
 export function DiffRailList({
-  files,
-  steps,
-  activeKey,
-  activeStepID,
-  onSelectStep,
-  onSelect,
   onScrollerRef,
   edgeClassName,
-}: {
-  files: DiffFileEntry[];
-  /** The resolved path steps; undefined renders the file list. */
-  steps?: WalkthroughStep[];
-  activeKey: string | null;
-  activeStepID?: string;
-  onSelectStep: (stepID: string) => void;
-  onSelect: (key: string) => void;
+  ...rows
+}: (
+  | {
+      steps: WalkthroughStep[];
+      activeStepID?: string;
+      onSelectStep: (stepID: string) => void;
+    }
+  | {
+      files: DiffFileEntry[];
+      activeKey: string | null;
+      onSelect: (key: string) => void;
+    }
+) & {
   /** The scrolling element, so the owner can attach scroll-edge fades. */
   onScrollerRef?: (node: HTMLDivElement | null) => void;
   /** Clipped-edge fade classes from the owner's `useScrollEdges`. */
   edgeClassName?: string;
 }) {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
-  const activeID = steps ? (activeStepID ?? null) : activeKey;
+  const activeID =
+    "steps" in rows ? (rows.activeStepID ?? null) : rows.activeKey;
 
   // `nearest` leaves a row that is already fully visible alone, so a click
   // never shifts the list; a row past an edge is brought in just far enough.
@@ -55,21 +55,22 @@ export function DiffRailList({
     row?.scrollIntoView({ block: "nearest" });
   }, [activeID]);
 
-  let rows: ReactNode;
-  if (steps) {
-    rows = steps.map((step, index) => (
+  let content: ReactNode;
+  if ("steps" in rows) {
+    content = rows.steps.map((step, index) => (
       <StepRow
         key={step.id}
         index={index}
-        active={step.id === activeStepID}
-        onSelect={() => onSelectStep(step.id)}
+        active={step.id === rows.activeStepID}
+        onSelect={() => rows.onSelectStep(step.id)}
         step={step}
       />
     ));
-  } else if (files.length === 0) {
-    rows = <p className="p-2 text-meta text-fg-faint">No files match.</p>;
+  } else if (rows.files.length === 0) {
+    content = <p className="p-2 text-meta text-fg-faint">No files match.</p>;
   } else {
-    rows = files.map(({ key, file }) => (
+    const { files, activeKey, onSelect } = rows;
+    content = files.map(({ key, file }) => (
       <FileRow
         key={key}
         fileKey={key}
@@ -93,7 +94,7 @@ export function DiffRailList({
         edgeClassName,
       )}
     >
-      {rows}
+      {content}
     </div>
   );
 }

@@ -4,39 +4,39 @@ import type { ComponentProps, RefObject } from "react";
 import { cx } from "../../../lib/cx";
 import type { DiffFileKind } from "../../../lib/types";
 import type { DiffSort } from "../../../stores/ui";
+import { useUIStore } from "../../../stores/ui";
 import { DIFF_FILE_KINDS, FILE_KIND_LABEL } from "./diffFile";
 
-/** Rail chrome: path search, file-type toggles and the review-driven order. */
+/**
+ * Rail chrome: path search, file-type toggles and the review-driven order.
+ * The kind, sort and low-focus choices are persisted rail state, so the
+ * controls own their store subscription instead of threading it through the
+ * rail.
+ */
 export function DiffSidebarFilters({
   filter,
   filterInputRef,
   kindCounts,
-  hiddenKinds,
   hasReview,
-  sort,
-  hideLowPriority,
   lowCount,
   onFilterChange,
-  onToggleKind,
-  onSortChange,
-  onToggleLowPriority,
   onSelectFirst,
 }: {
   filter: string;
   filterInputRef: RefObject<HTMLInputElement | null>;
   kindCounts: Record<DiffFileKind, number>;
-  hiddenKinds: DiffFileKind[];
   hasReview: boolean;
-  sort: DiffSort;
-  hideLowPriority: boolean;
   lowCount: number;
   onFilterChange: (value: string) => void;
-  onToggleKind: (kind: DiffFileKind) => void;
-  onSortChange: (sort: DiffSort) => void;
-  onToggleLowPriority: () => void;
   /** Enter in the search box opens the first match. */
   onSelectFirst: () => void;
 }) {
+  const hiddenKinds = useUIStore((state) => state.hiddenFileKinds);
+  const toggleFileKind = useUIStore((state) => state.toggleFileKind);
+  const sort = useUIStore((state) => state.diffSort);
+  const setSort = useUIStore((state) => state.setDiffSort);
+  const hideLowPriority = useUIStore((state) => state.hideLowPriority);
+  const toggleLowPriority = useUIStore((state) => state.toggleLowPriority);
   const kinds = DIFF_FILE_KINDS.filter((kind) => kindCounts[kind] > 0);
 
   return (
@@ -91,7 +91,7 @@ export function DiffSidebarFilters({
               kind={kind}
               count={kindCounts[kind]}
               excluded={hiddenKinds.includes(kind)}
-              onToggle={() => onToggleKind(kind)}
+              onToggle={() => toggleFileKind(kind)}
             />
           ))}
         </div>
@@ -99,12 +99,12 @@ export function DiffSidebarFilters({
 
       {hasReview ? (
         <>
-          <SortControl sort={sort} onSortChange={onSortChange} />
+          <SortControl sort={sort} onSortChange={setSort} />
           {lowCount > 0 ? (
             <LowFocusToggle
               lowCount={lowCount}
               hidden={hideLowPriority}
-              onToggle={onToggleLowPriority}
+              onToggle={toggleLowPriority}
             />
           ) : null}
         </>

@@ -10,12 +10,12 @@ import { scrollEdgeClass, useScrollEdges } from "../../../lib/useScrollEdges";
 import { useUIStore } from "../../../stores/ui";
 import { DiffCommentsContext } from "./DiffCommentsContext";
 import { DiffFileSection } from "./DiffFileSection";
+import { FileRail, PathRail } from "./DiffRail";
 import {
   filterDiffEntries,
   selectDiffFiles,
   type DiffTarget,
 } from "./diffSelection";
-import { DiffSidebar } from "./DiffSidebar";
 import { DiffToolbar } from "./DiffToolbar";
 import { SemanticRail } from "./SemanticRail";
 import type { DiffCommentsController } from "./useDiffComments";
@@ -55,12 +55,9 @@ export function DiffView({
   const [filter, setFilter] = useState("");
 
   const hiddenKinds = useUIStore((state) => state.hiddenFileKinds);
-  const toggleFileKind = useUIStore((state) => state.toggleFileKind);
   const clearFileKinds = useUIStore((state) => state.clearFileKinds);
   const diffSort = useUIStore((state) => state.diffSort);
-  const setDiffSort = useUIStore((state) => state.setDiffSort);
   const hideLowPriority = useUIStore((state) => state.hideLowPriority);
-  const toggleLowPriority = useUIStore((state) => state.toggleLowPriority);
   const showSemanticRail = useUIStore((state) => state.showSemanticRail);
   const toggleSemanticRail = useUIStore((state) => state.toggleSemanticRail);
   const diffMode = useUIStore((state) => state.diffMode);
@@ -79,11 +76,9 @@ export function DiffView({
     [files, hiddenKinds, hideCosmetic, hideLowPriority, diffSort],
   );
   const {
-    kindCounts,
     hiddenByKind,
     kindFiltered,
     cosmeticFiles,
-    hasReview,
     highCount,
     lowCount,
     visible,
@@ -159,6 +154,7 @@ export function DiffView({
   // The rail's scroller lives one component down, so it reports its node up.
   const railRef = useRef<HTMLDivElement | null>(null);
   const railEdges = useScrollEdges(railRef);
+  const railEdgeClassName = scrollEdgeClass(railEdges);
   const { width: railWidth, rootRef, separatorProps } = useResizableRail();
 
   const railLayoutKey = useMemo(
@@ -244,31 +240,28 @@ export function DiffView({
         />
 
         <div className="flex min-h-0 flex-1">
-          <DiffSidebar
-            files={matched}
-            activeKey={activeKey}
-            filter={filter}
-            filterInputRef={filterInputRef}
-            railRef={railRef}
-            edgeClassName={scrollEdgeClass(railEdges)}
-            kindCounts={kindCounts}
-            hiddenKinds={hiddenKinds}
-            totalCount={files.length}
-            hiddenCount={files.length - matched.length}
-            highCount={highCount}
-            hasReview={hasReview}
-            sort={diffSort}
-            steps={pathMode ? walkthrough?.steps : undefined}
-            activeStepID={activeStep?.id}
-            hideLowPriority={hideLowPriority}
-            lowCount={lowCount}
-            onSelectStep={setActiveStepID}
-            onSortChange={setDiffSort}
-            onToggleLowPriority={toggleLowPriority}
-            onFilterChange={setFilter}
-            onToggleKind={toggleFileKind}
-            onSelect={selectFile}
-          />
+          {pathMode && walkthrough ? (
+            <PathRail
+              steps={walkthrough.steps}
+              activeStepID={activeStep?.id}
+              railRef={railRef}
+              edgeClassName={railEdgeClassName}
+              onSelectStep={setActiveStepID}
+            />
+          ) : (
+            <FileRail
+              files={matched}
+              totalCount={files.length}
+              activeKey={activeKey}
+              filter={filter}
+              filterInputRef={filterInputRef}
+              railRef={railRef}
+              edgeClassName={railEdgeClassName}
+              selection={selection}
+              onFilterChange={setFilter}
+              onSelect={selectFile}
+            />
+          )}
 
           <div
             {...separatorProps}
