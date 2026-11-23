@@ -75,14 +75,7 @@ export function DiffView({
       }),
     [files, hiddenKinds, hideCosmetic, hideLowPriority, diffSort],
   );
-  const {
-    hiddenByKind,
-    kindFiltered,
-    cosmeticFiles,
-    highCount,
-    lowCount,
-    visible,
-  } = selection;
+  const { kindFiltered, visible } = selection;
 
   // Search narrows the rail and the keyboard walk, never the pane: typing must
   // not close the patch being reviewed. One list feeds both, so the rail and
@@ -216,11 +209,8 @@ export function DiffView({
         <DiffToolbar
           summary={semanticSummary}
           showSummary={showSummary}
-          highCount={highCount}
-          cosmeticFiles={cosmeticFiles}
-          hiddenByKind={hiddenByKind}
+          selection={selection}
           hideLowPriority={hideLowPriority}
-          lowCount={lowCount}
           focusMode={focusMode}
           hideCosmetic={hideCosmetic}
           hasSemantic={hasSemantic}

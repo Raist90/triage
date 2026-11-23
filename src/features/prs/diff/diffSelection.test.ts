@@ -1,11 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { makeFile } from "../../../test/fixtures";
 import {
+  diffSummaryParts,
   filesSummary,
   filterDiffEntries,
   selectDiffFiles,
   stepsSummary,
   summaryText,
+  type DiffSelection,
 } from "./diffSelection";
 
 function review(band: "high" | "medium" | "low", score: number) {
@@ -216,5 +218,93 @@ describe("stepsSummary", () => {
   test("singularizes one step", () => {
     expect(stepsSummary(1)).toBe("1 step · every change covered");
     expect(stepsSummary(3)).toBe("3 steps · every change covered");
+  });
+});
+
+describe("diffSummaryParts", () => {
+  const emptySelection = selectDiffFiles([], {
+    hiddenKinds: [],
+    hideCosmetic: false,
+    hideLowPriority: false,
+    sort: "priority",
+  });
+
+  function selectionWith(overrides: Partial<DiffSelection>): DiffSelection {
+    return { ...emptySelection, ...overrides };
+  }
+
+  test("orders step, semantic summary and every visible count", () => {
+    const parts = diffSummaryParts({
+      summary: {
+        added: 0,
+        modified: 4,
+        deleted: 0,
+        moved: 0,
+        renamed: 0,
+        reordered: 0,
+        binary: 0,
+        fileCount: 4,
+        orphan: 0,
+        total: 4,
+      },
+      showSummary: true,
+      selection: selectionWith({
+        highCount: 5,
+        cosmeticFiles: 2,
+        hiddenByKind: 1,
+        lowCount: 3,
+      }),
+      hideLowPriority: true,
+      pathMode: true,
+      stepLabel: "Step 1 of 2 · rename",
+    });
+
+    expect(parts.map((part) => part.key)).toEqual([
+      "step",
+      "summary",
+      "high",
+      "cosmetic",
+      "hidden",
+      "low",
+    ]);
+    expect(parts.map((part) => part.text)).toEqual([
+      "Step 1 of 2 · rename",
+      "4 semantic changes · 4 modified",
+      "5 high focus",
+      "2 cosmetic-only files",
+      "1 file hidden",
+      "3 low focus hidden",
+    ]);
+  });
+
+  test("keeps hidden kinds without low focus, then adds low focus when hiding", () => {
+    const selection = selectionWith({
+      cosmeticFiles: 1,
+      hiddenByKind: 2,
+      lowCount: 3,
+    });
+
+    const visibleOnly = diffSummaryParts({
+      showSummary: false,
+      selection,
+      hideLowPriority: false,
+      pathMode: false,
+    });
+    expect(visibleOnly.map((part) => part.text)).toEqual([
+      "1 cosmetic-only file",
+      "2 files hidden",
+    ]);
+
+    const hiding = diffSummaryParts({
+      showSummary: false,
+      selection,
+      hideLowPriority: true,
+      pathMode: false,
+    });
+    expect(hiding.map((part) => part.text)).toEqual([
+      "1 cosmetic-only file",
+      "2 files hidden",
+      "3 low focus hidden",
+    ]);
   });
 });
