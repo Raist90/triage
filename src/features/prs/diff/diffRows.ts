@@ -44,9 +44,7 @@ export function rowTint(kind: DiffLine["kind"]): string {
 }
 
 export function codeClasses(kind: DiffLine["kind"]): string {
-  if (kind === "add") return "text-fg";
-  if (kind === "del") return "text-fg-body";
-  return "text-fg-muted";
+  return kind === "context" ? "text-fg-muted" : "text-fg";
 }
 
 export function emphasisClasses(kind: DiffLine["kind"]): string {
@@ -81,10 +79,10 @@ export function lineClasses(line: string): string {
     return "bg-surface px-3 py-1 text-fg-faint";
   }
   if (line.startsWith("+")) {
-    return "border-l-2 border-l-accent/40 bg-diff-add-line px-3 text-fg";
+    return "bg-diff-add-line px-3 text-fg";
   }
   if (line.startsWith("-")) {
-    return "border-l-2 border-l-danger/40 bg-diff-del-line pr-3 pl-[10px] text-fg-body";
+    return "bg-diff-del-line px-3 text-fg";
   }
-  return "border-l-2 border-l-transparent px-3 text-fg-muted";
+  return "px-3 text-fg-muted";
 }

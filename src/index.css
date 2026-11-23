@@ -39,15 +39,15 @@
   /* Diff tints: low enough that code stays readable. */
   --color-diff-add-line: #0e1a14;
   --color-diff-add-word: #163422;
-  --color-diff-del-line: #1c1113;
-  --color-diff-del-word: #391e1f;
+  --color-diff-del-line: #241315;
+  --color-diff-del-word: #4a2224;
 
   /* Syntax tiers: dimmed hues over neutral identifiers. Code may carry hue;
      chrome stays neutral. */
   --color-syn-keyword: #d99a93;
   --color-syn-string: #8fb8d3;
   --color-syn-number: #d4b483;
-  --color-syn-comment: #71717a;
+  --color-syn-comment: #94949c;
   --color-syn-type: #8fc4cf;
   --color-syn-func: #bda9d6;
   --color-syn-tag: #94cfa9;
