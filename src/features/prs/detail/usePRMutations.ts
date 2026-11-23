@@ -123,24 +123,28 @@ export function usePRMutations(
   const merge = useCallback((sha: string) => mutateMerge(sha), [mutateMerge]);
   const close = useCallback(() => mutateClose(), [mutateClose]);
 
-  const error = draftMutation.isError
-    ? describeError(draftMutation.error)
-    : mergeMutation.isError
-      ? describeError(mergeMutation.error)
-      : closeMutation.isError
-        ? describeError(closeMutation.error)
-        : null;
+  let error: string | null = null;
+  if (draftMutation.isError) {
+    error = describeError(draftMutation.error);
+  } else if (mergeMutation.isError) {
+    error = describeError(mergeMutation.error);
+  } else if (closeMutation.isError) {
+    error = describeError(closeMutation.error);
+  }
+
   const pending =
     draftMutation.isPending ||
     mergeMutation.isPending ||
     closeMutation.isPending;
-  const submitting = draftMutation.isPending
-    ? "draft"
-    : mergeMutation.isPending
-      ? "merge"
-      : closeMutation.isPending
-        ? "close"
-        : null;
+
+  let submitting: PRStateAction | null = null;
+  if (draftMutation.isPending) {
+    submitting = "draft";
+  } else if (mergeMutation.isPending) {
+    submitting = "merge";
+  } else if (closeMutation.isPending) {
+    submitting = "close";
+  }
 
   // A stable controller keeps the detail context from waking its consumers
   // when an unrelated pane render asks for the same mutation state again.
