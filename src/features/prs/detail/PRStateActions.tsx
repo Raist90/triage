@@ -1,6 +1,6 @@
 import { CircleX, FilePenLine, GitMerge, Send } from "lucide-react";
 import { Button } from "../../../components/ui";
-import { usePRDetailContext } from "./PRDetailContext";
+import { usePRDetail } from "./PRDetailContext";
 import { canManagePR, mergeBlocker } from "./usePRMutations";
 
 const BLOCKER_TITLE: Record<
@@ -16,8 +16,8 @@ const BLOCKER_TITLE: Record<
 
 /** Draft toggle, close and squash merge for your own open PR. */
 export function PRStateActions() {
-  const { pr, mutations } = usePRDetailContext();
-  if (!pr || !canManagePR(pr)) return null;
+  const { pr, mutations } = usePRDetail();
+  if (!canManagePR(pr)) return null;
 
   const blocker = mergeBlocker(pr);
   const merging = mutations.submitting === "merge";
@@ -77,8 +77,7 @@ export function PRStateActions() {
 
 /** Confirmation bar or a failed action, rendered below the detail bar. */
 export function PRStatePanel() {
-  const { pr, mutations } = usePRDetailContext();
-  if (!pr) return null;
+  const { pr, mutations } = usePRDetail();
   if (mutations.confirming === "merge") {
     return (
       <section

@@ -17,7 +17,7 @@ export type DiffCommentsValue = {
   viewerLogin?: string;
 };
 
-/** Provided by `DiffCommentsProvider`, mounted at the root of `DiffView`. */
+/** Provided at the root of `DiffView`, above every file section. */
 export const DiffCommentsContext = createContext<DiffCommentsValue | null>(
   null,
 );
@@ -26,7 +26,7 @@ export function useDiffCommentsContext(): DiffCommentsValue {
   const value = useContext(DiffCommentsContext);
   if (value === null) {
     throw new Error(
-      "useDiffCommentsContext must be used inside <DiffCommentsProvider>",
+      "useDiffCommentsContext must be used inside <DiffCommentsContext>",
     );
   }
   return value;

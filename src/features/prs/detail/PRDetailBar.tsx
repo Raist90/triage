@@ -1,23 +1,28 @@
 import { ArrowLeft, ExternalLink, Maximize2, Minimize2 } from "lucide-react";
+import type { ReactNode } from "react";
 import { IconButton } from "../../../components/ui";
 import { cx } from "../../../lib/cx";
 import { openExternal } from "../../../lib/open";
-import { PRStateActions } from "./PRStateActions";
-import { usePRDetailContext } from "./PRDetailContext";
-import { ReviewHeaderActions } from "./ReviewHeaderActions";
+import { usePRChrome } from "./PRDetailContext";
 
 type PRDetailBarProps = {
   fullscreen: boolean;
   onClose: () => void;
   onToggleFullscreen: () => void;
+  /** Review and state actions; present once the pull request has loaded. */
+  children?: ReactNode;
+  /** GitHub link target; absent while the pull request is loading. */
+  url?: string;
 };
 
 export function PRDetailBar({
   fullscreen,
   onClose,
   onToggleFullscreen,
+  children,
+  url,
 }: PRDetailBarProps) {
-  const { repo, number, pr } = usePRDetailContext();
+  const { repo, number } = usePRChrome();
   return (
     <div
       data-tauri-drag-region
@@ -39,8 +44,7 @@ export function PRDetailBar({
         <span className="px-1 text-line-strong">#</span>
         <span className="text-fg-muted">{number}</span>
       </span>
-      {pr ? <ReviewHeaderActions /> : null}
-      {pr ? <PRStateActions /> : null}
+      {children}
       <div className="ml-auto flex shrink-0 items-center gap-1">
         <IconButton
           label={
@@ -57,10 +61,10 @@ export function PRDetailBar({
             <Maximize2 className="size-4" aria-hidden />
           )}
         </IconButton>
-        {pr ? (
+        {url ? (
           <button
             type="button"
-            onClick={() => void openExternal(pr.url)}
+            onClick={() => void openExternal(url)}
             title="Open on GitHub"
             aria-label="Open on GitHub"
             className="flex size-7 shrink-0 items-center justify-center rounded-sm text-fg-faint transition-colors hover:bg-surface hover:text-fg"

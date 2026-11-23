@@ -8,7 +8,7 @@ import type {
 } from "../../../lib/types";
 import { scrollEdgeClass, useScrollEdges } from "../../../lib/useScrollEdges";
 import { useUIStore } from "../../../stores/ui";
-import { DiffCommentsProvider } from "./DiffCommentsProvider";
+import { DiffCommentsContext } from "./DiffCommentsContext";
 import { DiffFileSection } from "./DiffFileSection";
 import {
   filterDiffEntries,
@@ -211,7 +211,7 @@ export function DiffView({
       : null;
 
   return (
-    <DiffCommentsProvider value={commentsValue}>
+    <DiffCommentsContext value={commentsValue}>
       <div
         ref={rootRef}
         className="flex h-full min-h-0 flex-col"
@@ -353,6 +353,6 @@ export function DiffView({
           ) : null}
         </div>
       </div>
-    </DiffCommentsProvider>
+    </DiffCommentsContext>
   );
 }

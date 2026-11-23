@@ -1,9 +1,9 @@
 import { Button } from "../../../components/ui";
-import { usePRDetailContext } from "./PRDetailContext";
+import { usePRDetail } from "./PRDetailContext";
 
 /** One review form: request changes, or comment without a verdict. */
 export function ReviewPanel() {
-  const { review } = usePRDetailContext();
+  const { review } = usePRDetail();
   if (!review.open) {
     // An approval can fail with the panel shut; the error still has to show.
     return review.error ? (

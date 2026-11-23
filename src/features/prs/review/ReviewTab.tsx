@@ -3,7 +3,7 @@ import { StateView } from "../../../components/StateView";
 import { Button } from "../../../components/ui";
 import type { DiffFile, ReviewFinding } from "../../../lib/types";
 import type { ClaudeActionController } from "../action/useClaudeAction";
-import { usePRDetailContext } from "../detail/PRDetailContext";
+import { usePRChrome } from "../detail/PRDetailContext";
 import { ReviewFindings } from "./ReviewFindings";
 import { ReviewStages } from "./ReviewStages";
 import { useApplyFinding } from "./useApplyFinding";
@@ -27,7 +27,7 @@ export function ReviewTab({
   diffFiles,
   onOpenInDiff,
 }: ReviewTabProps) {
-  const { repo, number } = usePRDetailContext();
+  const { repo, number } = usePRChrome();
   const { artifact, error, phase, review, running, stale } = controller;
   const configFile = configPath ?? "~/.triage/config.json";
   const { applying, failure, apply } = useApplyFinding(

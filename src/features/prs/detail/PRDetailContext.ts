@@ -4,30 +4,44 @@ import type { PRMutationController } from "./usePRMutations";
 import type { ReviewController } from "./useReview";
 
 /**
- * The open pull request and the controllers its chrome shares. Scoped to
- * `PRDetailBody`, which remounts per PR, so nothing here can leak from one
- * pull request into the next.
+ * Identity of the detail pane: what the bar can show before the pull request
+ * loads. Fixed per PR, because the pane remounts when the selection changes.
+ */
+export type PRChromeValue = {
+  repo: string;
+  number: number;
+};
+
+/**
+ * The loaded pull request and the controllers its chrome shares. Mounted only
+ * where a PR exists, so `pr` is not optional and consumers never re-check it.
+ * Scoped to `PRDetailBody`, which remounts per PR, so nothing here can leak
+ * from one pull request into the next.
  *
  * Deliberately not part of this value: action run state (`useClaudeAction`)
  * and the diff. Those belong to the tab that runs or renders them.
  */
 export type PRDetailValue = {
-  repo: string;
-  number: number;
-  pr?: PR;
+  pr: PR;
   mutations: PRMutationController;
   review: ReviewController;
 };
 
-/** Provided by `PRDetailProvider`, mounted at the root of `PRDetailBody`. */
+export const PRChromeContext = createContext<PRChromeValue | null>(null);
 export const PRDetailContext = createContext<PRDetailValue | null>(null);
 
-export function usePRDetailContext(): PRDetailValue {
+export function usePRChrome(): PRChromeValue {
+  const value = useContext(PRChromeContext);
+  if (value === null) {
+    throw new Error("usePRChrome must be used inside <PRChromeContext>");
+  }
+  return value;
+}
+
+export function usePRDetail(): PRDetailValue {
   const value = useContext(PRDetailContext);
   if (value === null) {
-    throw new Error(
-      "usePRDetailContext must be used inside <PRDetailProvider>",
-    );
+    throw new Error("usePRDetail must be used inside <PRDetailContext>");
   }
   return value;
 }
