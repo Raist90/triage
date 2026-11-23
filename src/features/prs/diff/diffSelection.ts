@@ -43,10 +43,7 @@ export type DiffSelection = {
   hasReview: boolean;
   highCount: number;
   lowCount: number;
-  hiddenCount: number;
   visible: DiffFileEntry[];
-  firstVisibleKey: string | null;
-  visibleSignature: string;
 };
 
 /**
@@ -65,7 +62,7 @@ export function filterDiffEntries(
 
 /**
  * Applies the kind, cosmetic and low-focus filters, then the priority order.
- * Kept pure so the counters and the sidebar receive exactly the same list the
+ * Kept pure so the counters and the rail receive exactly the same list the
  * pane renders.
  */
 export function selectDiffFiles(
@@ -104,10 +101,6 @@ export function selectDiffFiles(
   const lowCount = baseVisible.filter(
     ({ file }) => file.review?.band === "low",
   ).length;
-  const hiddenCount =
-    hiddenByKind +
-    (hideCosmetic ? cosmeticFiles : 0) +
-    (hideLowPriority ? lowCount : 0);
   const visible = baseVisible
     .filter(({ file }) => !(hideLowPriority && file.review?.band === "low"))
     .sort((a, b) =>
@@ -124,10 +117,7 @@ export function selectDiffFiles(
     hasReview,
     highCount,
     lowCount,
-    hiddenCount,
     visible,
-    firstVisibleKey: visible[0]?.key ?? null,
-    visibleSignature: visible.map(({ key }) => key).join("\u0000"),
   };
 }
 

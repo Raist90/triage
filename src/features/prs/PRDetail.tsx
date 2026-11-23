@@ -223,6 +223,19 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
     [pr, mutations, review],
   );
 
+  // Pending and error are the only states without a loaded PR, so one element
+  // fills the layout in both the loaded and the loading branch.
+  const loadingOrError = detailQuery.isPending ? (
+    <DetailSkeleton />
+  ) : detailQuery.isError ? (
+    <ErrorState
+      title="Can’t load this pull request"
+      message={describeError(detailQuery.error)}
+      retrying={detailQuery.isFetching}
+      onRetry={() => void detailQuery.refetch()}
+    />
+  ) : null;
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <PRDetailBar
@@ -248,83 +261,64 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
 
           <div className="flex min-h-0 flex-1">
             <div className="flex min-w-0 flex-1 flex-col">
-              {detailQuery.isPending ? (
-                <DetailSkeleton />
-              ) : detailQuery.isError ? (
-                <ErrorState
-                  title="Can’t load this pull request"
-                  message={describeError(detailQuery.error)}
-                  retrying={detailQuery.isFetching}
-                  onRetry={() => void detailQuery.refetch()}
-                />
-              ) : pr && !isOpen ? (
-                <PRSummary pr={pr} />
-              ) : pr ? (
-                <>
-                  <PRHeader pr={pr} />
-                  <DetailTabs
-                    tabs={tabs}
-                    active={activeTab}
-                    onSelect={setTab}
-                  />
+              {loadingOrError ??
+                (isOpen ? (
+                  <>
+                    <PRHeader pr={detail.pr} />
+                    <DetailTabs
+                      tabs={tabs}
+                      active={activeTab}
+                      onSelect={setTab}
+                    />
 
-                  <DetailPanel activeTab={activeTab}>
-                    {activeTab === "conversation" ? (
-                      <Conversation pr={pr} comments={comments} />
-                    ) : null}
+                    <DetailPanel activeTab={activeTab}>
+                      {activeTab === "conversation" ? (
+                        <Conversation pr={detail.pr} comments={comments} />
+                      ) : null}
 
-                    {activeTab === "diff" ? (
-                      <DiffTab
-                        pr={pr}
-                        prKey={prKey}
-                        diffQuery={diffQuery}
-                        comments={diffComments}
-                        focusTarget={diffTarget ?? undefined}
-                      />
-                    ) : null}
+                      {activeTab === "diff" ? (
+                        <DiffTab
+                          pr={detail.pr}
+                          prKey={prKey}
+                          diffQuery={diffQuery}
+                          comments={diffComments}
+                          focusTarget={diffTarget ?? undefined}
+                        />
+                      ) : null}
 
-                    {activeTab === "review" ? (
-                      <ReviewTab
-                        repo={repo}
-                        number={number}
-                        controller={reviewController}
-                        reviewAvailable={
-                          configuredRepo?.review.available ?? false
-                        }
-                        unavailableReason={configuredRepo?.review.reason}
-                        configPath={configQuery.data?.configPath}
-                        diffFiles={diffQuery.data?.files}
-                        onOpenInDiff={openInDiff}
-                      />
-                    ) : null}
+                      {activeTab === "review" ? (
+                        <ReviewTab
+                          repo={repo}
+                          number={number}
+                          controller={reviewController}
+                          reviewAvailable={
+                            configuredRepo?.review.available ?? false
+                          }
+                          unavailableReason={configuredRepo?.review.reason}
+                          configPath={configQuery.data?.configPath}
+                          diffFiles={diffQuery.data?.files}
+                          onOpenInDiff={openInDiff}
+                        />
+                      ) : null}
 
-                    {activeTab === "explain" ? (
-                      <ExplainTab controller={explain} />
-                    ) : null}
-                  </DetailPanel>
-                </>
-              ) : null}
+                      {activeTab === "explain" ? (
+                        <ExplainTab controller={explain} />
+                      ) : null}
+                    </DetailPanel>
+                  </>
+                ) : (
+                  <PRSummary pr={detail.pr} />
+                ))}
             </div>
 
-            {pr && isOpen && activeTab !== "diff" ? (
+            {isOpen && activeTab !== "diff" ? (
               <ContextRail diff={diffQuery.data} />
             ) : null}
           </div>
         </PRDetailContext>
       ) : (
         <div className="flex min-h-0 flex-1">
-          <div className="flex min-w-0 flex-1 flex-col">
-            {detailQuery.isPending ? (
-              <DetailSkeleton />
-            ) : detailQuery.isError ? (
-              <ErrorState
-                title="Can’t load this pull request"
-                message={describeError(detailQuery.error)}
-                retrying={detailQuery.isFetching}
-                onRetry={() => void detailQuery.refetch()}
-              />
-            ) : null}
-          </div>
+          <div className="flex min-w-0 flex-1 flex-col">{loadingOrError}</div>
         </div>
       )}
     </div>

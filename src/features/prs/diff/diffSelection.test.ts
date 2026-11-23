@@ -35,7 +35,6 @@ describe("selectDiffFiles", () => {
       "src/a.ts",
     ]);
     expect(selection.highCount).toBe(1);
-    expect(selection.firstVisibleKey).toBe("src/b.ts:1");
   });
 
   test("path order restores patch order", () => {
@@ -57,7 +56,7 @@ describe("selectDiffFiles", () => {
     ]);
   });
 
-  test("hidden kinds leave the visible list and count toward hiddenCount", () => {
+  test("hidden kinds leave the visible list", () => {
     const files = [
       makeFile({ path: "src/a.test.ts", kinds: ["test"] }),
       makeFile({ path: "src/a.ts" }),
@@ -78,7 +77,6 @@ describe("selectDiffFiles", () => {
       "src/a.ts",
     ]);
     expect(selection.hiddenByKind).toBe(1);
-    expect(selection.hiddenCount).toBe(1);
   });
 
   test("hideCosmetic removes cosmetic-only files and counts them", () => {
@@ -105,7 +103,6 @@ describe("selectDiffFiles", () => {
     });
 
     expect(selection.cosmeticFiles).toBe(1);
-    expect(selection.hiddenCount).toBe(1);
     expect(selection.visible.map(({ file }) => file.path)).toEqual([
       "src/a.ts",
     ]);
@@ -125,7 +122,6 @@ describe("selectDiffFiles", () => {
     });
 
     expect(selection.lowCount).toBe(1);
-    expect(selection.hiddenCount).toBe(1);
     expect(selection.visible.map(({ file }) => file.path)).toEqual([
       "src/b.ts",
     ]);
