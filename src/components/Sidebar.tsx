@@ -31,7 +31,7 @@ export function Sidebar({
     <aside className="flex w-52 shrink-0 flex-col border-r border-line bg-canvas">
       <div
         data-tauri-drag-region
-        className="flex h-11 shrink-0 items-center justify-between pr-2 pl-17"
+        className="flex h-11 shrink-0 items-center justify-between pr-2 pl-3"
       >
         <MicroLabel>Repositories</MicroLabel>
         <button

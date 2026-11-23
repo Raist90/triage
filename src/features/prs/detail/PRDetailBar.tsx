@@ -34,9 +34,8 @@ export function PRDetailBar({
       data-tauri-drag-region
       className={cx(
         "flex h-11 shrink-0 items-center gap-2 pr-1",
-        fullscreen && "bg-canvas",
+        fullscreen ? "bg-canvas pl-17" : "pl-2",
       )}
-      style={{ paddingLeft: "max(0.5rem, var(--chrome-lead, 0px))" }}
     >
       <button
         type="button"

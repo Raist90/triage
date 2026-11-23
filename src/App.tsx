@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { GitPullRequest } from "lucide-react";
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { ConnectionState } from "./components/ConnectionStatus";
 import { EmptyState } from "./components/EmptyState";
 import { ErrorState } from "./components/ErrorState";
@@ -88,15 +88,8 @@ export function App() {
     );
   }
 
-  // The window controls live in the sidebar header. Panes that reach the
-  // window's left edge have to start their 44px band after the lights.
-  const chromeLead = detailFullscreen ? 112 : sidebarOpen ? 0 : 60;
-
   return (
-    <div
-      className="relative flex h-full overflow-hidden bg-canvas text-fg"
-      style={{ "--chrome-lead": `${chromeLead}px` } as CSSProperties}
-    >
+    <div className="relative flex h-full overflow-hidden bg-canvas text-fg">
       {/* One light source behind the main panes; opaque chrome covers it. */}
       <div
         aria-hidden="true"
