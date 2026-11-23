@@ -12,6 +12,7 @@ import { StateView } from "./components/StateView";
 import { cx } from "./lib/cx";
 import { describeError, getConfig, getHealth } from "./lib/api";
 import { parsePRKey } from "./lib/pr";
+import { useWindowFullscreen } from "./lib/useWindowFullscreen";
 import { PRDetail } from "./features/prs/PRDetail";
 import { PRList } from "./features/prs/PRList";
 import { useUIStore } from "./stores/ui";
@@ -20,6 +21,7 @@ export function App() {
   const configQuery = useQuery({ queryKey: ["config"], queryFn: getConfig });
   const healthQuery = useQuery({ queryKey: ["health"], queryFn: getHealth });
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const windowFullscreen = useWindowFullscreen();
 
   const selectedRepo = useUIStore((state) => state.selectedRepo);
   const selectRepo = useUIStore((state) => state.selectRepo);
@@ -89,73 +91,91 @@ export function App() {
   }
 
   return (
-    <div className="relative flex h-full overflow-hidden bg-canvas text-fg">
+    <div className="relative flex h-full flex-col overflow-hidden bg-canvas text-fg">
       {/* One light source behind the main panes; opaque chrome covers it. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 ambient-wash"
       />
-      {/* One seam under the whole 44px chrome band. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-11 z-10 h-px app-seam"
-      />
 
-      {detailFullscreen ? null : (
-        <Rail
-          tabs={tabs}
-          activeTabID={activeTab?.id}
-          repoPanelOpen={sidebarOpen}
-          onSelectTab={setActiveTab}
-          onToggleRepoPanel={toggleSidebar}
-          onOpenSettings={() => setSettingsOpen(true)}
-        />
+      {/* Title bar: the window controls and nothing else. Transparent, so the
+          light behind it carries it into the chrome band below. Collapses in
+          macOS fullscreen, where the OS hides the controls and it is dead
+          space. */}
+      {windowFullscreen ? null : (
+        <div data-tauri-drag-region className="relative h-10 shrink-0" />
       )}
 
-      {sidebarOpen && !detailFullscreen ? (
-        <Sidebar
-          connection={connection}
-          configStatus={configStatus}
-          repos={configQuery.data?.repos ?? []}
-          selectedRepo={selectedRepo}
-          user={configQuery.data?.user.login}
-          onSelectRepo={selectRepo}
-          onRetryConfig={retryConnection}
-          onCollapse={toggleSidebar}
+      {/* The app box: one border across the top closes it off from the window
+          chrome, so the panes read as a single framed surface. */}
+      <div
+        className={cx(
+          "relative flex min-h-0 flex-1",
+          !windowFullscreen && "border-t border-line",
+        )}
+      >
+        {/* One seam under the whole 44px chrome band. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-11 z-10 h-px app-seam"
         />
-      ) : null}
 
-      <main className="flex min-w-0 flex-1">
-        <section
-          aria-hidden={detailFullscreen || undefined}
-          className={cx(
-            "min-w-0 flex-col cockpit:w-85 cockpit:shrink-0 cockpit:border-r cockpit:border-line",
-            detailFullscreen
-              ? // Hidden, not unmounted: the list keeps its cursor and scroll
-                // for when fullscreen exits.
-                "hidden"
-              : prSelection
-                ? "hidden cockpit:flex"
-                : "flex flex-1 cockpit:flex-none",
-          )}
-        >
-          {/* The list stays mounted so its cursor and scroll survive a detail visit. */}
-          <div className="flex h-full min-h-0 flex-1 flex-col">{content}</div>
-        </section>
+        {detailFullscreen ? null : (
+          <Rail
+            tabs={tabs}
+            activeTabID={activeTab?.id}
+            repoPanelOpen={sidebarOpen}
+            onSelectTab={setActiveTab}
+            onToggleRepoPanel={toggleSidebar}
+            onOpenSettings={() => setSettingsOpen(true)}
+          />
+        )}
 
-        <section
-          className={cx(
-            "min-w-0 flex-1 flex-col",
-            prSelection ? "flex" : "hidden cockpit:flex",
-          )}
-        >
-          {prSelection ? (
-            <PRDetail repo={prSelection.repo} number={prSelection.number} />
-          ) : (
-            <DetailPlaceholder />
-          )}
-        </section>
-      </main>
+        {sidebarOpen && !detailFullscreen ? (
+          <Sidebar
+            connection={connection}
+            configStatus={configStatus}
+            repos={configQuery.data?.repos ?? []}
+            selectedRepo={selectedRepo}
+            user={configQuery.data?.user.login}
+            onSelectRepo={selectRepo}
+            onRetryConfig={retryConnection}
+            onCollapse={toggleSidebar}
+          />
+        ) : null}
+
+        <main className="flex min-w-0 flex-1">
+          <section
+            aria-hidden={detailFullscreen || undefined}
+            className={cx(
+              "min-w-0 flex-col cockpit:w-85 cockpit:shrink-0 cockpit:border-r cockpit:border-line",
+              detailFullscreen
+                ? // Hidden, not unmounted: the list keeps its cursor and scroll
+                  // for when fullscreen exits.
+                  "hidden"
+                : prSelection
+                  ? "hidden cockpit:flex"
+                  : "flex flex-1 cockpit:flex-none",
+            )}
+          >
+            {/* The list stays mounted so its cursor and scroll survive a detail visit. */}
+            <div className="flex h-full min-h-0 flex-1 flex-col">{content}</div>
+          </section>
+
+          <section
+            className={cx(
+              "min-w-0 flex-1 flex-col",
+              prSelection ? "flex" : "hidden cockpit:flex",
+            )}
+          >
+            {prSelection ? (
+              <PRDetail repo={prSelection.repo} number={prSelection.number} />
+            ) : (
+              <DetailPlaceholder />
+            )}
+          </section>
+        </main>
+      </div>
 
       <SettingsDialog
         open={settingsOpen}

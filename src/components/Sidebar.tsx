@@ -28,8 +28,11 @@ export function Sidebar({
   onCollapse,
 }: SidebarProps) {
   return (
-    <aside className="flex w-52 shrink-0 flex-col border-r border-line bg-canvas">
-      <div className="flex h-11 shrink-0 items-center justify-between pr-2 pl-3">
+    <aside className="flex w-52 shrink-0 flex-col border-r border-line">
+      <div
+        data-tauri-drag-region
+        className="flex h-11 shrink-0 items-center justify-between pr-2 pl-3"
+      >
         <MicroLabel>Repositories</MicroLabel>
         <button
           type="button"

@@ -80,7 +80,10 @@ export function PRListToolbar({
   }, [filtersOpen, onCloseFilters]);
 
   return (
-    <div className="flex h-11 shrink-0 items-center justify-between gap-2 pr-1 pl-3">
+    <div
+      data-tauri-drag-region
+      className="flex h-11 shrink-0 items-center justify-between gap-2 pr-1 pl-3"
+    >
       <div className="flex min-w-0 items-center gap-3">
         <span className="truncate text-meta font-medium text-fg">
           {tabLabel}

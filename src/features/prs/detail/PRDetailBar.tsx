@@ -31,6 +31,7 @@ export function PRDetailBar({
 }: PRDetailBarProps) {
   return (
     <div
+      data-tauri-drag-region
       className={cx(
         "flex h-11 shrink-0 items-center gap-2 pr-1 pl-2",
         fullscreen && "bg-canvas",
