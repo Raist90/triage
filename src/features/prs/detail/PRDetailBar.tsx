@@ -31,10 +31,12 @@ export function PRDetailBar({
 }: PRDetailBarProps) {
   return (
     <div
+      data-tauri-drag-region
       className={cx(
-        "flex h-11 shrink-0 items-center gap-2 pr-1 pl-2",
+        "flex h-11 shrink-0 items-center gap-2 pr-1",
         fullscreen && "bg-canvas",
       )}
+      style={{ paddingLeft: "max(0.5rem, var(--chrome-lead, 0px))" }}
     >
       <button
         type="button"
