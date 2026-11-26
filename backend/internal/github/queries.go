@@ -21,7 +21,7 @@ const listFields = `        number
           totalCount
           nodes { commit { statusCheckRollup { state } } }
         }
-        reviewRequests(first: 50) {
+        reviewRequests(first: 20) {
           nodes { requestedReviewer { ... on User { login } } }
         }
 `
