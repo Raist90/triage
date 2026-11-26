@@ -69,13 +69,17 @@ stay side by side; reviewing is the only flow that matters.
 - **Review:** the verdict is the headline (`text-lead`, accent or danger),
   followed by a proportional severity strip; every finding card carries a 2px
   severity rail.
-- **PR detail:** compact header with title, state, author, branches and change
-  stats; 44px bar; tabs for Conversation (default), Diff, Review (when
-  available), Explain (when available). Conversation is one chronological
-  timeline: the PR
-  body first, then comments, review verdicts and inline review comments. The
-  272px context rail shows checks, review, complexity and commit; it is hidden
-  below 1400px and while the Diff tab is active (the diff needs the width).
+- **PR detail:** open PRs are one briefing document, not tabs. 44px detail bar
+  (`repo#number`, branch, fullscreen, GitHub) → scrolling briefing → persistent
+  52px footer. The briefing order is header, Why, Context (the PR body), Where
+  the risk is, What changed, recent conversation; each section hides without
+  data. The footer holds the one lit action (`Start review`, which opens the
+  Review place), Diff / Conversation / Explain place links with
+  `aria-current`, and Manage (approve, request changes, draft, close, merge).
+  Conversation, Diff, Review and Explain are places with a Briefing back
+  control; no tab strip, no context rail. Conversation is chronological
+  ascending and does not repeat the PR body. Merged/closed PRs keep the
+  `PRSummary` receipt.
 - **Diffs:** per file, collapsible, full width, 208px file rail, draggable
   between 168 and 440px (double-click resets). Semantic diff
   via `sem` when available; fall back to a plain unified diff. Never fail a

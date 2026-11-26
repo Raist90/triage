@@ -11,7 +11,8 @@ import { ChangeStat } from "./ChangeStat";
 
 /**
  * Terminal detail state. Once a PR is merged or closed there is no head left to
- * diff or review, so the tabs give way to the receipt: what landed, where, when.
+ * diff or review, so the live document gives way to the receipt: what landed,
+ * where, when.
  * Esc and Back still close the pane.
  */
 export function PRSummary({ pr }: { pr: PR }) {

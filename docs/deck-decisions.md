@@ -2,9 +2,9 @@
 
 Status: implementation contract. Dated 2026-11-26.
 
-Open-PR detail navigation is planned to move from the tab model in D9/D10 to
-the briefing in `docs/pr-detail-briefing.md`. Until that plan lands, D9/D10
-remain the contract.
+Open-PR detail navigation ships as the briefing in
+`docs/pr-detail-briefing.md`, which supersedes the tab model. D9/D10 below
+describe the shipped briefing and places.
 
 This file resolves every open item in `docs/deck-implementation.md`. Read it
 with that file and `mock/ui-directions.html`:
@@ -261,20 +261,24 @@ Draft hero fallback:
 - Draft rows have no severity class, no reason string and no review facts.
 - Click/Enter opens preflight.
 
-### D9. Preflight composition
+### D9. Briefing composition
 
-Preflight is a new `DetailTab` named **Preflight**, first in the tab list and the
-default tab for an open PR selected from the Deck. Merged/closed PRs keep the
-existing receipt (`PRSummary`) and do not show Preflight.
+Open PRs render the **Briefing**, not a tab strip. It is the only default
+surface; merged/closed PRs keep the existing receipt (`PRSummary`) and show no
+footer. The full contract lives in `docs/pr-detail-briefing.md`; this section is
+the navigation and composition summary.
 
-Reuse existing chrome; do not add the mock's `pf-bar`:
+- `PRDetailBar` remains the only top bar (repo#number, branch, fullscreen,
+  GitHub). No `PRHeader`, no tabs, no context rail.
+- One scrolling body: the briefing header, Why, Context, Where the risk is,
+  What changed, then the two latest conversation entries.
+- A persistent 52px footer holds the one lit action (`Start review`), the
+  Diff / Conversation / Explain place links (active place marked with
+  `aria-current`) and Manage.
+- Conversation, Diff, Review and Explain are **places** opened from the footer
+  and returned from with a `Briefing` control. They have no tab semantics.
 
-- `PRDetailBar` remains the only top bar (repo#number, fullscreen, GitHub).
-- `PRHeader` remains the header. Add `N commits` and the review-summary status
-  line to it.
-- Detail tabs remain below the header.
-
-Preflight sections, in order, all conditional:
+Briefing sections, in order, all conditional except Context:
 
 | Section | Render when | Source |
 |---|---|---|
@@ -282,77 +286,73 @@ Preflight sections, in order, all conditional:
 | Context | Always | `pr.description` only |
 | Where the risk is | A non-stale review artifact has findings | review artifact |
 | What changed | The diff has a walkthrough with steps | `diff.walkthrough` |
-| Review cost | A review artifact exists | artifact + walkthrough |
-| Footer | Always | actions |
+| Conversation | Any comment/verdict exists | `pr.comments`, latest two |
 
 Details:
 
-- **Why** label: `Why now` on `mine`, `Why you` on `review` and `all`.
-  Choose the newest verdict/comment by another user on `mine`, newest by anyone
-  on the other tabs. Prefer a verdict on a tie. Render the author, the verdict or
-  `commented`, the relative time, and the body as plain text clamped to four
-  lines. If no body but a verdict exists, show the verdict alone. If nothing
-  exists, hide the section.
-- **Context**: PR description only. Render with the existing `Markdown`
-  component. Empty description renders `No description.`; never a blank pane.
-  No Linear tab, no Linear metadata, no link button.
-- **Where the risk is**: group review findings by `file`. Category is the real
-  `Finding.Category` of that file's first (most severe) finding, title-cased:
-  `Risk`, `Design`, `Architecture`, `Conventions`, `Tests`. No
-  correctness/concurrency/observability mapping.
-  Sort files by blocking count, then warning count, then nitpick count, then
-  path. Render at most three rows. Marks are one dot per finding, capped at
-  three, coloured by severity. Tail: `N of M files` where N is the number of
-  files with findings and M is `changedFiles`. Clicking a row opens the Diff tab
-  at the first (most severe) finding's file and line.
-- **What changed**: one row per walkthrough step. Use the deterministic step
-  title; meta `N files · +A −D`. No prose summaries, no anchor chips. Clicking a
-  step opens the Diff tab at its first file, with no line target. Tail:
-  `N phases`.
-- **Review cost**: only for a non-stale artifact. Items: `files` =
-  `changedFiles`, `steps` = walkthrough step count when known, `blocking` =
-  review blocking count, and `last run <relative>` from `artifact.createdAt`. No
-  minutes. Note: “A review already exists for this head; starting a new one
-  reuses the worktree and replaces findings.” If the artifact is stale, hide the
-  counts and show: “The last review was run on an older commit. Start review to
-  refresh it.” If no artifact, hide the section.
-- **Footer**: primary **Start review** (Review tab), outline **Open diff** (Diff
-  tab, no target). No keycap hints; do not add Enter/d shortcuts here. Escape
-  keeps its existing close behaviour.
-- Preflight never auto-runs a review. Start review opens the existing Review tab,
-  which already handles run/re-run/empty/stale states.
+- **Header**: kicker (Needs you only under the rule below, newest Why author +
+  verdict/comment + age), title, author / branches / commits, checks and review
+  status, and facts `+A −D`, `N files`, `N steps`, `N blocking`.
+- **Needs you** appears only for `reviewState === "changes_requested"`, a
+  failing/error check, or a review request opened from the `review` list tab.
+  No label without one of those rules.
+- **Why** label: `Why now` on `mine`, `Why you` elsewhere. Newest
+  verdict/comment by another user on `mine`, newest by anyone elsewhere; prefer
+  a verdict on a tie. Author, verdict/comment, relative time, body clamped to
+  four lines. Hide when empty.
+- **Context**: PR description through `Markdown`; empty renders
+  `No description.` No Linear UI.
+- **Where the risk is**: group findings by file, use the real
+  `Finding.Category` (`Risk`, `Design`, `Architecture`, `Conventions`, `Tests`),
+  sort by blocking/warning/nitpick/path, show at most three rows with severity
+  dots capped at three. Click opens the Diff place at the first finding's file
+  and line. Tail `N of M files`.
+- **What changed**: one row per walkthrough step, deterministic title and
+  `N files · +A −D`. Click opens the Diff place at the first file. Tail
+  `N phases`. No prose, no anchor chips.
+- **Conversation**: the two latest entries in chronological ascending order,
+  body clamped to two lines, plus `All N entries` opening the Conversation
+  place. The PR body is not a timeline entry.
+- **Review cost section is gone.** Files, steps and blocking live in the header
+  facts/status. No minutes, no complexity, no head-SHA fact.
+- **Start review** opens the Review place; it never runs the review. The Review
+  place keeps the existing run/re-run/cancel/stale behaviour.
+- No keycap hints and no new `d`/`Enter` shortcuts.
 
 ### D10. Actions and navigation targets
 
 | Action | Result |
 |---|---|
-| Row click / Enter | Select PR, open detail on **Preflight** |
-| Hero **Open PR** | Select PR, open detail on **Preflight** |
-| Hero **Open diff** | Select PR, open detail on **Diff**, no target |
+| Row click / Enter | Select PR, open detail on **Briefing** |
+| Hero **Open PR** | Select PR, open detail on **Briefing** |
+| Hero **Open diff** | Select PR, open the **Diff** place, no target |
 | Hero **Skip** | Exclude from hero election for this mount; do not select |
-| Draft hero **Open draft** | Select PR, open **Preflight** |
-| Preflight **Start review** | Switch to **Review** |
-| Preflight **Open diff** | Switch to **Diff**, no target |
-| Risk row | Switch to **Diff** at `{ path, line }` of the first finding |
-| Phase row | Switch to **Diff** at `{ path }` of the step's first file |
+| Draft hero **Open draft** | Select PR, open **Briefing** |
+| Briefing risk row | Open the **Diff** place at `{ path, line }` of the first finding |
+| Briefing phase row | Open the **Diff** place at `{ path }` of the step's first file |
+| Footer **Start review** | Open the **Review** place |
+| Footer places | Open Diff / Conversation / Explain; active place marked |
+| Place **Briefing** back | Return to the briefing; restore its scroll position |
+| Manage | Approve, request changes, draft, close, squash merge |
 
-Cross-pane navigation from the list (hero actions) needs a small intent
-mechanism in the UI store, e.g.
-`detailIntent: { prKey, tab, diffTarget?, token }`; `PRDetail` consumes and
-clears it. Preflight-internal jumps can keep using the existing local
-`setTab`/`setDiffTarget` path. Do not lift the whole tab state into the store.
+Cross-pane navigation from the list uses
+`detailIntent: { prKey, view, diffTarget?, token }`; `PRDetail` consumes and
+clears it. The view union is `briefing | conversation | diff | review | explain`.
+Places keep local state; only the cross-pane intent lives in the store.
 
-`Start review` means “open the Review tab”. It is not a GitHub review
-submission; the existing review submit controls stay where they are.
+`Start review` means “open the Review place”. It is not a GitHub review
+submission; the existing submit controls stay where they are. Escape clears a
+confirmation or review form first, then returns a place to the briefing, then
+leaves fullscreen, then closes the detail.
 
 ### D11. Width, repo panel and reflow
 
 - Use the existing `cockpit` breakpoint (1180px).
-- At `>= 1180px`: list column 340px (`w-85`), preflight takes the rest, matching
-  the current split.
+- At `>= 1180px`: list column 340px (`w-85`), the detail pane takes the rest,
+  matching the current split.
 - At `< 1180px`: list and detail are mutually exclusive, as today. Selecting a
   row replaces the list; closing returns to it.
-- Preflight: header meta wraps, risk rows become full-width rows, action footer
+- Briefing: header meta wraps, risk rows become full-width rows, the footer
   wraps. No horizontal scrolling.
 - The repo panel keeps its existing `sidebarOpen` / rail toggle. Do not add the
   mock's second hide button or a new collapsed-pane design.
@@ -365,9 +365,9 @@ submission; the existing review submit controls stay where they are.
 - Error: existing `ErrorState`; no deck chrome.
 - No hero: omit it; start with the first bucket. No reserved gap.
 - Empty bucket: omit it. No header, no count chip.
-- Diff or review-artifact failure inside an otherwise loaded preflight: hide the
-  affected section (risk / what changed / cost) and keep header, why, context and
-  footer. Do not add a second error surface.
+- Diff or review-artifact failure inside an otherwise loaded briefing: hide the
+  affected section (risk / what changed / review counts) and keep header, why,
+  context, conversation and footer. Do not add a second error surface.
 - Detail error: existing `ErrorState`.
 
 ### D13. Visual and motion contract
@@ -543,13 +543,14 @@ type ReviewSummary = {
   the selected-PR store.
 - Add `DeckRow` and `DraftRow` components; keep `PRRow` only if another surface
   still uses it, otherwise delete it.
-- Add `PreflightTab` under `src/features/prs/detail/`. Pass it the detail PR,
-  `useClaudeAction` review controller, diff walkthrough, and the existing
-  `openInDiff`/tab callbacks.
-- Extend `DetailTab` with `"preflight"` and add it first for open PRs. Default
-  tab becomes `"preflight"`; merged/closed falls back to the receipt.
-- Extend `PRHeader` with `commitCount` and the review-summary status line. Do not
-  add a second preflight header.
+- Add `Briefing`, `PlaceShell`, `PlaceBar` and `ManageMenu` under
+  `src/features/prs/detail/`. Pass the briefing the detail PR, review
+  controller, diff walkthrough and the existing `openInDiff` callback.
+- Use the `DetailView` union (`briefing | conversation | diff | review |
+  explain`); the briefing is the default for open PRs, merged/closed falls back
+  to the receipt.
+- Put the briefing header inside the briefing body (`Briefing.tsx`). Delete
+  `PRHeader`, `PreflightTab`, `DetailTabs`, `DetailPanel` and `ContextRail`.
 - Add the minimal `detailIntent` store field for hero actions, as described in
   D10.
 - Remove the list's 150ms open-on-rest preview for the Deck; j/k only moves the
@@ -571,10 +572,10 @@ type ReviewSummary = {
 - Header/footer counts follow D4; there is no “more” row and no truncation.
 - j/k moves the cursor without opening; Enter opens; mouse opens immediately;
   collapsed rows are skipped; selection is the open PR and survives close.
-- Preflight is the default open-PR tab; Why/Context always follow D9; risk,
-  what-changed and cost appear only with their data; risk categories are the
-  real finding categories; risk/phase clicks land in Diff at the specified
-  target.
+- Briefing is the default open-PR surface; Why/Context always follow D9; risk,
+  what-changed and conversation appear only with their data; risk categories are
+  the real finding categories; risk/phase clicks land in the Diff place at the
+  specified target. No tab strip anywhere; one 44px bar and one 52px footer.
 - No Linear UI, no minutes, no danger hero, no second detail bar, no new
   colours.
 - New list fields are present in `openapi.json` and `src/lib/generated`.

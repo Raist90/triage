@@ -1,28 +1,31 @@
-import { ArrowRight, FileDiff, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
-import { Button, MicroLabel } from "../../../components/ui";
 import { Markdown } from "../../../components/Markdown";
+import { StatusIcon } from "../../../components/StatusBadge";
+import { MicroLabel } from "../../../components/ui";
+import { cx } from "../../../lib/cx";
 import { formatAgo } from "../../../lib/time";
 import { REVIEW_SEVERITY_ORDER } from "../../../lib/types";
 import type {
   Comment,
   PR,
   PRDiffResponse,
+  ReviewDocument,
   ReviewFinding,
 } from "../../../lib/types";
-import { cx } from "../../../lib/cx";
-import type { ClaudeActionController } from "../action/useClaudeAction";
+import { PRStateTag } from "../PRStateTag";
+import { prStatus } from "../prStatus";
+import { RecentConversation } from "./Conversation";
 
-type PreflightTabProps = {
+type BriefingProps = {
   pr: PR;
-  /** The list tab the PR was opened from; drives the Why label. */
+  /** The list tab the PR was opened from; drives the Why label and kicker. */
   tab: string;
-  controller: ClaudeActionController;
   diff?: PRDiffResponse;
-  onStartReview: () => void;
-  onOpenDiff: () => void;
-  /** Open the Diff tab at a file, optionally at a line. */
+  review?: ReviewDocument;
+  reviewStale: boolean;
   onOpenInDiff: (path: string, line?: number) => void;
+  onOpenConversation: () => void;
 };
 
 function Section({
@@ -47,6 +50,16 @@ function Section({
       {children}
     </section>
   );
+}
+
+/**
+ * "Needs you" is a claim, so it has a rule: a requested change, a failing
+ * check, or a review request opened from the Review requested list.
+ */
+function needsYou(pr: PR, tab: string): boolean {
+  if (pr.reviewState === "changes_requested") return true;
+  if (pr.checkStatus === "failure" || pr.checkStatus === "error") return true;
+  return tab === "review" && pr.reviewRequested === true;
 }
 
 function verdictLabel(comment: Comment): string {
@@ -154,33 +167,115 @@ function titleCase(value: string): string {
   return value === "" ? value : value[0].toUpperCase() + value.slice(1);
 }
 
-export function PreflightTab({
+function Fact({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-flex h-[18px] items-center rounded-sm border border-line px-1 font-mono text-micro whitespace-nowrap text-fg-faint tabular-nums">
+      {children}
+    </span>
+  );
+}
+
+/**
+ * The open-PR document: identity, why you, context, risk, changes and the two
+ * latest conversation entries. Every section hides when its data is absent.
+ */
+export function Briefing({
   pr,
   tab,
-  controller,
   diff,
-  onStartReview,
-  onOpenDiff,
+  review,
+  reviewStale,
   onOpenInDiff,
-}: PreflightTabProps) {
+  onOpenConversation,
+}: BriefingProps) {
   const why = whyEntry(pr, tab);
-  const artifact = controller.artifact;
-  const review = controller.review;
-  const stale = Boolean(
-    artifact &&
-    (controller.stale || (pr.headSHA !== "" && artifact.sha !== pr.headSHA)),
-  );
-  const findings = !stale ? (review?.findings ?? []) : [];
+  const findings = review && !reviewStale ? review.findings : [];
   const files = riskFiles(findings);
   const steps = diff?.walkthrough?.steps ?? [];
-  const stepsKnown = diff?.walkthrough !== undefined;
-
+  const comments = pr.comments ?? [];
+  const entries = comments.length;
   const blocking = findings.filter(
     (finding) => finding.severity === "blocking",
   ).length;
+  const warning = findings.filter(
+    (finding) => finding.severity === "warning",
+  ).length;
+  const status = prStatus(pr);
 
   return (
-    <div className="mx-auto flex w-full max-w-[76ch] flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-[76ch] flex-col gap-5">
+      <header className="flex flex-col gap-2">
+        {why ? (
+          <div className="flex flex-wrap items-center gap-2 font-mono text-micro text-fg-faint">
+            {needsYou(pr, tab) ? (
+              <span className="font-medium tracking-[0.08em] text-danger uppercase">
+                Needs you
+              </span>
+            ) : null}
+            <span>
+              <span className="text-fg-muted">{why.author}</span>{" "}
+              {verdictLabel(why)}
+            </span>
+            <span
+              aria-hidden="true"
+              className="size-0.5 rounded-full bg-line-strong"
+            />
+            <span className="tabular-nums">{formatAgo(why.createdAt)}</span>
+          </div>
+        ) : null}
+
+        <h1 className="flex min-w-0 items-baseline gap-2 text-title font-medium tracking-[-0.01em] text-fg">
+          <span className="min-w-0">{pr.title}</span>
+          <PRStateTag status={status} />
+        </h1>
+
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-meta text-fg-faint">
+          <span className="text-fg-muted">{pr.author}</span>
+          <span aria-hidden="true">·</span>
+          <span className="font-mono">
+            {pr.branch} → {pr.baseBranch}
+          </span>
+          {pr.commitCount > 0 ? (
+            <>
+              <span aria-hidden="true">·</span>
+              <span className="tabular-nums">{pr.commitCount} commits</span>
+            </>
+          ) : null}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          {pr.checkStatus !== "none" ? (
+            <StatusIcon kind="check" state={pr.checkStatus} withLabel />
+          ) : null}
+          {pr.reviewState !== "none" ? (
+            <StatusIcon kind="review" state={pr.reviewState} withLabel />
+          ) : null}
+          {review ? (
+            <span className="flex items-center gap-1.5 text-meta text-fg-muted">
+              <Sparkles className="size-3.5 text-fg-faint" aria-hidden />
+              <span className="tabular-nums">
+                {blocking} blocking · {warning} warning
+              </span>
+            </span>
+          ) : null}
+        </div>
+
+        <div className="mt-1 flex flex-wrap items-center gap-1">
+          <Fact>
+            <span className="text-accent">+{pr.additions}</span>
+            <span className="px-1 text-line-strong">−</span>
+            <span className="text-danger">{pr.deletions}</span>
+          </Fact>
+          <Fact>{pr.changedFiles} files</Fact>
+          {steps.length > 0 ? <Fact>{steps.length} steps</Fact> : null}
+          {blocking > 0 ? (
+            <span className="inline-flex h-[18px] items-center rounded-sm border border-danger/30 bg-danger/8 px-1 font-mono text-micro whitespace-nowrap text-danger tabular-nums">
+              {blocking} blocking
+            </span>
+          ) : null}
+        </div>
+      </header>
+
       {why ? (
         <Section
           label={tab === "mine" ? "Why now" : "Why you"}
@@ -206,12 +301,12 @@ export function PreflightTab({
         )}
       </Section>
 
-      {!stale && files.length > 0 ? (
+      {files.length > 0 ? (
         <Section
           label="Where the risk is"
           tail={`${files.length} of ${pr.changedFiles} files`}
         >
-          <div className="flex flex-col gap-px">
+          <div className="flex flex-col">
             {files.slice(0, 3).map((file) => (
               <button
                 key={file.path}
@@ -274,63 +369,17 @@ export function PreflightTab({
         </Section>
       ) : null}
 
-      {artifact ? (
+      {entries > 0 ? (
         <Section
-          label="Review cost"
-          tail={
-            artifact.createdAt
-              ? `last run ${formatAgo(artifact.createdAt)}`
-              : undefined
-          }
+          label="Conversation"
+          tail={`${entries} ${entries === 1 ? "entry" : "entries"}`}
         >
-          {stale ? (
-            <p className="text-meta text-fg-faint">
-              The last review was run on an older commit. Start review to
-              refresh it.
-            </p>
-          ) : (
-            <>
-              <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2 text-meta text-fg-muted">
-                <span>
-                  <b className="font-mono text-ui font-normal text-fg">
-                    {pr.changedFiles}
-                  </b>{" "}
-                  files
-                </span>
-                {stepsKnown ? (
-                  <span>
-                    <b className="font-mono text-ui font-normal text-fg">
-                      {steps.length}
-                    </b>{" "}
-                    steps
-                  </span>
-                ) : null}
-                <span>
-                  <b className="font-mono text-ui font-normal text-fg">
-                    {blocking}
-                  </b>{" "}
-                  blocking
-                </span>
-              </div>
-              <p className="text-meta text-fg-faint">
-                A review already exists for this head; starting a new one reuses
-                the worktree and replaces findings.
-              </p>
-            </>
-          )}
+          <RecentConversation
+            comments={comments}
+            onOpenAll={onOpenConversation}
+          />
         </Section>
       ) : null}
-
-      <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
-        <Button variant="primary" onClick={onStartReview}>
-          <Sparkles className="size-3.5" aria-hidden />
-          Start review
-        </Button>
-        <Button variant="outline" onClick={onOpenDiff}>
-          <FileDiff className="size-3.5" aria-hidden />
-          Open diff
-        </Button>
-      </div>
     </div>
   );
 }

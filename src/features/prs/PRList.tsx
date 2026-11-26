@@ -116,11 +116,11 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
 
   function pickPR(pr: PR) {
     selectPR(prKey(pr));
-    // A row click always lands on Preflight, even when the same PR is already
-    // open on another tab.
+    // A row click always lands on the briefing, even when the same PR is
+    // already open in a place.
     setDetailIntent({
       prKey: prKey(pr),
-      tab: "preflight",
+      view: "briefing",
       token: Date.now(),
     });
     // The list row carries the fresh head; a cached detail from an older
@@ -130,7 +130,7 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
 
   function openDiff(pr: PR) {
     selectPR(prKey(pr));
-    setDetailIntent({ prKey: prKey(pr), tab: "diff", token: Date.now() });
+    setDetailIntent({ prKey: prKey(pr), view: "diff", token: Date.now() });
     void syncPRHead(queryClient, pr).catch(() => {});
   }
 

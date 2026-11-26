@@ -7,6 +7,7 @@ import {
   within,
 } from "@testing-library/react";
 import * as actualApi from "../../lib/api";
+import type { ActionResponse } from "../../lib/types";
 import { useUIStore } from "../../stores/ui";
 import {
   makeConfig,
@@ -52,21 +53,62 @@ const diff = makeDiffResponse(
     }),
   ],
   {
-    complexity: {
-      band: "high",
-      score: 88,
-      changes: 12,
-      sourceFiles: 3,
-      deletes: 1,
-      rewrites: 4,
-      ripples: 2,
+    walkthrough: {
+      steps: [
+        {
+          id: "step-1",
+          title: "Add the checkout line",
+          additions: 1,
+          deletions: 0,
+          files: [{ path: "src/app.ts", hunks: [0] }],
+        },
+      ],
     },
   },
 );
 
+const reviewAction = {
+  id: "review-1",
+  kind: "review" as const,
+  label: "Review",
+};
+const explainAction = {
+  id: "explain-1",
+  kind: "explain" as const,
+  label: "Explain",
+};
+
+const reviewArtifact: ActionResponse = {
+  artifact: {
+    action: "review",
+    createdAt: "2026-06-15T12:00:00Z",
+    markdown: "",
+    model: "haiku",
+    promptVersion: "1",
+    sha: pr.headSHA,
+    usage: { inputTokens: 1, outputTokens: 1, totalCostUsd: 0.1 },
+    review: {
+      findings: [
+        {
+          id: "finding-1",
+          anchored: true,
+          category: "risk",
+          claim: "The early return skips commit.",
+          file: "src/app.ts",
+          line: 2,
+          severity: "blocking",
+          title: "Skipped commit",
+        },
+      ],
+      verdict: { safeToMerge: false, summary: "One blocking finding." },
+    },
+  },
+};
+
 const getConfig = mock(async () => makeConfig());
 const getPR = mock(async () => ({ pr }));
 const getPRDiff = mock(async () => diff);
+const getAction = mock(async (): Promise<ActionResponse | null> => null);
 const mergePR = mock(async () => ({ ok: true }));
 
 mock.module("../../lib/api", () => ({
@@ -74,6 +116,7 @@ mock.module("../../lib/api", () => ({
   getConfig,
   getPR,
   getPRDiff,
+  getAction,
   mergePR,
 }));
 
@@ -93,10 +136,12 @@ beforeEach(() => {
   getConfig.mockClear();
   getPR.mockClear();
   getPRDiff.mockClear();
+  getAction.mockClear();
   mergePR.mockClear();
   getConfig.mockImplementation(async () => makeConfig());
   getPR.mockImplementation(async () => ({ pr }));
   getPRDiff.mockImplementation(async () => diff);
+  getAction.mockImplementation(async () => null);
 });
 
 afterAll(() => {
@@ -109,29 +154,126 @@ async function renderDetail() {
   return result;
 }
 
-describe("PRDetail", () => {
-  test("opens on preflight, then the conversation has the context rail", async () => {
+describe("PRDetail briefing", () => {
+  test("opens on the briefing with context, changes and recent conversation", async () => {
     await renderDetail();
 
-    expect(screen.getByRole("tab", { name: "Preflight" })).toBeDefined();
+    expect(screen.queryByRole("tablist")).toBeNull();
     expect(screen.getByText("Checkout body copy.")).toBeDefined();
-
-    fireEvent.click(screen.getByRole("tab", { name: /Conversation/ }));
-    expect(screen.getByText("Please add tests.")).toBeDefined();
-
-    const rail = screen.getByLabelText("Pull request context");
-    expect(within(rail).getByText("Checks passing")).toBeDefined();
-    expect(within(rail).getByText("Complexity")).toBeDefined();
-    expect(within(rail).getByText("3 source files · 12 changes")).toBeDefined();
+    expect(screen.getByText("What changed")).toBeDefined();
+    expect(screen.getByText("Add the checkout line")).toBeDefined();
+    expect(screen.getAllByText("Please add tests.").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "All 1 entry" })).toBeDefined();
+    expect(screen.getByRole("button", { name: /Start review/ })).toBeDefined();
   });
 
-  test("hides the context rail on the diff tab and shows the diff", async () => {
+  test("renders the risk section from a fresh review artifact", async () => {
+    getConfig.mockImplementation(async () =>
+      makeConfig({ actions: [reviewAction] }),
+    );
+    getAction.mockImplementation(async () => reviewArtifact);
     await renderDetail();
-    fireEvent.click(screen.getByRole("tab", { name: /^Diff/ }));
 
+    expect(await screen.findByText("Where the risk is")).toBeDefined();
+    expect(screen.getByText("src/app.ts")).toBeDefined();
+    expect(screen.getByText("Risk")).toBeDefined();
+
+    fireEvent.click(screen.getByText("src/app.ts"));
+
+    expect(await screen.findByLabelText("Diff place")).toBeDefined();
     expect(await screen.findByText("added line")).toBeDefined();
-    expect(screen.queryByLabelText("Pull request context")).toBeNull();
+  });
+
+  test("the briefing keeps its scroll position across a place", async () => {
+    await renderDetail();
+    const panel = document.querySelector<HTMLElement>(
+      '[data-panel="briefing"]',
+    );
+    if (!panel) throw new Error("briefing panel missing");
+    panel.scrollTop = 240;
+    fireEvent.scroll(panel);
+
+    fireEvent.click(screen.getByRole("button", { name: "Diff" }));
+    await screen.findByLabelText("Diff place");
+    fireEvent.click(screen.getByRole("button", { name: "Briefing" }));
+
+    expect(
+      document.querySelector<HTMLElement>('[data-panel="briefing"]')?.scrollTop,
+    ).toBe(240);
+  });
+});
+
+describe("PRDetail places", () => {
+  test("opens the conversation place and returns to the briefing", async () => {
+    await renderDetail();
+
+    fireEvent.click(screen.getByRole("button", { name: /Conversation/ }));
+    expect(screen.getByRole("heading", { name: "Conversation" })).toBeDefined();
+    expect(screen.getAllByText("Please add tests.").length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "Briefing" }));
+    expect(
+      screen.getByRole("heading", { name: "Add checkout flow" }),
+    ).toBeDefined();
+  });
+
+  test("the diff place shows the shipped diff", async () => {
+    await renderDetail();
+
+    fireEvent.click(screen.getByRole("button", { name: "Diff" }));
+
+    expect(screen.getByLabelText("Diff place")).toBeDefined();
+    expect(await screen.findByText("added line")).toBeDefined();
     expect(getPRDiff).toHaveBeenCalledTimes(1);
+  });
+
+  test("Start review opens the Review place", async () => {
+    getConfig.mockImplementation(async () =>
+      makeConfig({ actions: [reviewAction] }),
+    );
+    await renderDetail();
+
+    fireEvent.click(screen.getByRole("button", { name: /Start review/ }));
+
+    expect(screen.getByRole("heading", { name: "Review" })).toBeDefined();
+    expect(await screen.findByText("Review this pull request")).toBeDefined();
+  });
+
+  test("Explain is a place with its empty state, absent when unconfigured", async () => {
+    await renderDetail();
+    expect(screen.queryByRole("button", { name: "Explain" })).toBeNull();
+
+    getConfig.mockImplementation(async () =>
+      makeConfig({ actions: [explainAction] }),
+    );
+    await renderDetail();
+    fireEvent.click(screen.getByRole("button", { name: "Explain" }));
+
+    expect(screen.getByRole("heading", { name: "Explain" })).toBeDefined();
+    expect(
+      await screen.findByText("No explain artifact for this head"),
+    ).toBeDefined();
+    expect(
+      screen.getByRole("button", { name: "Explain this PR" }),
+    ).toBeDefined();
+  });
+
+  test("Escape returns a place to the briefing before fullscreen and close", async () => {
+    useUIStore.setState({ detailFullscreen: true });
+    await renderDetail();
+    fireEvent.click(screen.getByRole("button", { name: "Diff" }));
+    expect(screen.getByLabelText("Diff place")).toBeDefined();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(useUIStore.getState().detailFullscreen).toBe(true);
+    expect(screen.queryByLabelText("Diff place")).toBeNull();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(useUIStore.getState().detailFullscreen).toBe(false);
+    expect(useUIStore.getState().detailOpen).toBe(true);
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(useUIStore.getState().detailOpen).toBe(false);
   });
 
   test("never caches a diff under a head it does not describe", async () => {
@@ -162,75 +304,10 @@ describe("PRDetail", () => {
     ).toBeUndefined();
     expect(detailCalls).toBeGreaterThanOrEqual(2);
   });
+});
 
-  test("omits Review and Explain tabs when the server offers no actions", async () => {
-    await renderDetail();
-
-    expect(screen.queryByRole("tab", { name: /^Review/ })).toBeNull();
-    expect(screen.queryByRole("tab", { name: /^Explain/ })).toBeNull();
-  });
-
-  test("fades the tab panel when its content overflows", async () => {
-    await renderDetail();
-    const panel = screen.getByRole("tabpanel");
-    Object.defineProperty(panel, "scrollHeight", {
-      configurable: true,
-      value: 1000,
-    });
-    Object.defineProperty(panel, "clientHeight", {
-      configurable: true,
-      value: 100,
-    });
-
-    fireEvent.scroll(panel);
-
-    await waitFor(() => expect(panel.className).toContain("fade-bottom"));
-  });
-
-  test("copies the head SHA from the context rail", async () => {
-    const writeText = mock(async () => {});
-    const descriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
-    Object.defineProperty(navigator, "clipboard", {
-      configurable: true,
-      value: { writeText },
-    });
-    try {
-      await renderDetail();
-      fireEvent.click(screen.getByRole("tab", { name: /Conversation/ }));
-
-      fireEvent.click(screen.getByRole("button", { name: "Copy commit SHA" }));
-
-      await waitFor(() => expect(writeText).toHaveBeenCalledWith(pr.headSHA));
-      expect(
-        await screen.findByRole("button", { name: "Copied" }),
-      ).toBeDefined();
-    } finally {
-      if (descriptor) {
-        Object.defineProperty(navigator, "clipboard", descriptor);
-      } else {
-        Reflect.deleteProperty(navigator, "clipboard");
-      }
-    }
-  });
-
-  test("Escape closes the detail", async () => {
-    await renderDetail();
-    fireEvent.keyDown(window, { key: "Escape" });
-
-    expect(useUIStore.getState().detailOpen).toBe(false);
-  });
-
-  test("Escape leaves fullscreen before closing the detail", async () => {
-    useUIStore.setState({ detailFullscreen: true });
-    await renderDetail();
-
-    fireEvent.keyDown(window, { key: "Escape" });
-
-    expect(useUIStore.getState().detailFullscreen).toBe(false);
-    expect(useUIStore.getState().detailOpen).toBe(true);
-  });
-
-  test("shows the merged receipt instead of closing the detail", async () => {
+describe("PRDetail Manage", () => {
+  test("squash merge runs from Manage and lands on the receipt", async () => {
     const myPR = makePR({
       author: "viewer",
       viewerLogin: "viewer",
@@ -249,12 +326,13 @@ describe("PRDetail", () => {
     useUIStore.setState({ detailFullscreen: true });
     await renderDetail();
 
+    fireEvent.click(screen.getByRole("button", { name: "Manage" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Squash merge" }));
+    const confirm = screen.getByLabelText("Confirm squash merge");
     mergePR.mockImplementation(async () => {
       merged = true;
       return { ok: true };
     });
-    fireEvent.click(screen.getByRole("button", { name: "Squash merge" }));
-    const confirm = screen.getByLabelText("Confirm squash merge");
     fireEvent.click(
       within(confirm).getByRole("button", { name: "Squash merge" }),
     );
@@ -262,8 +340,8 @@ describe("PRDetail", () => {
     await waitFor(() => expect(mergePR).toHaveBeenCalled());
     expect(await screen.findByText(/Merged into/)).toBeDefined();
     expect(screen.queryByRole("tablist")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Start review/ })).toBeNull();
     expect(screen.getByText("9f3c2ab")).toBeDefined();
-    expect(screen.queryByRole("button", { name: "Squash merge" })).toBeNull();
     expect(useUIStore.getState().selectedPR).toBe("acme/web#42");
     expect(useUIStore.getState().detailOpen).toBe(true);
   });
@@ -286,10 +364,14 @@ describe("PRDetail", () => {
     getPR.mockImplementation(async () => ({ pr: merged ? mergedPR : myPR }));
     const { client } = await renderDetail();
 
-    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    fireEvent.click(screen.getByRole("button", { name: "Manage" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Request changes/ }));
     expect(screen.getByLabelText("Review comment")).toBeDefined();
-    fireEvent.click(screen.getByRole("button", { name: "Squash merge" }));
-    expect(screen.getByLabelText("Confirm squash merge")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Manage" }));
+    fireEvent.click(
+      screen.getByRole("menuitem", { name: "Close pull request" }),
+    );
+    expect(screen.getByLabelText("Confirm close pull request")).toBeDefined();
 
     merged = true;
     await act(() =>
@@ -298,15 +380,16 @@ describe("PRDetail", () => {
 
     expect(await screen.findByText(/Merged into/)).toBeDefined();
     expect(screen.queryByLabelText("Review comment")).toBeNull();
-    expect(screen.queryByLabelText("Confirm squash merge")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Squash merge" })).toBeNull();
+    expect(screen.queryByLabelText("Confirm close pull request")).toBeNull();
 
     // Nothing hidden is left consuming Escape; it closes the detail.
     fireEvent.keyDown(window, { key: "Escape" });
     expect(useUIStore.getState().detailOpen).toBe(false);
   });
+});
 
-  test("a merged PR opens as its receipt, not the tabbed view", async () => {
+describe("PRDetail receipts and errors", () => {
+  test("a merged PR opens as its receipt, not the briefing", async () => {
     getPR.mockImplementation(async () => ({
       pr: makePR({
         state: "merged",
@@ -319,6 +402,7 @@ describe("PRDetail", () => {
 
     expect(screen.queryByRole("tablist")).toBeNull();
     expect(screen.queryByLabelText("Pull request context")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Start review/ })).toBeNull();
     expect(screen.getByText(/Merged into/)).toBeDefined();
     expect(screen.getByText("Merge commit")).toBeDefined();
     expect(getPRDiff).not.toHaveBeenCalled();

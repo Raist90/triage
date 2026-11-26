@@ -6,8 +6,10 @@ what is decided, what can be built from existing data, and what still needs a
 product or contract decision. It is the implementation input for replacing the
 current tabbed PR detail with B's briefing.
 
-Status: design accepted, implementation not started. Decisions recorded
-2026-11-26.
+Status: **implemented 2026-11-26**. The open-PR detail is the briefing plus
+places; `DetailTabs`, `DetailPanel`, `PRHeader`, `PreflightTab`, `ContextRail`,
+`ExplainTab`, `ReviewHeaderActions` and `ComplexityMeter` are deleted. Decisions
+recorded 2026-11-26.
 
 Precedence: this file supersedes the navigation parts of
 `docs/deck-decisions.md` D9/D10 (tab strip, Preflight tab, per-tab composition)
@@ -176,6 +178,41 @@ hover, focus and motion.
 10. **Place empty states.** Conversation can be empty (no comments beyond the
     description) and Diff can be empty. Reuse `StateView`; do not leave a blank
     place with only a back link.
+
+## Implementation decisions (2026-11-26)
+
+Every item under “Composition and behaviour still to decide” is resolved as
+follows and is what shipped:
+
+1. **Conversation order:** chronological ascending everywhere. The briefing's
+   inline block shows the latest two in ascending order and the place drops the
+   contradictory “newest first” tail.
+2. **Description:** removed from the timeline; Context owns the PR body for open
+   PRs, so it appears once.
+3. **Composer:** none in v1. The Review place keeps the review form; there is no
+   issue-comment route.
+4. **Review:** `Start review` opens the Review place; no modal, no route, no
+   separate window.
+5. **Start review:** still opens the place without running. Running stays an
+   explicit action in the place with cancel/retry.
+6. **Escape:** confirmation → review form → place → Briefing → fullscreen →
+   close. A place returns to the briefing before fullscreen is left.
+7. **Keyboard hints:** omitted. No `d`/`Enter` detail shortcuts were added, so
+   no dead keycaps ship.
+8. **Needs you:** `reviewState === "changes_requested"`, a failing/error check,
+   or a review request opened from the `review` list tab. Otherwise the kicker is
+   neutral or absent.
+9. **Complexity and head SHA:** dropped from the pane. Complexity has no home
+   in B; the head SHA remains on the merged/closed receipt and the review
+   artifact. The detail bar shows `repo#number` and the branch.
+10. **Empty places:** Conversation uses `StateView`; Diff keeps its shipped
+    `No file changes.` message and loading/error states; Explain has its own
+    empty/running/artifact/stale/error states.
+
+Two implementation edges follow the same rule: `Start review` is disabled when
+no review action is configured, and a requested Review/Explain place falls back
+to Briefing when its action is absent. Explain stays absent from the footer when
+unconfigured.
 
 ## Suggested contract changes
 

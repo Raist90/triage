@@ -15,12 +15,13 @@ export type DiffSort = "priority" | "path";
 /** The diff rail either lists files or walks the deterministic review path. */
 export type DiffMode = "files" | "path";
 
-/** A cross-pane jump from the deck into one detail tab. */
-export type DetailIntentTab = "preflight" | "diff" | "review";
+/** An open PR is a briefing document; deeper surfaces are places. */
+export type DetailView =
+  "briefing" | "conversation" | "diff" | "review" | "explain";
 
 export type DetailIntent = {
   prKey: string;
-  tab: DetailIntentTab;
+  view: DetailView;
   /** Diff target for risk/phase jumps; a token re-triggers the same jump. */
   diffTarget?: { path: string; line?: number };
   token: number;
@@ -73,7 +74,7 @@ type UIState = {
   diffRailWidth: number;
   /** PR list facets and search, session-wide. */
   prFilters: PRFilters;
-  /** Hero/row actions that must open a specific detail tab. */
+  /** Hero/row actions that must open a specific detail place. */
   detailIntent: DetailIntent | null;
   selectRepo: (repo: string | null) => void;
   setActiveTab: (tabID: string) => void;

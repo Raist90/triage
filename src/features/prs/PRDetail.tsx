@@ -1,27 +1,27 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { MessageSquare } from "lucide-react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ErrorState } from "../../components/ErrorState";
+import { StateView } from "../../components/StateView";
 import { describeError, getConfig, getPR } from "../../lib/api";
 import { useLiveRefresh } from "../../lib/liveRefresh";
 import { loadDiffForHead } from "../../lib/prRefresh";
+import { formatRelative } from "../../lib/time";
 import type { ReviewFinding } from "../../lib/types";
-import { useUIStore } from "../../stores/ui";
+import { useUIStore, type DetailView } from "../../stores/ui";
 import { useClaudeAction } from "./action/useClaudeAction";
+import { Briefing } from "./detail/Briefing";
 import { Conversation } from "./detail/Conversation";
-import { ContextRail } from "./detail/ContextRail";
-import { DetailPanel } from "./detail/DetailPanel";
 import { DetailSkeleton } from "./detail/DetailSkeleton";
-import { DetailTabs, type DetailTab, type TabDef } from "./detail/DetailTabs";
 import { DiffTab } from "./detail/DiffTab";
-import { ExplainTab } from "./detail/ExplainTab";
+import { ExplainPlace } from "./detail/ExplainPlace";
+import { PlaceBar } from "./detail/PlaceBar";
+import { PlaceShell } from "./detail/PlaceShell";
 import { PRDetailBar } from "./detail/PRDetailBar";
 import { PRDetailContext } from "./detail/PRDetailContext";
-import { PRHeader } from "./detail/PRHeader";
+import { PRStatePanel } from "./detail/PRStatePanel";
 import { PRSummary } from "./detail/PRSummary";
-import { PreflightTab } from "./detail/PreflightTab";
 import { ReviewPanel } from "./detail/ReviewPanel";
-import { PRStateActions, PRStatePanel } from "./detail/PRStateActions";
-import { ReviewHeaderActions } from "./detail/ReviewHeaderActions";
 import { usePRMutations } from "./detail/usePRMutations";
 import { useReview } from "./detail/useReview";
 import type { DiffTarget } from "./diff/diffSelection";
@@ -31,7 +31,7 @@ import { ReviewTab } from "./review/ReviewTab";
 type PRDetailProps = {
   repo: string;
   number: number;
-  /** The list tab this PR was opened from; drives the preflight Why label. */
+  /** The list tab this PR was opened from; drives the briefing Why label. */
   tabID?: string;
 };
 
@@ -55,17 +55,22 @@ function PRDetailBody({ repo, number, tabID = "all" }: PRDetailProps) {
   const toggleFullscreen = useUIStore((state) => state.toggleDetailFullscreen);
   const setDiffMode = useUIStore((state) => state.setDiffMode);
   const prKey = `${repo}#${number}`;
-  const [tabState, setTabState] = useState<{
+  const [viewState, setViewState] = useState<{
     key: string;
-    tab: DetailTab;
+    view: DetailView;
     /** Intent token already applied, so a render-time adjust happens once. */
     appliedToken?: number;
-  }>({ key: prKey, tab: "preflight" });
-  const setTab = (next: DetailTab) =>
-    setTabState({ key: prKey, tab: next, appliedToken: tabState.appliedToken });
-  // A finding clicked in the Review tab. The token re-triggers the jump for two
-  // findings in the same file; the target is never cleared after consumption.
+  }>({ key: prKey, view: "briefing" });
+  const setView = (next: DetailView) =>
+    setViewState({
+      key: prKey,
+      view: next,
+      appliedToken: viewState.appliedToken,
+    });
+  // A finding clicked in the Review place. The token re-triggers the jump for
+  // two findings in the same file; the target is never cleared after use.
   const [diffTarget, setDiffTarget] = useState<DiffTarget | null>(null);
+
   function openInDiff(finding: ReviewFinding) {
     // A finding jump targets one file and line; leave the guided path so the
     // target is always mounted, regardless of which step owns it.
@@ -75,15 +80,10 @@ function PRDetailBody({ repo, number, tabID = "all" }: PRDetailProps) {
   function openDiffAt(path: string, line?: number) {
     setDiffMode("files");
     setDiffTarget({ path, line, token: Date.now() });
-    setTab("diff");
+    setView("diff");
   }
 
-  function openDiff() {
-    setDiffTarget(null);
-    setTab("diff");
-  }
-
-  // A hero action opens a specific tab. Apply it during render (the React
+  // A hero action opens a specific place. Apply it during render (the React
   // "adjust state when props change" pattern), then clear the store intent in
   // an effect so a refetch or remount cannot replay the jump.
   const detailIntent = useUIStore((state) => state.detailIntent);
@@ -91,29 +91,32 @@ function PRDetailBody({ repo, number, tabID = "all" }: PRDetailProps) {
   const pendingIntent =
     detailIntent &&
     detailIntent.prKey === prKey &&
-    detailIntent.token !== tabState.appliedToken
+    detailIntent.token !== viewState.appliedToken
       ? detailIntent
       : null;
   if (pendingIntent) {
-    setTabState({
+    setViewState({
       key: prKey,
-      tab: pendingIntent.tab,
+      view: pendingIntent.view,
       appliedToken: pendingIntent.token,
     });
-    if (pendingIntent.tab === "diff") {
+    if (pendingIntent.view === "diff") {
       setDiffMode("files");
       setDiffTarget(
         pendingIntent.diffTarget
           ? { ...pendingIntent.diffTarget, token: pendingIntent.token }
           : null,
       );
+    } else {
+      setDiffTarget(null);
     }
   }
   useEffect(() => {
     if (detailIntent && detailIntent.prKey === prKey) clearDetailIntent();
   }, [detailIntent, prKey, clearDetailIntent]);
 
-  const tab: DetailTab = tabState.key === prKey ? tabState.tab : "preflight";
+  const requestedView: DetailView =
+    viewState.key === prKey ? viewState.view : "briefing";
   const mergePolls = useRef(0);
   // A live re-read must see GitHub's current state, so the next fetch bypasses
   // the server TTLs by reading this flag.
@@ -177,7 +180,19 @@ function PRDetailBody({ repo, number, tabID = "all" }: PRDetailProps) {
   );
   const review = useReview(repo, number);
   const mutations = usePRMutations(repo, number);
-  const diffComments = useDiffComments(repo, number, isOpen && tab === "diff");
+
+  const explainAvailable = explain.enabled && explain.action !== null;
+  const reviewAvailable =
+    reviewController.enabled && reviewController.action !== null;
+  // A place whose action is gone falls back to the briefing rather than
+  // rendering a dead surface.
+  const view: DetailView =
+    (requestedView === "review" && !reviewAvailable) ||
+    (requestedView === "explain" && !explainAvailable)
+      ? "briefing"
+      : requestedView;
+
+  const diffComments = useDiffComments(repo, number, isOpen && view === "diff");
   const reviewOpen = review.open;
   const closeReview = review.closePanel;
 
@@ -191,6 +206,31 @@ function PRDetailBody({ repo, number, tabID = "all" }: PRDetailProps) {
     if (confirming !== null) closeConfirm();
   }, [isOpen, reviewOpen, closeReview, confirming, closeConfirm]);
 
+  // The briefing is a document, not a tab: returning from a place restores its
+  // scroll position instead of jumping to the top.
+  const briefingRef = useRef<HTMLDivElement | null>(null);
+  const briefingScroll = useRef(0);
+  useLayoutEffect(() => {
+    if (view !== "briefing" || !briefingRef.current) return;
+    briefingRef.current.scrollTop = briefingScroll.current;
+  }, [view]);
+
+  // Focus enters the place heading and returns to the control that opened it.
+  const placeHeadingRef = useRef<HTMLHeadingElement | null>(null);
+  const previousView = useRef<DetailView>("briefing");
+  useEffect(() => {
+    const previous = previousView.current;
+    if (previous === view) return;
+    previousView.current = view;
+    if (view === "briefing") {
+      const id =
+        previous === "review" ? "place-start-review" : `place-link-${previous}`;
+      document.getElementById(id)?.focus();
+    } else {
+      placeHeadingRef.current?.focus();
+    }
+  }, [view]);
+
   // Escape must act on the committed state even when this listener has not been
   // rebound yet: after a merge the receipt is on screen while the old closure
   // still carries an open review form or confirmation. A ref keeps the handler
@@ -198,18 +238,23 @@ function PRDetailBody({ repo, number, tabID = "all" }: PRDetailProps) {
   const escape = useRef<(event: KeyboardEvent) => void>(() => {});
   escape.current = (event) => {
     if (event.key !== "Escape") return;
-    // A line-comment composer closes itself and marks the event handled.
+    // A line-comment composer or the Manage menu closes itself and marks the
+    // event handled.
     if (event.defaultPrevented) return;
     event.preventDefault();
-    // The merge and close confirmation bars and the review form close first,
-    // then fullscreen, then the detail itself. A merged or closed PR renders
-    // none of them, so Escape goes straight to the detail.
+    // Confirmations and the review form outrank navigation: they cannot scroll
+    // away, so Escape clears them first. Then a place returns to the briefing,
+    // then fullscreen, then the detail itself.
     if (isOpen && confirming !== null) {
       closeConfirm();
       return;
     }
     if (isOpen && reviewOpen) {
       closeReview();
+      return;
+    }
+    if (isOpen && view !== "briefing") {
+      setView("briefing");
       return;
     }
     if (fullscreen) {
@@ -247,28 +292,10 @@ function PRDetailBody({ repo, number, tabID = "all" }: PRDetailProps) {
     }, 1500);
     return () => window.clearTimeout(timer);
   }, [pr, refetchDetail]);
+
   const comments = pr?.comments ?? [];
-  const explainAvailable = explain.enabled && explain.action !== null;
-  const reviewAvailable =
-    reviewController.enabled && reviewController.action !== null;
-  const requestedTabAvailable =
-    (tab !== "explain" || explainAvailable) &&
-    (tab !== "review" || reviewAvailable);
-  const activeTab: DetailTab = requestedTabAvailable ? tab : "conversation";
 
-  const tabs: TabDef[] = [
-    { id: "preflight", label: "Preflight" },
-    { id: "conversation", label: "Conversation", count: comments.length },
-    { id: "diff", label: "Diff", count: pr?.changedFiles },
-  ];
-  if (reviewAvailable) {
-    tabs.push({ id: "review", label: "Review" });
-  }
-  if (explain.action) {
-    tabs.push({ id: "explain", label: explain.action.label });
-  }
-
-  // The header's review line comes from the review artifact, not from the
+  // The briefing's review line comes from the review artifact, not from the
   // list's reviewSummary (detail responses do not carry it).
   const artifactReview = reviewController.artifact?.review;
   const reviewStale = Boolean(
@@ -276,17 +303,7 @@ function PRDetailBody({ repo, number, tabID = "all" }: PRDetailProps) {
     (reviewController.stale ||
       (pr?.headSHA !== "" && reviewController.artifact.sha !== pr?.headSHA)),
   );
-  const reviewStatus = artifactReview
-    ? {
-        blocking: artifactReview.findings.filter(
-          (finding) => finding.severity === "blocking",
-        ).length,
-        warning: artifactReview.findings.filter(
-          (finding) => finding.severity === "warning",
-        ).length,
-        stale: reviewStale,
-      }
-    : null;
+  const currentReview = reviewStale ? undefined : artifactReview;
 
   // One value for the bar and the body. Stable as long as the PR and the two
   // memoized controllers are, so an unrelated pane render wakes no consumer.
@@ -313,92 +330,129 @@ function PRDetailBody({ repo, number, tabID = "all" }: PRDetailProps) {
       <PRDetailBar
         repo={repo}
         number={number}
+        branch={pr?.branch}
         fullscreen={fullscreen}
         onClose={closeDetail}
         onToggleFullscreen={toggleFullscreen}
         url={pr?.url}
-      >
-        {detail ? (
-          <PRDetailContext value={detail}>
-            <ReviewHeaderActions />
-            <PRStateActions />
-          </PRDetailContext>
-        ) : null}
-      </PRDetailBar>
+      />
 
       {detail ? (
         <PRDetailContext value={detail}>
           {isOpen ? <ReviewPanel /> : null}
           {isOpen ? <PRStatePanel /> : null}
 
-          <div className="flex min-h-0 flex-1">
-            <div className="flex min-w-0 flex-1 flex-col">
-              {loadingOrError ??
-                (isOpen ? (
-                  <>
-                    <PRHeader pr={detail.pr} reviewStatus={reviewStatus} />
-                    <DetailTabs
-                      tabs={tabs}
-                      active={activeTab}
-                      onSelect={setTab}
-                    />
+          {isOpen ? (
+            <>
+              <div
+                ref={briefingRef}
+                data-panel="briefing"
+                hidden={view !== "briefing"}
+                onScroll={(event) => {
+                  briefingScroll.current = event.currentTarget.scrollTop;
+                }}
+                className="min-h-0 flex-1 overflow-y-auto p-4"
+              >
+                <Briefing
+                  pr={detail.pr}
+                  tab={tabID}
+                  diff={diffQuery.data}
+                  review={currentReview}
+                  reviewStale={reviewStale}
+                  onOpenInDiff={openDiffAt}
+                  onOpenConversation={() => setView("conversation")}
+                />
+              </div>
 
-                    <DetailPanel activeTab={activeTab}>
-                      {activeTab === "preflight" ? (
-                        <PreflightTab
-                          pr={detail.pr}
-                          tab={tabID}
-                          controller={reviewController}
-                          diff={diffQuery.data}
-                          onStartReview={() => setTab("review")}
-                          onOpenDiff={openDiff}
-                          onOpenInDiff={openDiffAt}
+              {view !== "briefing" ? (
+                <div className="flex min-h-0 flex-1 flex-col">
+                  {view === "conversation" ? (
+                    <PlaceShell
+                      title="Conversation"
+                      tail={`${comments.length} ${comments.length === 1 ? "entry" : "entries"}`}
+                      headingRef={placeHeadingRef}
+                      onBack={() => setView("briefing")}
+                    >
+                      {comments.length > 0 ? (
+                        <Conversation comments={comments} />
+                      ) : (
+                        <StateView
+                          icon={MessageSquare}
+                          title="No conversation yet"
+                          description="Comments, review verdicts and inline review comments appear here."
                         />
-                      ) : null}
+                      )}
+                    </PlaceShell>
+                  ) : null}
 
-                      {activeTab === "conversation" ? (
-                        <Conversation pr={detail.pr} comments={comments} />
-                      ) : null}
+                  {view === "diff" ? (
+                    <PlaceShell
+                      title="Diff"
+                      tail={`${detail.pr.changedFiles} files · +${detail.pr.additions} −${detail.pr.deletions}`}
+                      width="full"
+                      headingRef={placeHeadingRef}
+                      onBack={() => setView("briefing")}
+                    >
+                      <DiffTab
+                        pr={detail.pr}
+                        prKey={prKey}
+                        diffQuery={diffQuery}
+                        comments={diffComments}
+                        focusTarget={diffTarget ?? undefined}
+                      />
+                    </PlaceShell>
+                  ) : null}
 
-                      {activeTab === "diff" ? (
-                        <DiffTab
-                          pr={detail.pr}
-                          prKey={prKey}
-                          diffQuery={diffQuery}
-                          comments={diffComments}
-                          focusTarget={diffTarget ?? undefined}
-                        />
-                      ) : null}
+                  {view === "review" ? (
+                    <PlaceShell
+                      title="Review"
+                      headingRef={placeHeadingRef}
+                      onBack={() => setView("briefing")}
+                    >
+                      <ReviewTab
+                        repo={repo}
+                        number={number}
+                        controller={reviewController}
+                        reviewAvailable={
+                          configuredRepo?.review.available ?? false
+                        }
+                        unavailableReason={configuredRepo?.review.reason}
+                        configPath={configQuery.data?.configPath}
+                        diffFiles={diffQuery.data?.files}
+                        onOpenInDiff={openInDiff}
+                      />
+                    </PlaceShell>
+                  ) : null}
 
-                      {activeTab === "review" ? (
-                        <ReviewTab
-                          repo={repo}
-                          number={number}
-                          controller={reviewController}
-                          reviewAvailable={
-                            configuredRepo?.review.available ?? false
-                          }
-                          unavailableReason={configuredRepo?.review.reason}
-                          configPath={configQuery.data?.configPath}
-                          diffFiles={diffQuery.data?.files}
-                          onOpenInDiff={openInDiff}
-                        />
-                      ) : null}
+                  {view === "explain" ? (
+                    <PlaceShell
+                      title="Explain"
+                      tail={
+                        explain.artifact
+                          ? formatRelative(explain.artifact.createdAt)
+                          : "on demand"
+                      }
+                      headingRef={placeHeadingRef}
+                      onBack={() => setView("briefing")}
+                    >
+                      <ExplainPlace controller={explain} />
+                    </PlaceShell>
+                  ) : null}
+                </div>
+              ) : null}
 
-                      {activeTab === "explain" ? (
-                        <ExplainTab controller={explain} />
-                      ) : null}
-                    </DetailPanel>
-                  </>
-                ) : (
-                  <PRSummary pr={detail.pr} />
-                ))}
-            </div>
-
-            {isOpen && activeTab !== "diff" && activeTab !== "preflight" ? (
-              <ContextRail diff={diffQuery.data} />
-            ) : null}
-          </div>
+              <PlaceBar
+                view={view}
+                conversationCount={comments.length}
+                reviewAvailable={reviewAvailable}
+                explainAvailable={explainAvailable}
+                onSelect={setView}
+                onStartReview={() => setView("review")}
+              />
+            </>
+          ) : (
+            <PRSummary pr={detail.pr} />
+          )}
         </PRDetailContext>
       ) : (
         <div className="flex min-h-0 flex-1">

@@ -1,5 +1,4 @@
 import { ArrowLeft, ExternalLink, Maximize2, Minimize2 } from "lucide-react";
-import type { ReactNode } from "react";
 import { IconButton } from "../../../components/ui";
 import { cx } from "../../../lib/cx";
 import { openExternal } from "../../../lib/open";
@@ -10,8 +9,8 @@ type PRDetailBarProps = {
   fullscreen: boolean;
   onClose: () => void;
   onToggleFullscreen: () => void;
-  /** Review and state actions; present once the pull request has loaded. */
-  children?: ReactNode;
+  /** Branch identity; present once the pull request has loaded. */
+  branch?: string;
   /** GitHub link target; absent while the pull request is loading. */
   url?: string;
 };
@@ -22,7 +21,7 @@ export function PRDetailBar({
   fullscreen,
   onClose,
   onToggleFullscreen,
-  children,
+  branch,
   url,
 }: PRDetailBarProps) {
   return (
@@ -46,7 +45,11 @@ export function PRDetailBar({
         <span className="px-1 text-line-strong">#</span>
         <span className="text-fg-muted">{number}</span>
       </span>
-      {children}
+      {branch ? (
+        <span className="hidden min-w-0 truncate font-mono text-meta text-fg-faint min-[1280px]:inline">
+          {branch}
+        </span>
+      ) : null}
       <div className="ml-auto flex shrink-0 items-center gap-1">
         <IconButton
           label={

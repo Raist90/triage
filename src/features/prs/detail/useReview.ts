@@ -10,6 +10,7 @@ export type ReviewController = {
   error: string | null;
   open: boolean;
   togglePanel: () => void;
+  openPanel: () => void;
   closePanel: () => void;
   comment: string;
   setComment: (value: string) => void;
@@ -25,6 +26,7 @@ export function useReview(repo: string, number: number): ReviewController {
   const [comment, setComment] = useState("");
 
   const togglePanel = useCallback(() => setOpen((value) => !value), []);
+  const openPanel = useCallback(() => setOpen(true), []);
   const closePanel = useCallback(() => setOpen(false), []);
 
   const mutation = useMutation({
@@ -58,6 +60,7 @@ export function useReview(repo: string, number: number): ReviewController {
       error: isError ? describeError(error) : null,
       open,
       togglePanel,
+      openPanel,
       closePanel,
       comment,
       setComment,
@@ -70,6 +73,7 @@ export function useReview(repo: string, number: number): ReviewController {
       variables,
       open,
       togglePanel,
+      openPanel,
       closePanel,
       comment,
       submit,

@@ -1,96 +1,22 @@
+import { ArrowRight } from "lucide-react";
 import { Markdown } from "../../../components/Markdown";
 import { cx } from "../../../lib/cx";
 import { formatAgo } from "../../../lib/time";
-import type { Comment, PR } from "../../../lib/types";
+import type { Comment } from "../../../lib/types";
+import {
+  actionFor,
+  buildEntries,
+  entryNodeClass,
+  type ConversationEntry,
+} from "./conversationEntries";
 
 type ConversationProps = {
-  pr: PR;
   comments: Comment[];
 };
 
-type Entry = {
-  key: string;
-  author: string;
-  body: string;
-  createdAt: string;
-  kind: "description" | "comment" | "review" | "verdict";
-  state?: string;
-  path?: string;
-  line?: number;
-};
-
-type Verdict = {
-  action: string;
-  node: string;
-};
-
-function verdictFor(state: string): Verdict {
-  switch (state) {
-    case "approved":
-      return {
-        action: "approved these changes",
-        node: "border-accent bg-accent",
-      };
-    case "changes_requested":
-      return {
-        action: "requested changes",
-        node: "border-danger bg-danger",
-      };
-    case "dismissed":
-      return {
-        action: "review dismissed",
-        node: "border-line-strong bg-canvas",
-      };
-    default:
-      return { action: "reviewed", node: "border-line-strong bg-canvas" };
-  }
-}
-
-function actionFor(entry: Entry): string {
-  if (entry.kind === "description") return "opened this PR";
-  if (entry.kind === "verdict") return verdictFor(entry.state ?? "").action;
-  return "commented";
-}
-
-function nodeClass(entry: Entry): string {
-  if (entry.kind === "verdict") return verdictFor(entry.state ?? "").node;
-  return "border-line-strong bg-canvas";
-}
-
-function buildEntries(pr: PR, comments: Comment[]): Entry[] {
-  const entries: Entry[] = [
-    {
-      key: "description",
-      author: pr.author,
-      body: pr.description,
-      createdAt: pr.createdAt ?? "",
-      kind: "description",
-    },
-  ];
-
-  comments.forEach((comment, index) => {
-    entries.push({
-      key: `${comment.kind}:${comment.createdAt}:${comment.author}:${index}`,
-      author: comment.author,
-      body: comment.body,
-      createdAt: comment.createdAt,
-      kind: comment.kind,
-      state: comment.state,
-      path: comment.path,
-      line: comment.line,
-    });
-  });
-
-  return entries.sort((a, b) => {
-    // An empty timestamp belongs at the top, with the description.
-    if (!a.createdAt) return -1;
-    if (!b.createdAt) return 1;
-    return a.createdAt.localeCompare(b.createdAt);
-  });
-}
-
-export function Conversation({ pr, comments }: ConversationProps) {
-  const entries = buildEntries(pr, comments);
+/** Full chronological timeline for the Conversation place. */
+export function Conversation({ comments }: ConversationProps) {
+  const entries = buildEntries(comments);
 
   return (
     <ol className="relative mx-auto max-w-[68ch]">
@@ -106,7 +32,7 @@ export function Conversation({ pr, comments }: ConversationProps) {
               aria-hidden="true"
               className={cx(
                 "absolute top-1 left-0 size-1.5 rounded-full border",
-                nodeClass(entry),
+                entryNodeClass(entry),
               )}
             />
             <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-meta">
@@ -128,14 +54,61 @@ export function Conversation({ pr, comments }: ConversationProps) {
               <div className="mt-2">
                 <Markdown>{entry.body}</Markdown>
               </div>
-            ) : entry.kind === "description" ? (
-              <p className="mt-2 text-prose text-fg-faint">
-                No description added.
-              </p>
             ) : null}
           </li>
         );
       })}
     </ol>
+  );
+}
+
+/** The two latest entries, inline in the briefing, in ascending order. */
+export function RecentConversation({
+  comments,
+  onOpenAll,
+}: {
+  comments: Comment[];
+  onOpenAll: () => void;
+}) {
+  const entries = buildEntries(comments);
+  if (entries.length === 0) return null;
+  const recent = entries.slice(-2);
+
+  return (
+    <div className="flex flex-col gap-3">
+      {recent.map((entry) => (
+        <RecentEntry key={entry.key} entry={entry} />
+      ))}
+      <button
+        type="button"
+        onClick={onOpenAll}
+        className="flex items-center gap-1.5 self-start rounded-sm px-1 py-0.5 text-meta text-fg-muted transition-colors hover:bg-surface hover:text-fg"
+      >
+        All {entries.length} {entries.length === 1 ? "entry" : "entries"}
+        <ArrowRight className="size-3.5" aria-hidden />
+      </button>
+    </div>
+  );
+}
+
+function RecentEntry({ entry }: { entry: ConversationEntry }) {
+  const when = formatAgo(entry.createdAt);
+  return (
+    <article className="flex flex-col gap-1">
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-meta">
+        <span className="font-medium text-fg-body">{entry.author}</span>
+        <span className="text-fg-faint">{actionFor(entry)}</span>
+        {when ? (
+          <span className="ml-auto font-mono text-micro text-fg-faint tabular-nums">
+            {when}
+          </span>
+        ) : null}
+      </div>
+      {entry.body.trim() ? (
+        <p className="line-clamp-2 text-ui whitespace-pre-wrap text-fg-muted">
+          {entry.body}
+        </p>
+      ) : null}
+    </article>
   );
 }
