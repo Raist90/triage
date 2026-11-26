@@ -83,15 +83,6 @@ export function filterPRs(prs: PR[], filters: PRFilters): PR[] {
   });
 }
 
-/**
- * Newest activity first. GitHub search returns relevance order, so the list has
- * to be ordered explicitly. Timestamps are ISO-8601 UTC, so string order is
- * chronological.
- */
-export function sortPRs(prs: PR[]): PR[] {
-  return [...prs].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-}
-
 /** True when any facet constrains the list. Search is counted separately. */
 export function hasFacetFilters(filters: PRFilters): boolean {
   return (

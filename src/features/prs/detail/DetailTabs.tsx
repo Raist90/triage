@@ -1,4 +1,5 @@
-export type DetailTab = "conversation" | "diff" | "review" | "explain";
+export type DetailTab =
+  "preflight" | "conversation" | "diff" | "review" | "explain";
 
 export type TabDef = {
   id: DetailTab;

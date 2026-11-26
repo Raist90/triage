@@ -18,7 +18,11 @@ type prVars struct {
 
 // prDetailRoute is the stable cache route for one PR's detail. Bump it when the
 // detail response shape changes so old cache entries are not decoded into it.
-const prDetailRoute = "pr-detail-v6"
+const prDetailRoute = "pr-detail-v7"
+
+// prListRoute is the stable cache route for one tab's PR list. Bump it when the
+// list row shape changes so old cache entries are not decoded into it.
+const prListRoute = "prs-v2"
 
 // listVars is the cache-key shape for one tab request.
 type listVars struct {
@@ -92,7 +96,7 @@ func (s *Server) invalidateComments(owner, repo string, number int) {
 }
 
 func (s *Server) invalidateListKey(vars listVars) {
-	key, err := cache.Key("github", "prs", vars)
+	key, err := cache.Key("github", prListRoute, vars)
 	if err != nil {
 		return
 	}

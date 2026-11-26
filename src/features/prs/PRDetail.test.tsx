@@ -110,11 +110,13 @@ async function renderDetail() {
 }
 
 describe("PRDetail", () => {
-  test("opens on the conversation and shows the context rail", async () => {
+  test("opens on preflight, then the conversation has the context rail", async () => {
     await renderDetail();
 
-    expect(screen.getByRole("tab", { name: /Conversation/ })).toBeDefined();
+    expect(screen.getByRole("tab", { name: "Preflight" })).toBeDefined();
     expect(screen.getByText("Checkout body copy.")).toBeDefined();
+
+    fireEvent.click(screen.getByRole("tab", { name: /Conversation/ }));
     expect(screen.getByText("Please add tests.")).toBeDefined();
 
     const rail = screen.getByLabelText("Pull request context");
@@ -194,6 +196,7 @@ describe("PRDetail", () => {
     });
     try {
       await renderDetail();
+      fireEvent.click(screen.getByRole("tab", { name: /Conversation/ }));
 
       fireEvent.click(screen.getByRole("button", { name: "Copy commit SHA" }));
 

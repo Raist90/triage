@@ -16,15 +16,17 @@ import {
   filterChips,
   filterPRs,
   hasFacetFilters,
-  sortPRs,
   type FilterChip,
 } from "./prFilters";
+import { buildDeck, prKey } from "./deck";
 
 type PRListProps = {
   tabID: string;
   tabLabel: string;
   repo: string | null;
 };
+
+const EMPTY_SKIPPED: ReadonlySet<string> = new Set();
 
 type RefreshFailure = {
   message: string;
@@ -58,6 +60,7 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
   });
 
   const prs = useMemo(() => query.data?.prs ?? [], [query.data]);
+  const viewer = query.data?.viewer.login ?? "";
 
   const filters = useUIStore((state) => state.prFilters);
   const setFilterQuery = useUIStore((state) => state.setFilterQuery);
@@ -66,9 +69,18 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
   const toggleHideDrafts = useUIStore((state) => state.toggleHideDrafts);
   const clearPRFilters = useUIStore((state) => state.clearPRFilters);
 
-  const visible = useMemo(
-    () => sortPRs(filterPRs(prs, filters)),
-    [prs, filters],
+  const visible = useMemo(() => filterPRs(prs, filters), [prs, filters]);
+  // Skip is session-only and scoped to this list mount. Keying the state by
+  // tab/repo makes a change reset it without an effect.
+  const scopeKey = `${tabID}:${repo ?? ""}`;
+  const [skipState, setSkipState] = useState<{
+    scope: string;
+    keys: ReadonlySet<string>;
+  }>({ scope: scopeKey, keys: new Set() });
+  const skipped = skipState.scope === scopeKey ? skipState.keys : EMPTY_SKIPPED;
+  const deck = useMemo(
+    () => buildDeck(visible, tabID, viewer, skipped),
+    [visible, tabID, viewer, skipped],
   );
   const chips = useMemo(() => filterChips(prs, filters), [prs, filters]);
 
@@ -86,8 +98,8 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
   const selectedPR = useUIStore((state) => state.selectedPR);
   const detailOpen = useUIStore((state) => state.detailOpen);
   const selectPR = useUIStore((state) => state.selectPR);
+  const setDetailIntent = useUIStore((state) => state.setDetailIntent);
 
-  const scope = repo ?? "All repos";
   const isFiltered = hasFacetFilters(filters) || filters.query.trim() !== "";
 
   const openSearch = useCallback(() => setSearchOpen(true), []);
@@ -103,10 +115,30 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
       : null;
 
   function pickPR(pr: PR) {
-    selectPR(`${pr.repo}#${pr.number}`);
+    selectPR(prKey(pr));
+    // A row click always lands on Preflight, even when the same PR is already
+    // open on another tab.
+    setDetailIntent({
+      prKey: prKey(pr),
+      tab: "preflight",
+      token: Date.now(),
+    });
     // The list row carries the fresh head; a cached detail from an older
     // commit is re-read instead of being shown as current.
     void syncPRHead(queryClient, pr).catch(() => {});
+  }
+
+  function openDiff(pr: PR) {
+    selectPR(prKey(pr));
+    setDetailIntent({ prKey: prKey(pr), tab: "diff", token: Date.now() });
+    void syncPRHead(queryClient, pr).catch(() => {});
+  }
+
+  function skipPR(pr: PR) {
+    setSkipState((current) => {
+      const keys = current.scope === scopeKey ? current.keys : EMPTY_SKIPPED;
+      return { scope: scopeKey, keys: new Set(keys).add(prKey(pr)) };
+    });
   }
 
   function clearAllFilters() {
@@ -192,18 +224,21 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
       ) : null}
 
       <PRListBody
+        key={scopeKey}
         query={query}
         listRef={listRef}
-        visible={visible}
-        prs={prs}
+        deck={deck}
+        prsCount={prs.length}
+        visibleCount={visible.length}
         filters={filters}
         isLoading={isLoading}
         tabID={tabID}
         tabLabel={tabLabel}
         repo={repo}
-        scope={scope}
         selectedPR={selectedPR}
         onPick={pickPR}
+        onOpenDiff={openDiff}
+        onSkip={skipPR}
         onRetry={() => void query.refetch()}
         onClearFilters={clearAllFilters}
         onOpenSearch={openSearch}
@@ -211,6 +246,17 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
         onCloseFilters={closeFilters}
         onClearSelection={() => selectPR(null)}
       />
+
+      <div className="flex h-8 shrink-0 items-center justify-between border-t border-line px-3 font-mono text-micro text-fg-faint">
+        <span className="tabular-nums">
+          {isLoading
+            ? "Loading…"
+            : isFiltered
+              ? `${visible.length} of ${prs.length} open`
+              : `${visible.length} open`}
+        </span>
+        <span>j k move · enter open · f filter</span>
+      </div>
     </div>
   );
 }

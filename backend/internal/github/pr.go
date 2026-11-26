@@ -43,7 +43,6 @@ func (c *Client) GetPR(ctx context.Context, owner, repo string, number int) (PR,
 		return PR{}, &gql.APIError{Status: 404, Message: "pull request not found"}
 	}
 	pr := data.Repository.PullRequest.toPR()
-	pr.ViewerReview = normalizeReviewState(data.Repository.PullRequest.ViewerLatestReview.State)
 	pr.ViewerLogin = data.Viewer.Login
 	pr.ViewerCanApprove = !strings.EqualFold(pr.Author, data.Viewer.Login)
 	return pr, nil
@@ -67,10 +66,10 @@ type prNode struct {
 	ViewerLatestReview struct {
 		State string `json:"state"`
 	} `json:"viewerLatestReview"`
-	CreatedAt    string `json:"createdAt"`
-	UpdatedAt    string `json:"updatedAt"`
-	MergedAt     string `json:"mergedAt"`
-	MergedBy     struct {
+	CreatedAt string `json:"createdAt"`
+	UpdatedAt string `json:"updatedAt"`
+	MergedAt  string `json:"mergedAt"`
+	MergedBy  struct {
 		Login string `json:"login"`
 	} `json:"mergedBy"`
 	MergeCommit struct {
@@ -87,7 +86,8 @@ type prNode struct {
 		SquashMergeAllowed bool   `json:"squashMergeAllowed"`
 	} `json:"repository"`
 	Commits struct {
-		Nodes []struct {
+		TotalCount int `json:"totalCount"`
+		Nodes      []struct {
 			Commit struct {
 				StatusCheckRollup *struct {
 					State string `json:"state"`
@@ -95,6 +95,13 @@ type prNode struct {
 			} `json:"commit"`
 		} `json:"nodes"`
 	} `json:"commits"`
+	ReviewRequests struct {
+		Nodes []struct {
+			RequestedReviewer struct {
+				Login string `json:"login"`
+			} `json:"requestedReviewer"`
+		} `json:"nodes"`
+	} `json:"reviewRequests"`
 	Comments struct {
 		Nodes []commentNode `json:"nodes"`
 	} `json:"comments"`
@@ -103,9 +110,10 @@ type prNode struct {
 	} `json:"reviews"`
 	ReviewThreads struct {
 		Nodes []struct {
-			Path     string `json:"path"`
-			Line     int    `json:"line"`
-			Comments struct {
+			Path       string `json:"path"`
+			Line       int    `json:"line"`
+			IsResolved bool   `json:"isResolved"`
+			Comments   struct {
 				Nodes []commentNode `json:"nodes"`
 			} `json:"comments"`
 		} `json:"nodes"`
@@ -182,11 +190,13 @@ func (n prNode) toPR() PR {
 		BaseBranch:         n.BaseRefName,
 		CheckStatus:        check,
 		ReviewState:        review,
+		ViewerReview:       normalizeReviewState(n.ViewerLatestReview.State),
 		State:              strings.ToLower(n.State),
 		Description:        n.Body,
 		Additions:          n.Additions,
 		Deletions:          n.Deletions,
 		ChangedFiles:       n.ChangedFiles,
+		CommitCount:        n.Commits.TotalCount,
 		CreatedAt:          n.CreatedAt,
 		UpdatedAt:          n.UpdatedAt,
 		MergedAt:           n.MergedAt,
@@ -197,7 +207,32 @@ func (n prNode) toPR() PR {
 		MergeStateStatus:   strings.ToLower(n.MergeStateStatus),
 		SquashMergeAllowed: n.Repository.SquashMergeAllowed,
 		Comments:           comments,
+		UnresolvedThreads:  n.unresolvedThreads(),
 	}
+}
+
+// requestedViewer reports whether the viewer is one of the requested user
+// reviewers. Team requests are invisible here by design.
+func (n prNode) requestedViewer(login string) bool {
+	if login == "" {
+		return false
+	}
+	for _, request := range n.ReviewRequests.Nodes {
+		if strings.EqualFold(request.RequestedReviewer.Login, login) {
+			return true
+		}
+	}
+	return false
+}
+
+func (n prNode) unresolvedThreads() int {
+	count := 0
+	for _, thread := range n.ReviewThreads.Nodes {
+		if !thread.IsResolved {
+			count++
+		}
+	}
+	return count
 }
 
 // normalizeReviewState maps GitHub's uppercase review enum to the lowercase

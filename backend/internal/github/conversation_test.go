@@ -20,9 +20,10 @@ func TestToPRConversationEntries(t *testing.T) {
 	}
 
 	thread := struct {
-		Path     string `json:"path"`
-		Line     int    `json:"line"`
-		Comments struct {
+		Path       string `json:"path"`
+		Line       int    `json:"line"`
+		IsResolved bool   `json:"isResolved"`
+		Comments   struct {
 			Nodes []commentNode `json:"nodes"`
 		} `json:"comments"`
 	}{Path: "src/main.go", Line: 42}

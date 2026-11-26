@@ -6,7 +6,6 @@ import {
   filterChips,
   filterPRs,
   hasFacetFilters,
-  sortPRs,
 } from "./prFilters";
 
 const prs = [
@@ -78,14 +77,6 @@ describe("filterPRs", () => {
         (pr) => pr.number,
       ),
     ).toEqual([1, 2]);
-  });
-});
-
-describe("sortPRs", () => {
-  test("orders by latest activity without mutating the input", () => {
-    const ordered = sortPRs(prs);
-    expect(ordered.map((pr) => pr.number)).toEqual([2, 1, 3]);
-    expect(prs.map((pr) => pr.number)).toEqual([1, 2, 3]);
   });
 });
 

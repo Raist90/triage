@@ -299,6 +299,10 @@ export type Pr = {
    * Conversation timeline, detail responses only
    */
   comments?: Array<Comment>;
+  /**
+   * Number of commits on the pull request
+   */
+  commitCount: number;
   createdAt?: string;
   deletions: number;
   /**
@@ -330,9 +334,17 @@ export type Pr = {
   number: number;
   repo: string;
   /**
+   * The viewer is a requested user reviewer; list responses only
+   */
+  reviewRequested?: boolean;
+  /**
    * Review decision on the pull request
    */
   reviewState: "approved" | "changes_requested" | "review_required" | "none";
+  /**
+   * Latest automatic review summary; list responses only
+   */
+  reviewSummary?: ReviewSummary;
   /**
    * False when the repo disables squash merges
    */
@@ -342,6 +354,10 @@ export type Pr = {
    */
   state: string;
   title: string;
+  /**
+   * Unresolved review threads; detail responses only
+   */
+  unresolvedThreads?: number;
   updatedAt: string;
   url: string;
   viewerCanApprove?: boolean;
@@ -419,6 +435,16 @@ export type ReviewSignals = {
   noTests?: boolean;
   renameRipples?: number;
   rewrites?: number;
+};
+
+export type ReviewSummary = {
+  blocking: number;
+  createdAt: string;
+  nitpick: number;
+  praise: number;
+  sha: string;
+  stale: boolean;
+  warning: number;
 };
 
 export type SemanticChange = {

@@ -15,6 +15,17 @@ export type DiffSort = "priority" | "path";
 /** The diff rail either lists files or walks the deterministic review path. */
 export type DiffMode = "files" | "path";
 
+/** A cross-pane jump from the deck into one detail tab. */
+export type DetailIntentTab = "preflight" | "diff" | "review";
+
+export type DetailIntent = {
+  prKey: string;
+  tab: DetailIntentTab;
+  /** Diff target for risk/phase jumps; a token re-triggers the same jump. */
+  diffTarget?: { path: string; line?: number };
+  token: number;
+};
+
 /**
  * Client-side view over the loaded list. Filters never change the query key, so
  * toggling one costs no GitHub request and keeps the list mounted.
@@ -62,9 +73,13 @@ type UIState = {
   diffRailWidth: number;
   /** PR list facets and search, session-wide. */
   prFilters: PRFilters;
+  /** Hero/row actions that must open a specific detail tab. */
+  detailIntent: DetailIntent | null;
   selectRepo: (repo: string | null) => void;
   setActiveTab: (tabID: string) => void;
   selectPR: (pr: string | null) => void;
+  setDetailIntent: (intent: DetailIntent) => void;
+  clearDetailIntent: () => void;
   closeDetail: () => void;
   toggleSidebar: () => void;
   toggleDetailFullscreen: () => void;
@@ -102,12 +117,14 @@ export const useUIStore = create<UIState>((set) => ({
   showSemanticRail: true,
   diffRailWidth: 208,
   prFilters: EMPTY_PR_FILTERS,
+  detailIntent: null,
   selectRepo: (repo) =>
     set((state) => ({
       selectedRepo: repo,
       selectedPR: null,
       detailOpen: false,
       detailFullscreen: false,
+      detailIntent: null,
       // The repo facet is a narrower view of "All repos"; an explicit scope
       // supersedes it, so it must not linger invisibly.
       prFilters: { ...state.prFilters, repos: [] },
@@ -118,9 +135,20 @@ export const useUIStore = create<UIState>((set) => ({
       selectedPR: null,
       detailOpen: false,
       detailFullscreen: false,
+      detailIntent: null,
     }),
-  selectPR: (pr) => set({ selectedPR: pr, detailOpen: pr !== null }),
-  closeDetail: () => set({ detailOpen: false, detailFullscreen: false }),
+  selectPR: (pr) =>
+    set({
+      selectedPR: pr,
+      detailOpen: pr !== null,
+      // A plain row click opens the default tab. Hero actions set the intent
+      // right after selecting, so a stale intent must not survive.
+      detailIntent: null,
+    }),
+  setDetailIntent: (intent) => set({ detailIntent: intent }),
+  clearDetailIntent: () => set({ detailIntent: null }),
+  closeDetail: () =>
+    set({ detailOpen: false, detailFullscreen: false, detailIntent: null }),
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
   // The repo panel preference is left alone, so exiting fullscreen restores it.
   toggleDetailFullscreen: () =>

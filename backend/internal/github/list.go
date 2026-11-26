@@ -50,6 +50,7 @@ func (c *Client) ListPRs(ctx context.Context, tab, repo string, repos []string) 
 				continue
 			}
 			pr := node.toPR()
+			pr.ReviewRequested = node.requestedViewer(result.Viewer.Login)
 			if repo != "" && !strings.EqualFold(pr.Repo, repo) {
 				continue
 			}

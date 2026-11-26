@@ -1,36 +1,36 @@
 import type { UseQueryResult } from "@tanstack/react-query";
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type RefObject,
-} from "react";
+import { ChevronDown } from "lucide-react";
+import { useCallback, useEffect, useState, type RefObject } from "react";
 import { EmptyState } from "../../components/EmptyState";
 import { ErrorState } from "../../components/ErrorState";
-import { Button } from "../../components/ui";
+import { Button, MicroLabel } from "../../components/ui";
 import { describeError } from "../../lib/api";
 import { cx } from "../../lib/cx";
 import type { PR, PRListResponse } from "../../lib/types";
 import { scrollEdgeClass, useScrollEdges } from "../../lib/useScrollEdges";
-import type { PRFilters } from "../../stores/ui";
-import { PRRow } from "./PRRow";
+import { useUIStore, type PRFilters } from "../../stores/ui";
+import { DeckHero } from "./DeckHero";
+import { DeckRow } from "./DeckRow";
+import { DraftRow } from "./DraftRow";
+import { prKey, type Deck, type DeckBucketID } from "./deck";
 import { usePRListCursor } from "./usePRListCursor";
 
 type PRListBodyProps = {
   query: UseQueryResult<PRListResponse, Error>;
   /** Focus and scroll container; also the listbox while rows exist. */
   listRef: RefObject<HTMLDivElement | null>;
-  visible: PR[];
-  prs: PR[];
+  deck: Deck;
+  prsCount: number;
+  visibleCount: number;
   filters: PRFilters;
   isLoading: boolean;
   tabID: string;
   tabLabel: string;
   repo: string | null;
-  scope: string;
   selectedPR: string | null;
   onPick: (pr: PR) => void;
+  onOpenDiff: (pr: PR) => void;
+  onSkip: (pr: PR) => void;
   onRetry: () => void;
   onClearFilters: () => void;
   onOpenSearch: () => void;
@@ -39,32 +39,28 @@ type PRListBodyProps = {
   onClearSelection: () => void;
 };
 
-const optionId = (index: number) => `pr-option-${index}`;
+const optionID = (key: string) =>
+  `pr-option-${key.replace(/[^A-Za-z0-9_-]+/g, "-")}`;
 
 /**
- * How long the cursor must rest before a keyboard move opens its row. Holding
- * j/k repeats the key, so opening on every move would read every skipped pull
- * request from GitHub.
- */
-const OPEN_DELAY_MS = 150;
-
-/**
- * The list viewport. It stays mounted across loading, error and empty answers,
+ * The deck viewport. It stays mounted across loading, error and empty answers,
  * so the keyboard surface survives a filter that removes every row.
  */
 export function PRListBody({
   query,
   listRef,
-  visible,
-  prs,
+  deck,
+  prsCount,
+  visibleCount,
   filters,
   isLoading,
   tabID,
   tabLabel,
   repo,
-  scope,
   selectedPR,
   onPick,
+  onOpenDiff,
+  onSkip,
   onRetry,
   onClearFilters,
   onOpenSearch,
@@ -73,82 +69,54 @@ export function PRListBody({
   onClearSelection,
 }: PRListBodyProps) {
   const scrollEdges = useScrollEdges(listRef);
-  // Only rendered rows are keyboard-reachable: placeholder data and the rows
-  // retained behind an error must not be pickable.
-  const rows = isLoading || query.isError ? [] : visible;
-  const hasRows = rows.length > 0;
+  const live = !isLoading && !query.isError && visibleCount > 0;
 
-  // The cursor moves on every key repeat, but opening each row would fetch its
-  // detail. Highlight the row under the cursor immediately (`pending`) and open
-  // it once the cursor rests; a click still opens immediately.
-  const [pending, setPending] = useState<string | null>(null);
-  const openTimer = useRef<number | null>(null);
-
-  const cancelOpen = useCallback(() => {
-    if (openTimer.current !== null) {
-      window.clearTimeout(openTimer.current);
-      openTimer.current = null;
-    }
+  // Collapse is local and session-only; the list remounts on tab/repo change.
+  const [collapsed, setCollapsed] = useState<
+    Partial<Record<DeckBucketID, boolean>>
+  >({});
+  const toggleBucket = useCallback((id: DeckBucketID) => {
+    setCollapsed((current) => ({ ...current, [id]: !current[id] }));
   }, []);
 
-  useEffect(() => cancelOpen, [cancelOpen]);
+  const rows = live
+    ? deck.rows.filter((row) => row.bucket === null || !collapsed[row.bucket])
+    : [];
+  const keys = rows.map((row) => prKey(row.pr));
+  const byKey = new Map(rows.map((row) => [prKey(row.pr), row.pr]));
 
-  const openNow = useCallback(
-    (pr: PR) => {
-      cancelOpen();
-      // The click commits the selection synchronously, so it needs no preview.
-      setPending(null);
-      onPick(pr);
-    },
-    [cancelOpen, onPick],
-  );
-
-  const openSoon = useCallback(
-    (pr: PR) => {
-      cancelOpen();
-      setPending(`${pr.repo}#${pr.number}`);
-      openTimer.current = window.setTimeout(() => {
-        openTimer.current = null;
-        setPending(null);
-        onPick(pr);
-      }, OPEN_DELAY_MS);
-    },
-    [cancelOpen, onPick],
-  );
-
-  const selectedIndex = rows.findIndex(
-    (pr) => `${pr.repo}#${pr.number}` === selectedPR,
-  );
-
-  const { cursor, handleKeyDown } = usePRListCursor({
-    count: rows.length,
-    selectedIndex,
+  const { cursorKey, handleKeyDown } = usePRListCursor({
+    keys,
+    selectedKey: selectedPR,
     scrollRef: listRef,
-    onPick: (index) => {
-      const pr = rows[index];
-      if (pr) openSoon(pr);
+    optionID,
+    onOpen: (key) => {
+      const pr = byKey.get(key);
+      if (pr) onPick(pr);
     },
     onSearch: onOpenSearch,
     onToggleFilters,
     onDismiss: () => {
-      cancelOpen();
-      setPending(null);
       onCloseFilters();
       onClearSelection();
     },
   });
 
-  // Returning from the detail panel restores keyboard focus to the list.
+  // Returning from the detail panel restores keyboard focus to the list, so
+  // Enter can reopen the selected row.
+  const detailOpen = useUIStore((state) => state.detailOpen);
   useEffect(() => {
-    if (!selectedPR) listRef.current?.focus();
-  }, [selectedPR, listRef]);
+    if (!detailOpen) listRef.current?.focus();
+  }, [detailOpen, listRef]);
 
   return (
     <div
       ref={listRef}
-      role={hasRows ? "listbox" : "group"}
+      role={rows.length > 0 ? "listbox" : "group"}
       aria-label={`${tabLabel} pull requests`}
-      aria-activedescendant={hasRows ? optionId(cursor) : undefined}
+      aria-activedescendant={
+        rows.length > 0 && cursorKey ? optionID(cursorKey) : undefined
+      }
       tabIndex={0}
       onKeyDown={handleKeyDown}
       className={cx(
@@ -175,19 +143,19 @@ export function PRListBody({
           retrying={query.isFetching}
           onRetry={onRetry}
         />
-      ) : prs.length === 0 ? (
+      ) : prsCount === 0 ? (
         <EmptyState
           title={`No pull requests in ${tabLabel}`}
-          description={`Nothing open in ${scope}.`}
+          description={`Nothing open in ${repo ?? "All repos"}.`}
           footnote="Refresh pulls fresh data from GitHub."
         />
-      ) : visible.length === 0 ? (
+      ) : visibleCount === 0 ? (
         <EmptyState
           title="No pull requests match"
           description={
             filters.query
-              ? `Nothing matches “${filters.query}” in ${scope}.`
-              : `No open pull requests match the current filters in ${scope}.`
+              ? `Nothing matches “${filters.query}” in ${repo ?? "All repos"}.`
+              : `No open pull requests match the current filters in ${repo ?? "All repos"}.`
           }
           footnote="Press / to search, f to change filters."
           action={
@@ -197,18 +165,77 @@ export function PRListBody({
           }
         />
       ) : (
-        rows.map((pr, index) => (
-          <PRRow
-            key={`${pr.repo}#${pr.number}`}
-            optionId={optionId(index)}
-            pr={pr}
-            active={index === cursor}
-            selected={(pending ?? selectedPR) === `${pr.repo}#${pr.number}`}
-            showRepo={repo === null}
-            showAuthor={tabID !== "mine"}
-            onPick={() => openNow(pr)}
-          />
-        ))
+        <>
+          {deck.hero ? (
+            <DeckHero
+              pr={deck.hero}
+              kind={deck.heroKind === "draft" ? "draft" : "ready"}
+              optionId={optionID(prKey(deck.hero))}
+              cursor={cursorKey === prKey(deck.hero)}
+              selected={selectedPR === prKey(deck.hero)}
+              onOpenPR={() => onPick(deck.hero as PR)}
+              onOpenDiff={() => onOpenDiff(deck.hero as PR)}
+              onSkip={() => onSkip(deck.hero as PR)}
+            />
+          ) : null}
+
+          {deck.buckets.map((bucket) => {
+            const isCollapsed = collapsed[bucket.id] === true;
+            return (
+              <section key={bucket.id} className="px-2 pb-1">
+                <button
+                  type="button"
+                  aria-expanded={!isCollapsed}
+                  onClick={() => toggleBucket(bucket.id)}
+                  className="flex w-full items-center gap-2 border-t border-line px-1 pt-2 pb-1.5 text-left"
+                >
+                  <MicroLabel className="text-fg-muted">
+                    {bucket.label}
+                  </MicroLabel>
+                  <span className="inline-flex h-3.5 items-center rounded-[3px] bg-fg/5 px-1 font-mono text-micro text-fg-faint tabular-nums">
+                    {bucket.rows.length}
+                  </span>
+                  <ChevronDown
+                    className={cx(
+                      "ml-auto size-3.5 text-fg-faint transition-transform",
+                      isCollapsed && "-rotate-90",
+                    )}
+                    aria-hidden
+                  />
+                </button>
+
+                {isCollapsed ? null : (
+                  <div className="flex flex-col">
+                    {bucket.rows.map((pr) =>
+                      bucket.id === "drafts" ? (
+                        <DraftRow
+                          key={prKey(pr)}
+                          pr={pr}
+                          optionId={optionID(prKey(pr))}
+                          cursor={cursorKey === prKey(pr)}
+                          selected={selectedPR === prKey(pr)}
+                          onPick={() => onPick(pr)}
+                        />
+                      ) : (
+                        <DeckRow
+                          key={prKey(pr)}
+                          pr={pr}
+                          optionId={optionID(prKey(pr))}
+                          cursor={cursorKey === prKey(pr)}
+                          selected={selectedPR === prKey(pr)}
+                          tab={tabID}
+                          bucket={bucket.id}
+                          showRepo={repo === null}
+                          onPick={() => onPick(pr)}
+                        />
+                      ),
+                    )}
+                  </div>
+                )}
+              </section>
+            );
+          })}
+        </>
       )}
     </div>
   );

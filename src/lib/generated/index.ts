@@ -116,6 +116,7 @@ export type {
   Review,
   ReviewRequest,
   ReviewSignals,
+  ReviewSummary,
   RunActionData,
   RunActionError,
   RunActionErrors,

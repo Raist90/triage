@@ -866,6 +866,11 @@
             },
             "type": "array"
           },
+          "commitCount": {
+            "description": "Number of commits on the pull request",
+            "format": "int64",
+            "type": "integer"
+          },
           "createdAt": {
             "type": "string"
           },
@@ -915,6 +920,10 @@
           "repo": {
             "type": "string"
           },
+          "reviewRequested": {
+            "description": "The viewer is a requested user reviewer; list responses only",
+            "type": "boolean"
+          },
           "reviewState": {
             "description": "Review decision on the pull request",
             "enum": [
@@ -924,6 +933,10 @@
               "none"
             ],
             "type": "string"
+          },
+          "reviewSummary": {
+            "$ref": "#/components/schemas/ReviewSummary",
+            "description": "Latest automatic review summary; list responses only"
           },
           "squashMergeAllowed": {
             "description": "False when the repo disables squash merges",
@@ -935,6 +948,11 @@
           },
           "title": {
             "type": "string"
+          },
+          "unresolvedThreads": {
+            "description": "Unresolved review threads; detail responses only",
+            "format": "int64",
+            "type": "integer"
           },
           "updatedAt": {
             "type": "string"
@@ -969,6 +987,7 @@
           "additions",
           "deletions",
           "changedFiles",
+          "commitCount",
           "updatedAt",
           "isDraft",
           "squashMergeAllowed"
@@ -1162,6 +1181,47 @@
             "type": "integer"
           }
         },
+        "type": "object"
+      },
+      "ReviewSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "blocking": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "nitpick": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "praise": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "sha": {
+            "type": "string"
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "warning": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "blocking",
+          "warning",
+          "nitpick",
+          "praise",
+          "createdAt",
+          "sha",
+          "stale"
+        ],
         "type": "object"
       },
       "SemanticChange": {
@@ -1464,7 +1524,7 @@
   "info": {
     "description": "Local sidecar API for the Triage desktop app. Bearer token required on every route except GET /health.",
     "title": "Triage",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "openapi": "3.1.0",
   "paths": {

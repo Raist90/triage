@@ -18,6 +18,7 @@ import { PRDetailBar } from "./detail/PRDetailBar";
 import { PRDetailContext } from "./detail/PRDetailContext";
 import { PRHeader } from "./detail/PRHeader";
 import { PRSummary } from "./detail/PRSummary";
+import { PreflightTab } from "./detail/PreflightTab";
 import { ReviewPanel } from "./detail/ReviewPanel";
 import { PRStateActions, PRStatePanel } from "./detail/PRStateActions";
 import { ReviewHeaderActions } from "./detail/ReviewHeaderActions";
@@ -30,16 +31,25 @@ import { ReviewTab } from "./review/ReviewTab";
 type PRDetailProps = {
   repo: string;
   number: number;
+  /** The list tab this PR was opened from; drives the preflight Why label. */
+  tabID?: string;
 };
 
-export function PRDetail({ repo, number }: PRDetailProps) {
+export function PRDetail({ repo, number, tabID = "all" }: PRDetailProps) {
   // Remount per PR so action state (stream, artifact, phase) can never leak
   // from one pull request into the next. The query keys already do this for
   // server data; this covers the local run state in useClaudeAction.
-  return <PRDetailBody key={`${repo}#${number}`} repo={repo} number={number} />;
+  return (
+    <PRDetailBody
+      key={`${repo}#${number}`}
+      repo={repo}
+      number={number}
+      tabID={tabID}
+    />
+  );
 }
 
-function PRDetailBody({ repo, number }: PRDetailProps) {
+function PRDetailBody({ repo, number, tabID = "all" }: PRDetailProps) {
   const closeDetail = useUIStore((state) => state.closeDetail);
   const fullscreen = useUIStore((state) => state.detailFullscreen);
   const toggleFullscreen = useUIStore((state) => state.toggleDetailFullscreen);
@@ -48,24 +58,62 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
   const [tabState, setTabState] = useState<{
     key: string;
     tab: DetailTab;
-  }>({ key: prKey, tab: "conversation" });
-  const tab: DetailTab = tabState.key === prKey ? tabState.tab : "conversation";
-  const setTab = (next: DetailTab) => setTabState({ key: prKey, tab: next });
+    /** Intent token already applied, so a render-time adjust happens once. */
+    appliedToken?: number;
+  }>({ key: prKey, tab: "preflight" });
+  const setTab = (next: DetailTab) =>
+    setTabState({ key: prKey, tab: next, appliedToken: tabState.appliedToken });
   // A finding clicked in the Review tab. The token re-triggers the jump for two
   // findings in the same file; the target is never cleared after consumption.
   const [diffTarget, setDiffTarget] = useState<DiffTarget | null>(null);
   function openInDiff(finding: ReviewFinding) {
     // A finding jump targets one file and line; leave the guided path so the
     // target is always mounted, regardless of which step owns it.
+    openDiffAt(finding.file, finding.line);
+  }
+
+  function openDiffAt(path: string, line?: number) {
     setDiffMode("files");
-    setDiffTarget({
-      path: finding.file,
-      line: finding.line,
-      token: Date.now(),
-    });
+    setDiffTarget({ path, line, token: Date.now() });
     setTab("diff");
   }
 
+  function openDiff() {
+    setDiffTarget(null);
+    setTab("diff");
+  }
+
+  // A hero action opens a specific tab. Apply it during render (the React
+  // "adjust state when props change" pattern), then clear the store intent in
+  // an effect so a refetch or remount cannot replay the jump.
+  const detailIntent = useUIStore((state) => state.detailIntent);
+  const clearDetailIntent = useUIStore((state) => state.clearDetailIntent);
+  const pendingIntent =
+    detailIntent &&
+    detailIntent.prKey === prKey &&
+    detailIntent.token !== tabState.appliedToken
+      ? detailIntent
+      : null;
+  if (pendingIntent) {
+    setTabState({
+      key: prKey,
+      tab: pendingIntent.tab,
+      appliedToken: pendingIntent.token,
+    });
+    if (pendingIntent.tab === "diff") {
+      setDiffMode("files");
+      setDiffTarget(
+        pendingIntent.diffTarget
+          ? { ...pendingIntent.diffTarget, token: pendingIntent.token }
+          : null,
+      );
+    }
+  }
+  useEffect(() => {
+    if (detailIntent && detailIntent.prKey === prKey) clearDetailIntent();
+  }, [detailIntent, prKey, clearDetailIntent]);
+
+  const tab: DetailTab = tabState.key === prKey ? tabState.tab : "preflight";
   const mergePolls = useRef(0);
   // A live re-read must see GitHub's current state, so the next fetch bypasses
   // the server TTLs by reading this flag.
@@ -206,6 +254,7 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
   const activeTab: DetailTab = requestedTabAvailable ? tab : "conversation";
 
   const tabs: TabDef[] = [
+    { id: "preflight", label: "Preflight" },
     { id: "conversation", label: "Conversation", count: comments.length },
     { id: "diff", label: "Diff", count: pr?.changedFiles },
   ];
@@ -215,6 +264,26 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
   if (explain.action) {
     tabs.push({ id: "explain", label: explain.action.label });
   }
+
+  // The header's review line comes from the review artifact, not from the
+  // list's reviewSummary (detail responses do not carry it).
+  const artifactReview = reviewController.artifact?.review;
+  const reviewStale = Boolean(
+    reviewController.artifact &&
+    (reviewController.stale ||
+      (pr?.headSHA !== "" && reviewController.artifact.sha !== pr?.headSHA)),
+  );
+  const reviewStatus = artifactReview
+    ? {
+        blocking: artifactReview.findings.filter(
+          (finding) => finding.severity === "blocking",
+        ).length,
+        warning: artifactReview.findings.filter(
+          (finding) => finding.severity === "warning",
+        ).length,
+        stale: reviewStale,
+      }
+    : null;
 
   // One value for the bar and the body. Stable as long as the PR and the two
   // memoized controllers are, so an unrelated pane render wakes no consumer.
@@ -264,7 +333,7 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
               {loadingOrError ??
                 (isOpen ? (
                   <>
-                    <PRHeader pr={detail.pr} />
+                    <PRHeader pr={detail.pr} reviewStatus={reviewStatus} />
                     <DetailTabs
                       tabs={tabs}
                       active={activeTab}
@@ -272,6 +341,18 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
                     />
 
                     <DetailPanel activeTab={activeTab}>
+                      {activeTab === "preflight" ? (
+                        <PreflightTab
+                          pr={detail.pr}
+                          tab={tabID}
+                          controller={reviewController}
+                          diff={diffQuery.data}
+                          onStartReview={() => setTab("review")}
+                          onOpenDiff={openDiff}
+                          onOpenInDiff={openDiffAt}
+                        />
+                      ) : null}
+
                       {activeTab === "conversation" ? (
                         <Conversation pr={detail.pr} comments={comments} />
                       ) : null}
@@ -311,7 +392,7 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
                 ))}
             </div>
 
-            {isOpen && activeTab !== "diff" ? (
+            {isOpen && activeTab !== "diff" && activeTab !== "preflight" ? (
               <ContextRail diff={diffQuery.data} />
             ) : null}
           </div>

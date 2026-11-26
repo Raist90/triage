@@ -41,7 +41,7 @@ export function PRDetailBar({
         <ArrowLeft className="size-4" aria-hidden />
         Back
       </button>
-      <span className="min-w-0 truncate font-mono text-meta text-fg-faint">
+      <span className="max-w-56 shrink-0 truncate font-mono text-meta text-fg-faint">
         {repo}
         <span className="px-1 text-line-strong">#</span>
         <span className="text-fg-muted">{number}</span>

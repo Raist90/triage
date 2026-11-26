@@ -104,19 +104,22 @@ describe("PRList", () => {
     });
   });
 
-  test("j highlights the row at once and opens it when the cursor rests", async () => {
+  test("j moves the cursor without opening; Enter opens", async () => {
     getPRs.mockImplementation(async () => listResponse());
     await renderList();
 
-    fireEvent.keyDown(screen.getByRole("listbox"), { key: "j" });
+    const listbox = screen.getByRole("listbox");
+    fireEvent.keyDown(listbox, { key: "j" });
 
     const rows = screen.getAllByRole("option");
-    expect(rows[1].getAttribute("aria-selected")).toBe("true");
+    expect(listbox.getAttribute("aria-activedescendant")).toBe(rows[1].id);
+    expect(
+      rows.every((row) => row.getAttribute("aria-selected") === "false"),
+    ).toBe(true);
     expect(useUIStore.getState().selectedPR).toBeNull();
 
-    await waitFor(() =>
-      expect(useUIStore.getState().selectedPR).toBe("acme/web#1"),
-    );
+    fireEvent.keyDown(listbox, { key: "Enter" });
+    expect(useUIStore.getState().selectedPR).toBe("acme/web#1");
   });
 
   test("clicking a row opens it without waiting for the cursor", async () => {
@@ -136,15 +139,10 @@ describe("PRList", () => {
     fireEvent.keyDown(listbox, { key: "k" });
 
     const rows = screen.getAllByRole("option");
-    expect(rows[0].getAttribute("aria-selected")).toBe("true");
+    expect(listbox.getAttribute("aria-activedescendant")).toBe(rows[0].id);
     expect(useUIStore.getState().selectedPR).toBeNull();
 
-    await waitFor(() =>
-      expect(useUIStore.getState().selectedPR).toBe("acme/web#2"),
-    );
-
-    fireEvent.keyDown(listbox, { key: "k" });
-    await act(async () => {});
+    fireEvent.keyDown(listbox, { key: "Enter" });
     expect(useUIStore.getState().selectedPR).toBe("acme/web#2");
     expect(getPR).not.toHaveBeenCalled();
   });
@@ -195,7 +193,7 @@ describe("PRList", () => {
 
     // A new tab keeps the old rows in `data` while the skeleton renders.
     rerender(<PRList tabID="mine" tabLabel="My PRs" repo={null} />);
-    await screen.findByText("Loading…");
+    await screen.findAllByText("Loading…");
 
     const surface = screen.getByRole("group", {
       name: "My PRs pull requests",
@@ -299,7 +297,7 @@ describe("PRList", () => {
       pr: { ...newest, headSHA: "oldsha" },
     });
 
-    fireEvent.keyDown(screen.getByRole("listbox"), { key: "k" });
+    fireEvent.keyDown(screen.getByRole("listbox"), { key: "Enter" });
 
     await waitFor(() =>
       expect(useUIStore.getState().selectedPR).toBe("acme/web#2"),
@@ -313,65 +311,48 @@ describe("PRList", () => {
     );
   });
 
-  test("j opens only the settled row and stops at the last row", async () => {
+  test("j stops at the last row and Enter opens it once", async () => {
     getPRs.mockImplementation(async () => listResponse());
     const { client } = await renderList();
-    // A stale detail under the last row is re-read once, when j opens it.
+    // A stale detail under the last row is re-read once, when Enter opens it.
     client.setQueryData(["pr", "acme/web", 3], {
       pr: { ...oldest, headSHA: "oldsha" },
     });
 
     const listbox = screen.getByRole("listbox");
+    const options = screen.getAllByRole("option");
     fireEvent.keyDown(listbox, { key: "j" });
-    expect(screen.getAllByRole("option")[1].getAttribute("aria-selected")).toBe(
-      "true",
-    );
-
+    expect(listbox.getAttribute("aria-activedescendant")).toBe(options[1].id);
     fireEvent.keyDown(listbox, { key: "j" });
-    expect(screen.getAllByRole("option")[2].getAttribute("aria-selected")).toBe(
-      "true",
-    );
+    expect(listbox.getAttribute("aria-activedescendant")).toBe(options[2].id);
     expect(useUIStore.getState().selectedPR).toBeNull();
 
+    fireEvent.keyDown(listbox, { key: "Enter" });
     await waitFor(() =>
       expect(useUIStore.getState().selectedPR).toBe("acme/web#3"),
     );
     await waitFor(() => expect(getPR).toHaveBeenCalledTimes(1));
 
     fireEvent.keyDown(listbox, { key: "j" });
-    await act(async () => {});
-    expect(useUIStore.getState().selectedPR).toBe("acme/web#3");
-    expect(getPR).toHaveBeenCalledTimes(1);
+    expect(listbox.getAttribute("aria-activedescendant")).toBe(options[2].id);
   });
 
-  test("Escape drops the optimistic highlight and its pending open", () => {
+  test("Escape clears selection but keeps the cursor", () => {
     getPRs.mockImplementation(async () => listResponse());
     const client = createTestQueryClient();
     client.setQueryData(["prs", null, "all"], listResponse());
-    jest.useFakeTimers();
-    try {
-      renderWithQuery(<PRList tabID="all" tabLabel="All open" repo={null} />, {
-        client,
-      });
-      const listbox = screen.getByRole("listbox");
+    useUIStore.setState({ selectedPR: "acme/web#2", detailOpen: true });
+    renderWithQuery(<PRList tabID="all" tabLabel="All open" repo={null} />, {
+      client,
+    });
+    const listbox = screen.getByRole("listbox");
+    const options = screen.getAllByRole("option");
+    expect(options[0].getAttribute("aria-selected")).toBe("true");
 
-      fireEvent.keyDown(listbox, { key: "j" });
-      expect(
-        screen.getAllByRole("option")[1].getAttribute("aria-selected"),
-      ).toBe("true");
+    fireEvent.keyDown(listbox, { key: "Escape" });
 
-      fireEvent.keyDown(listbox, { key: "Escape" });
-      expect(
-        screen.getAllByRole("option")[1].getAttribute("aria-selected"),
-      ).toBe("false");
-
-      act(() => {
-        jest.advanceTimersByTime(1_000);
-      });
-      expect(useUIStore.getState().selectedPR).toBeNull();
-    } finally {
-      jest.useRealTimers();
-    }
+    expect(useUIStore.getState().selectedPR).toBeNull();
+    expect(listbox.getAttribute("aria-activedescendant")).toBe(options[0].id);
   });
 
   test("filters the draft row out from the filter popover", async () => {
@@ -430,20 +411,6 @@ describe("PRList", () => {
     renderWithQuery(<PRList tabID="all" tabLabel="All open" repo="acme/web" />);
     const scopedRows = await screen.findAllByRole("option");
     expect(within(scopedRows[0]).queryByText("acme/web")).toBeNull();
-  });
-
-  test("shows the author outside My PRs and hides it there", async () => {
-    getPRs.mockImplementation(async () => listResponse());
-    const all = renderWithQuery(
-      <PRList tabID="all" tabLabel="All open" repo={null} />,
-    );
-    const rows = await screen.findAllByRole("option");
-    expect(within(rows[0]).getByText("octocat")).toBeDefined();
-
-    all.unmount();
-    renderWithQuery(<PRList tabID="mine" tabLabel="My PRs" repo={null} />);
-    const mineRows = await screen.findAllByRole("option");
-    expect(within(mineRows[0]).queryByText("octocat")).toBeNull();
   });
 
   test("an empty response renders the empty state", async () => {
