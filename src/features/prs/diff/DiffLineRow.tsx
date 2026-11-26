@@ -23,17 +23,18 @@ export function LineRow({
   draft,
   onDraftChange,
 }: LineRowProps) {
-  const { canComment, viewerLogin } = useDiffCommentsContext();
+  const { canComment, showComments, viewerLogin } = useDiffCommentsContext();
   const gutter =
     "select-none border-r border-line px-2 text-right text-fg-faint";
   const key = anchor ? anchorKey(anchor) : null;
-  const composing = key !== null && draft === key;
+  const composing = showComments && key !== null && draft === key;
+  const thread = showComments ? anchorComments : [];
 
   return (
     <>
       <div className={`group ${ROW_GRID} ${rowTint(line.kind)}`}>
         <span className="flex items-center justify-center border-r border-line select-none">
-          {anchor && canComment ? (
+          {showComments && anchor && canComment ? (
             <button
               type="button"
               onClick={() => onDraftChange(composing ? null : key)}
@@ -61,9 +62,9 @@ export function LineRow({
         </span>
       </div>
 
-      {anchorComments.length > 0 ? (
+      {thread.length > 0 ? (
         <div className="border-b border-line bg-surface/40 px-3 py-2">
-          {anchorComments.map((comment) => (
+          {thread.map((comment) => (
             <InlineCommentRow
               key={comment.id}
               comment={comment}

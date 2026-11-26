@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { applyFindingPatch, describeError } from "../../../lib/api";
 import type { ActionView, ReviewFinding } from "../../../lib/types";
 
@@ -27,28 +27,31 @@ export function useApplyFinding(
   const [applying, setApplying] = useState<string | null>(null);
   const [failure, setFailure] = useState<FindingApplyFailure | null>(null);
 
-  async function apply(finding: ReviewFinding) {
-    if (!action) return;
-    setApplying(finding.id);
-    setFailure(null);
-    try {
-      await applyFindingPatch({
-        repo,
-        number,
-        actionID: action.id,
-        findingID: finding.id,
-      });
-      // The artifact on disk now carries appliedAt. Refetch so a reload and the
-      // current page agree.
-      await queryClient.invalidateQueries({
-        queryKey: ["pr-action", repo, number, action.id],
-      });
-    } catch (caught) {
-      setFailure({ id: finding.id, message: describeError(caught) });
-    } finally {
-      setApplying(null);
-    }
-  }
+  const apply = useCallback(
+    async (finding: ReviewFinding) => {
+      if (!action) return;
+      setApplying(finding.id);
+      setFailure(null);
+      try {
+        await applyFindingPatch({
+          repo,
+          number,
+          actionID: action.id,
+          findingID: finding.id,
+        });
+        // The artifact on disk now carries appliedAt. Refetch so a reload and
+        // the current page agree.
+        await queryClient.invalidateQueries({
+          queryKey: ["pr-action", repo, number, action.id],
+        });
+      } catch (caught) {
+        setFailure({ id: finding.id, message: describeError(caught) });
+      } finally {
+        setApplying(null);
+      }
+    },
+    [action, queryClient, repo, number],
+  );
 
   return { applying, failure, apply };
 }

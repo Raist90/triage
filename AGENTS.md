@@ -130,8 +130,11 @@ In:
 - GitHub auth via `.env`, identity via `viewer`
 - Sidebar repo selection; tabs My PRs / Review requested / All open
 - PR list with title, author, repo, branch, checks/status, review state
-- PR detail: metadata, description, per-file diff (`sem` where possible), comments
-  behind a global toggle
+- PR detail: one screen — identity bar, collapsed Context row, diff strip, one
+  scrolling diff, and a fixed 300px review bar (review state and finding index,
+  conversation, explanation). No places or briefing.
+- Inline review findings: each finding renders as a thread on the diff line it
+  cites, with Apply patch; the bar keeps the index. Findings are never published.
 - Post a review: approve, request changes, comment
 - Toggle your own PRs between draft and ready for review; squash merge your own
   PRs once GitHub reports them mergeable; close your own open PRs without
@@ -154,7 +157,6 @@ Out (do not build yet):
 - Comment thread replies, resolve, suggestion commits
 - Reopen a closed PR, merge methods other than squash, auto-merge, checkout locally
 - Side-by-side diff, diff modes beyond per-file unified
-- Inline annotations inside the Diff tab; Review jumps first, annotation later
 - Managed clones; review uses the configured `repoPaths` only
 - External/first-party plugin loading, a plugin marketplace
 - Command palette, themes, light mode

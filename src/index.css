@@ -65,9 +65,6 @@
   --text-lead--line-height: 24px;
   --text-title: 20px;
   --text-title--line-height: 26px;
-  /* Briefing headline only: the mock's 23/31 pane title. */
-  --text-display: 23px;
-  --text-display--line-height: 31px;
   --text-code: 12px;
   --text-code--line-height: 20px;
 
@@ -78,6 +75,8 @@
 
   /* Detail sits next to the list only when it has room. */
   --breakpoint-cockpit: 1180px;
+  /* The 300px review bar needs this much detail width to stay usable. */
+  --breakpoint-wide: 1400px;
 }
 
 @layer base {

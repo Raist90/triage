@@ -1,13 +1,16 @@
 import { ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type {
   DiffHunk,
   InlineComment,
   SemanticChange,
 } from "../../../lib/types";
 import { ChangeAnnotation } from "./DiffAnnotation";
+import { FindingThread } from "./FindingThread";
+import { anchorFindings, findingsForFile } from "./findingAnchors";
 import { anchorKey, lineAnchor, lineAnchors } from "./diffAnchors";
 import { LineRow, ROW_GRID } from "./DiffLineRow";
+import { useReviewFindings } from "./ReviewFindingsContext";
 import {
   badgeClassName,
   changeMark,
@@ -38,6 +41,11 @@ export function HunkRows({
   onDraftChange,
 }: HunkRowsProps) {
   const [open, setOpen] = useState(false);
+  const { review } = useReviewFindings();
+  const findingsByLine = useMemo(
+    () => anchorFindings(hunk, findingsForFile(review?.findings ?? [], path)),
+    [hunk, path, review],
+  );
   const tally = changes.length > 0 ? tallyChanges(changes) : null;
   const dominant = tally?.dominant;
 
@@ -45,7 +53,7 @@ export function HunkRows({
     <>
       <div
         data-diff-hunk={hunkKey}
-        className={`${ROW_GRID} scroll-mt-9 bg-surface ${
+        className={`${ROW_GRID} scroll-mt-11 bg-surface ${
           flash ? "outline -outline-offset-1 outline-accent/50" : ""
         }`}
       >
@@ -99,15 +107,20 @@ export function HunkRows({
         const anchorComments = lineAnchors(path, line)
           .flatMap((item) => byAnchor.get(anchorKey(item)) ?? [])
           .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+        const findings = findingsByLine.get(index) ?? [];
         return (
-          <LineRow
-            key={index}
-            line={line}
-            anchor={anchor}
-            anchorComments={anchorComments}
-            draft={draft}
-            onDraftChange={onDraftChange}
-          />
+          <div key={index}>
+            <LineRow
+              line={line}
+              anchor={anchor}
+              anchorComments={anchorComments}
+              draft={draft}
+              onDraftChange={onDraftChange}
+            />
+            {findings.map((finding) => (
+              <FindingThread key={finding.id} finding={finding} />
+            ))}
+          </div>
         );
       })}
     </>

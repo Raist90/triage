@@ -21,7 +21,7 @@ import { renderWithQuery } from "../../test/render";
 
 const pr = makePR({
   title: "Add checkout flow",
-  description: "Checkout body copy.",
+  description: "Checkout body copy.\n\nSecond paragraph.",
   comments: [
     {
       author: "octocat",
@@ -96,7 +96,9 @@ const reviewArtifact: ActionResponse = {
           claim: "The early return skips commit.",
           file: "src/app.ts",
           line: 2,
+          patch: "@@ -1 +1 @@\n-old\n+new",
           severity: "blocking",
+          suggestion: "Commit before returning.",
           title: "Skipped commit",
         },
       ],
@@ -120,6 +122,8 @@ mock.module("../../lib/api", () => ({
   mergePR,
 }));
 
+// `mock.module` must run before the component module is evaluated, and static
+// imports hoist above it; this test intentionally exercises that boundary.
 const { PRDetail } = await import("./PRDetail");
 
 const initialUIState = useUIStore.getState();
@@ -150,130 +154,185 @@ afterAll(() => {
 
 async function renderDetail() {
   const result = renderWithQuery(<PRDetail repo="acme/web" number={42} />);
-  await screen.findByText("Add checkout flow");
+  await screen.findByRole("button", { name: /Context/ });
   return result;
 }
 
-describe("PRDetail briefing", () => {
-  test("opens on the briefing with context, changes and recent conversation", async () => {
+describe("PRDetail document", () => {
+  test("is one screen: bar, Context, strip, diff, and no repeated title", async () => {
     await renderDetail();
 
+    expect(screen.queryByText("Add checkout flow")).toBeNull();
     expect(screen.queryByRole("tablist")).toBeNull();
-    expect(screen.getByText("Checkout body copy.")).toBeDefined();
-    expect(screen.getByText("What changed")).toBeDefined();
-    expect(screen.getByText("Add the checkout line")).toBeDefined();
-    expect(screen.getAllByText("Please add tests.").length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: "All 1 entry" })).toBeDefined();
-    expect(screen.getByRole("button", { name: /Start review/ })).toBeDefined();
+    expect(
+      screen.getAllByText("acme/web", { exact: false }).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: /Context/ })).toBeDefined();
+    expect(screen.getByText("2 files")).toBeDefined();
+    expect(await screen.findByText("added line")).toBeDefined();
+    expect(screen.getByRole("button", { name: "Start review" })).toBeDefined();
   });
 
-  test("renders the risk section from a fresh review artifact", async () => {
+  test("Context starts collapsed, expands in place and closes first on Escape", async () => {
+    useUIStore.setState({ detailFullscreen: true });
+    await renderDetail();
+    const context = screen.getByRole("button", { name: /Context/ });
+    expect(context.getAttribute("aria-expanded")).toBe("false");
+
+    fireEvent.click(context);
+    expect(context.getAttribute("aria-expanded")).toBe("true");
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(context.getAttribute("aria-expanded")).toBe("false");
+    expect(useUIStore.getState().detailFullscreen).toBe(true);
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(useUIStore.getState().detailFullscreen).toBe(false);
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(useUIStore.getState().detailOpen).toBe(false);
+  });
+
+  test("a finding index row jumps into the diff", async () => {
     getConfig.mockImplementation(async () =>
       makeConfig({ actions: [reviewAction] }),
     );
     getAction.mockImplementation(async () => reviewArtifact);
     await renderDetail();
 
-    expect(await screen.findByText("Where the risk is")).toBeDefined();
-    expect(screen.getByText("src/app.ts")).toBeDefined();
-    expect(screen.getByText("Risk")).toBeDefined();
-
-    fireEvent.click(screen.getByText("src/app.ts"));
-
-    expect(await screen.findByLabelText("Diff place")).toBeDefined();
+    const index = await screen.findByText("src/app.ts:2");
+    expect(index).toBeDefined();
+    fireEvent.click(index);
     expect(await screen.findByText("added line")).toBeDefined();
   });
 
-  test("the briefing keeps its scroll position across a place", async () => {
-    await renderDetail();
-    const panel = document.querySelector<HTMLElement>(
-      '[data-panel="briefing"]',
-    );
-    if (!panel) throw new Error("briefing panel missing");
-    panel.scrollTop = 240;
-    fireEvent.scroll(panel);
-
-    fireEvent.click(screen.getByRole("button", { name: "Diff" }));
-    await screen.findByLabelText("Diff place");
-    fireEvent.click(screen.getByRole("button", { name: "Briefing" }));
-
-    expect(
-      document.querySelector<HTMLElement>('[data-panel="briefing"]')?.scrollTop,
-    ).toBe(240);
-  });
-});
-
-describe("PRDetail places", () => {
-  test("opens the conversation place and returns to the briefing", async () => {
-    await renderDetail();
-
-    fireEvent.click(screen.getByRole("button", { name: /Conversation/ }));
-    expect(screen.getByRole("heading", { name: "Conversation" })).toBeDefined();
-    expect(screen.getAllByText("Please add tests.").length).toBeGreaterThan(0);
-
-    fireEvent.click(screen.getByRole("button", { name: "Briefing" }));
-    expect(
-      screen.getByRole("heading", { name: "Add checkout flow" }),
-    ).toBeDefined();
-  });
-
-  test("the diff place shows the shipped diff", async () => {
-    await renderDetail();
-
-    fireEvent.click(screen.getByRole("button", { name: "Diff" }));
-
-    expect(screen.getByLabelText("Diff place")).toBeDefined();
-    expect(await screen.findByText("added line")).toBeDefined();
-    expect(getPRDiff).toHaveBeenCalledTimes(1);
-  });
-
-  test("Start review opens the Review place", async () => {
+  test("findings render as threads on their line as well as in the bar", async () => {
     getConfig.mockImplementation(async () =>
       makeConfig({ actions: [reviewAction] }),
     );
+    getAction.mockImplementation(async () => reviewArtifact);
     await renderDetail();
 
-    fireEvent.click(screen.getByRole("button", { name: /Start review/ }));
-
-    expect(screen.getByRole("heading", { name: "Review" })).toBeDefined();
-    expect(await screen.findByText("Review this pull request")).toBeDefined();
+    await waitFor(() =>
+      expect(
+        screen.getAllByText("Skipped commit").length,
+      ).toBeGreaterThanOrEqual(2),
+    );
+    expect(screen.getByText("The early return skips commit.")).toBeDefined();
+    expect(screen.getByRole("button", { name: "Apply patch" })).toBeDefined();
   });
 
-  test("Explain is a place with its empty state, absent when unconfigured", async () => {
+  test("a stale artifact says so and does not anchor findings", async () => {
+    getConfig.mockImplementation(async () =>
+      makeConfig({ actions: [reviewAction] }),
+    );
+    getAction.mockImplementation(async () => ({
+      artifact: {
+        ...reviewArtifact.artifact!,
+        sha: "0000000000000",
+      },
+    }));
     await renderDetail();
-    expect(screen.queryByRole("button", { name: "Explain" })).toBeNull();
 
+    expect(
+      await screen.findByText(/This review is from an older commit/),
+    ).toBeDefined();
+    expect(screen.queryByText("Skipped commit")).toBeNull();
+  });
+
+  test("review submission mounts at the top of the bar and Escape closes it first", async () => {
+    await renderDetail();
+    fireEvent.click(screen.getByRole("button", { name: "Manage" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Request changes/ }));
+
+    expect(screen.getByLabelText("Review comment")).toBeDefined();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByLabelText("Review comment")).toBeNull();
+    expect(useUIStore.getState().detailOpen).toBe(true);
+  });
+
+  test("unavailable review explains repoPaths and disables the action", async () => {
+    getConfig.mockImplementation(async () =>
+      makeConfig({
+        actions: [reviewAction],
+        repos: [
+          {
+            owner: "acme",
+            name: "web",
+            actions: true,
+            review: { available: false, reason: "No local clone." },
+          },
+        ],
+      }),
+    );
+    await renderDetail();
+
+    expect(
+      await screen.findByText(/Automatic review needs a local clone/),
+    ).toBeDefined();
+    expect(screen.getByText(/No local clone/)).toBeDefined();
+    const start = screen.getByRole("button", { name: "Start review" });
+    expect(start.hasAttribute("disabled")).toBe(true);
+  });
+
+  test("explain is in the bar when configured", async () => {
     getConfig.mockImplementation(async () =>
       makeConfig({ actions: [explainAction] }),
     );
     await renderDetail();
-    fireEvent.click(screen.getByRole("button", { name: "Explain" }));
 
-    expect(screen.getByRole("heading", { name: "Explain" })).toBeDefined();
     expect(
-      await screen.findByText("No explain artifact for this head"),
-    ).toBeDefined();
-    expect(
-      screen.getByRole("button", { name: "Explain this PR" }),
+      await screen.findByRole("button", { name: "Explain this PR" }),
     ).toBeDefined();
   });
+});
 
-  test("Escape returns a place to the briefing before fullscreen and close", async () => {
-    useUIStore.setState({ detailFullscreen: true });
-    await renderDetail();
-    fireEvent.click(screen.getByRole("button", { name: "Diff" }));
-    expect(screen.getByLabelText("Diff place")).toBeDefined();
+describe("PRDetail receipts and errors", () => {
+  test("a merged PR opens as its receipt and never loads a diff", async () => {
+    getPR.mockImplementation(async () => ({
+      pr: makePR({
+        state: "merged",
+        mergedAt: "2026-06-15T12:00:00Z",
+        mergedBy: "octocat",
+        mergeCommitSHA: "9f3c2abffee12",
+      }),
+    }));
+    renderWithQuery(<PRDetail repo="acme/web" number={42} />);
 
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(useUIStore.getState().detailFullscreen).toBe(true);
-    expect(screen.queryByLabelText("Diff place")).toBeNull();
+    expect(await screen.findByText(/Merged into/)).toBeDefined();
+    expect(screen.getByText("Merge commit")).toBeDefined();
+    expect(screen.queryByLabelText("Review bar")).toBeNull();
+    expect(getPRDiff).not.toHaveBeenCalled();
+  });
 
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(useUIStore.getState().detailFullscreen).toBe(false);
-    expect(useUIStore.getState().detailOpen).toBe(true);
+  test("a closed PR keeps the receipt but drops the merge rows", async () => {
+    getPR.mockImplementation(async () => ({
+      pr: makePR({ state: "closed", isDraft: false }),
+    }));
+    renderWithQuery(<PRDetail repo="acme/web" number={42} />);
 
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(useUIStore.getState().detailOpen).toBe(false);
+    expect(await screen.findByText("Closed without merging")).toBeDefined();
+    expect(screen.queryByText("Merge commit")).toBeNull();
+    expect(screen.queryByLabelText("Review bar")).toBeNull();
+  });
+
+  test("a failed PR load offers a retry", async () => {
+    getPR.mockImplementation(async () => {
+      throw new Error("GitHub is unavailable");
+    });
+    renderWithQuery(<PRDetail repo="acme/web" number={42} />);
+
+    expect(
+      await screen.findByText("Can’t load this pull request"),
+    ).toBeDefined();
+    expect(screen.getByText("GitHub is unavailable")).toBeDefined();
+
+    getPR.mockImplementation(async () => ({ pr }));
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Context/ })).toBeDefined(),
+    );
   });
 
   test("never caches a diff under a head it does not describe", async () => {
@@ -292,7 +351,7 @@ describe("PRDetail places", () => {
     const { client } = renderWithQuery(
       <PRDetail repo="acme/web" number={42} />,
     );
-    await screen.findByText("Add checkout flow");
+    await screen.findByRole("button", { name: /Context/ });
 
     await waitFor(() =>
       expect(
@@ -339,8 +398,7 @@ describe("PRDetail Manage", () => {
 
     await waitFor(() => expect(mergePR).toHaveBeenCalled());
     expect(await screen.findByText(/Merged into/)).toBeDefined();
-    expect(screen.queryByRole("tablist")).toBeNull();
-    expect(screen.queryByRole("button", { name: /Start review/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Start review" })).toBeNull();
     expect(screen.getByText("9f3c2ab")).toBeDefined();
     expect(useUIStore.getState().selectedPR).toBe("acme/web#42");
     expect(useUIStore.getState().detailOpen).toBe(true);
@@ -385,57 +443,5 @@ describe("PRDetail Manage", () => {
     // Nothing hidden is left consuming Escape; it closes the detail.
     fireEvent.keyDown(window, { key: "Escape" });
     expect(useUIStore.getState().detailOpen).toBe(false);
-  });
-});
-
-describe("PRDetail receipts and errors", () => {
-  test("a merged PR opens as its receipt, not the briefing", async () => {
-    getPR.mockImplementation(async () => ({
-      pr: makePR({
-        state: "merged",
-        mergedAt: "2026-06-15T12:00:00Z",
-        mergedBy: "octocat",
-        mergeCommitSHA: "9f3c2abffee12",
-      }),
-    }));
-    await renderDetail();
-
-    expect(screen.queryByRole("tablist")).toBeNull();
-    expect(screen.queryByLabelText("Pull request context")).toBeNull();
-    expect(screen.queryByRole("button", { name: /Start review/ })).toBeNull();
-    expect(screen.getByText(/Merged into/)).toBeDefined();
-    expect(screen.getByText("Merge commit")).toBeDefined();
-    expect(getPRDiff).not.toHaveBeenCalled();
-  });
-
-  test("a closed PR keeps the receipt but drops the merge rows", async () => {
-    getPR.mockImplementation(async () => ({
-      pr: makePR({ state: "closed", isDraft: false }),
-    }));
-    await renderDetail();
-
-    expect(screen.getByText("Closed without merging")).toBeDefined();
-    expect(screen.queryByText("Merge commit")).toBeNull();
-    expect(screen.queryByText("Merged")).toBeNull();
-    expect(screen.queryByRole("tablist")).toBeNull();
-  });
-
-  test("a failed PR load offers a retry", async () => {
-    getPR.mockImplementation(async () => {
-      throw new Error("GitHub is unavailable");
-    });
-    renderWithQuery(<PRDetail repo="acme/web" number={42} />);
-
-    expect(
-      await screen.findByText("Can’t load this pull request"),
-    ).toBeDefined();
-    expect(screen.getByText("GitHub is unavailable")).toBeDefined();
-
-    getPR.mockImplementation(async () => ({ pr }));
-    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
-
-    await waitFor(() =>
-      expect(screen.getByText("Add checkout flow")).toBeDefined(),
-    );
   });
 });

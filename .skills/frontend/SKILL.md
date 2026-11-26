@@ -43,7 +43,7 @@ stay side by side; reviewing is the only flow that matters.
 - **Spacing: 4 / 8 / 12 / 16 / 24 / 32 only.** No `py-1.5`, `py-2.5`, `gap-3.5`,
   `px-5`. Chrome heights: one 44 top band (rail, repo panel, list toolbar,
   detail bar), 52 list row. Widths: 48 rail,
-  208 repo panel, 340 PR list, 272 context rail.
+  208 repo panel, 340 PR list, 300 review bar (at `wide`).
 - **Radii:** `rounded-sm` controls (4px), `rounded-md` dialog (6px). Both are
   declared in px in `@theme` so ESLint maps a `rounded-[4px]` back to the token.
   One focus ring (`accent` at 45%) from
@@ -68,28 +68,36 @@ stay side by side; reviewing is the only flow that matters.
   icon, 16px title, 13px description, optional mono footnote, action and key
   hints. Panes never hand-roll their own empty markup.
 - **Review:** the verdict is the headline (`text-lead`, accent or danger),
-  followed by a proportional severity strip; every finding card carries a 2px
-  severity rail.
-- **PR detail:** open PRs are one briefing document, not tabs. 44px detail bar
-  (`repo#number`, branch, fullscreen, GitHub) → scrolling briefing → persistent
-  52px footer. The briefing order is header, Why, Context (the PR body), Where
-  the risk is, What changed, recent conversation; each section hides without
-  data. The footer holds the one lit action (`Start review`, which opens the
-  Review place), Diff / Conversation / Explain place links with
-  `aria-current`, and Manage (approve, request changes, draft, close, merge).
-  Conversation, Diff, Review and Explain are places with a Briefing back
-  control; no tab strip, no context rail. Conversation is chronological
+  followed by a proportional severity strip. The bar lists one index row per
+  finding (`path:line`, 2px severity rail, title); clicking it jumps to the
+  diff. Every finding renders as a thread under its diff line with the same
+  2px rail, and only offers Apply patch (publishing is out of scope).
+- **PR detail:** open PRs are one screen, not places or tabs. 44px detail bar
+  (`repo#number`, branch, fullscreen, Manage, GitHub; a review-bar toggle below
+  `wide`) → a collapsed 40px Context row (PR body, expands in place) → the 44px
+  diff strip → one scrolling diff. A fixed 300px review bar holds the review
+  state badge, verdict, counts and finding index, then conversation and
+  explanation, with one primary action in its footer (`Start review` /
+  `Re-run review`, `Cancel` while running). The bar is 300px at `wide`
+  (1400px) and hidden below it unless toggled (`reviewBarOpen`). No PR title,
+  author, branch, review state twice, briefing or footer links. The review form
+  mounts at the top of the bar when open. Escape precedence: confirmation →
+  review form → Context → fullscreen → close. Conversation is chronological
   ascending and does not repeat the PR body. Merged/closed PRs keep the
   `PRSummary` receipt.
-- **Diffs:** per file, collapsible, full width, 208px file rail, draggable
-  between 168 and 440px (double-click resets). Semantic diff
-  via `sem` when available; fall back to a plain unified diff. Never fail a
-  review flow because `sem` is absent. Semantic changes live in a 40px map on
-  the right edge of the diff pane (toolbar toggle) plus a per-hunk chip that
-  opens the entity rows on demand; never as always-on rows above the code.
-  Code is syntax-highlighted by the Go sidecar (Chroma): colored, but only
-  desaturated `syn-*` tokens from `index.css`, never raw hues in components.
-  Chrome stays hue-free.
+- **Diffs:** one scroll, no file rail. Every file is a sticky 44px header (path,
+  +/−), collapsible, with `j`/`k` moving between headers and opening the landed
+  file. The 44px strip owns the PR-level facts (files, +/−, commits, checks,
+  head SHA) and three controls: inline-comment toggle, cosmetic-only toggle,
+  and the `Files` popover. The popover holds search, file-kind filters, sort,
+  low-focus, one-at-a-time focus, walkthrough steps and the semantic map
+  toggle; the map is off by default. Semantic diff via `sem` when available;
+  fall back to a plain unified diff. Never fail a review flow because `sem` is
+  absent. Semantic changes stay as a per-hunk chip that opens the entity rows
+  on demand; never as always-on rows above the code. Code is
+  syntax-highlighted by the Go sidecar (Chroma): colored, but only desaturated
+  `syn-*` tokens from `index.css`, never raw hues in components. Chrome stays
+  hue-free.
 - **Icons:** `lucide-react`, 14–16px. Reuse `Button`, `IconButton`, `MicroLabel`,
   `Kbd` from `src/components/ui.tsx`; do not paste new button class strings.
 - **Components:** no styling frameworks, no shadcn/Radix, no CSS-in-JS, no CSS

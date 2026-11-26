@@ -1,9 +1,14 @@
-import { ArrowLeft, ExternalLink, Maximize2, Minimize2 } from "lucide-react";
-import { StatusIcon } from "../../../components/StatusBadge";
+import {
+  ArrowLeft,
+  ExternalLink,
+  Maximize2,
+  Minimize2,
+  PanelRight,
+} from "lucide-react";
+import type { ReactNode } from "react";
 import { IconButton } from "../../../components/ui";
 import { cx } from "../../../lib/cx";
 import { openExternal } from "../../../lib/open";
-import type { CheckState, ReviewState } from "../../../lib/types";
 
 type PRDetailBarProps = {
   repo: string;
@@ -11,42 +16,41 @@ type PRDetailBarProps = {
   fullscreen: boolean;
   onClose: () => void;
   onToggleFullscreen: () => void;
+  /** Below the wide breakpoint the bar is toggled from this control. */
+  barOpen: boolean;
+  onToggleBar: () => void;
   /** Branch identity; present once the pull request has loaded. */
   branch?: string;
-  /** Target branch, shown after an arrow like the briefing mock. */
+  /** Target branch, shown after an arrow. */
   baseBranch?: string;
-  /** Review state, surfaced in the bar like the mock. */
-  reviewState?: ReviewState;
-  /** Check state, the fallback bar status when no review blocks the PR. */
-  checkStatus?: CheckState;
   /** GitHub link target; absent while the pull request is loading. */
   url?: string;
+  /** Manage menu; present once the PR and its controllers are loaded. */
+  manage?: ReactNode;
 };
 
+/**
+ * The one identity bar: repository, number, branch and the pane controls.
+ * Review state belongs to the review bar, so it is not printed here.
+ */
 export function PRDetailBar({
   repo,
   number,
   fullscreen,
   onClose,
   onToggleFullscreen,
+  barOpen,
+  onToggleBar,
   branch,
   baseBranch,
-  reviewState,
-  checkStatus,
   url,
+  manage,
 }: PRDetailBarProps) {
-  const blocked =
-    reviewState === "changes_requested" ? (
-      <StatusIcon kind="review" state="changes_requested" withLabel />
-    ) : checkStatus === "failure" || checkStatus === "error" ? (
-      <StatusIcon kind="check" state={checkStatus} withLabel />
-    ) : null;
-
   return (
     <div
       data-tauri-drag-region
       className={cx(
-        "flex h-11 shrink-0 items-center gap-2 border-b border-line pr-1 pl-2",
+        "flex h-11 shrink-0 items-center gap-2 border-b border-line px-2",
         fullscreen && "bg-canvas",
       )}
     >
@@ -64,13 +68,26 @@ export function PRDetailBar({
         <span className="text-fg-muted">{number}</span>
       </span>
       {branch ? (
-        <span className="hidden min-w-0 truncate font-mono text-meta text-fg-faint min-[1280px]:inline">
-          {branch}
-          {baseBranch ? ` → ${baseBranch}` : null}
-        </span>
+        <>
+          <span
+            aria-hidden="true"
+            className="size-0.5 shrink-0 rounded-full bg-line-strong"
+          />
+          <span className="hidden min-w-0 truncate font-mono text-meta text-fg-faint min-[1280px]:inline">
+            {branch}
+            {baseBranch ? ` → ${baseBranch}` : null}
+          </span>
+        </>
       ) : null}
       <div className="ml-auto flex shrink-0 items-center gap-1">
-        {blocked ? <span className="mr-0.5">{blocked}</span> : null}
+        <IconButton
+          label={barOpen ? "Hide review bar" : "Show review bar"}
+          active={barOpen}
+          onClick={onToggleBar}
+          className="wide:hidden"
+        >
+          <PanelRight className="size-4" aria-hidden />
+        </IconButton>
         <IconButton
           label={
             fullscreen
@@ -86,16 +103,14 @@ export function PRDetailBar({
             <Maximize2 className="size-4" aria-hidden />
           )}
         </IconButton>
+        {manage}
         {url ? (
-          <button
-            type="button"
+          <IconButton
+            label="Open on GitHub"
             onClick={() => void openExternal(url)}
-            title="Open on GitHub"
-            aria-label="Open on GitHub"
-            className="flex size-7 shrink-0 items-center justify-center rounded-sm text-fg-faint transition-colors hover:bg-surface hover:text-fg"
           >
             <ExternalLink className="size-4" aria-hidden />
-          </button>
+          </IconButton>
         ) : null}
       </div>
     </div>

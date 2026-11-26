@@ -9,9 +9,15 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cx } from "../../../lib/cx";
-import { usePRDetail } from "./PRDetailContext";
-import { canManagePR, mergeBlocker, type MergeBlocker } from "./usePRMutations";
-import { canApprove, canReview } from "./useReview";
+import { useUIStore } from "../../../stores/ui";
+import type { PR } from "../../../lib/types";
+import {
+  canManagePR,
+  mergeBlocker,
+  type MergeBlocker,
+  type PRMutationController,
+} from "./usePRMutations";
+import { canApprove, canReview, type ReviewController } from "./useReview";
 
 const BLOCKER_NOTE: Record<Exclude<MergeBlocker, null>, string> = {
   disabled: "Squash merge is disabled for this repository.",
@@ -26,9 +32,17 @@ const BLOCKER_NOTE: Record<Exclude<MergeBlocker, null>, string> = {
  * click and Escape close it, Escape is handled in capture so it never reaches
  * the pane's own precedence chain.
  */
-export function ManageMenu() {
-  const { pr, review, mutations } = usePRDetail();
+export function ManageMenu({
+  pr,
+  review,
+  mutations,
+}: {
+  pr: PR;
+  review: ReviewController;
+  mutations: PRMutationController;
+}) {
   const [open, setOpen] = useState(false);
+  const setReviewBarOpen = useUIStore((state) => state.setReviewBarOpen);
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -97,6 +111,9 @@ export function ManageMenu() {
                 icon={<MessageSquare className="size-3.5" />}
                 disabled={review.pending}
                 onClick={() => {
+                  // Below the wide breakpoint the form lives in a hidden bar;
+                  // opening it must also reveal the bar.
+                  setReviewBarOpen(true);
                   review.openPanel();
                   close();
                 }}

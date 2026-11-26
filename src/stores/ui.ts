@@ -12,18 +12,17 @@ export type PRFilterSection = "review" | "checks" | "authors" | "repos";
 /** Sidebar ordering for the diff file list. */
 export type DiffSort = "priority" | "path";
 
-/** The diff rail either lists files or walks the deterministic review path. */
+/** The diff lists files or walks the deterministic review path. */
 export type DiffMode = "files" | "path";
 
-/** An open PR is a briefing document; deeper surfaces are places. */
-export type DetailView =
-  "briefing" | "conversation" | "diff" | "review" | "explain";
-
+/**
+ * A hero action that must land the open PR on the diff. "diff" only reveals
+ * the document; a path/line also focuses that hunk.
+ */
 export type DetailIntent = {
   prKey: string;
-  view: DetailView;
-  /** Diff target for risk/phase jumps; a token re-triggers the same jump. */
-  diffTarget?: { path: string; line?: number };
+  target?: "diff" | { path: string; line?: number };
+  /** Re-triggers the same jump for two findings on one line. */
   token: number;
 };
 
@@ -70,11 +69,13 @@ type UIState = {
   hideLowPriority: boolean;
   /** Whether the diff shows the semantic change map on its right edge. */
   showSemanticRail: boolean;
-  /** Width in px of the diff file rail, session-only. */
-  diffRailWidth: number;
+  /** Whether inline comment threads render in the diff. */
+  showDiffComments: boolean;
+  /** Whether the 300px review bar is toggled open below the wide breakpoint. */
+  reviewBarOpen: boolean;
   /** PR list facets and search, session-wide. */
   prFilters: PRFilters;
-  /** Hero/row actions that must open a specific detail place. */
+  /** Hero actions that must land the document on a diff target. */
   detailIntent: DetailIntent | null;
   selectRepo: (repo: string | null) => void;
   setActiveTab: (tabID: string) => void;
@@ -90,7 +91,9 @@ type UIState = {
   setDiffMode: (mode: DiffMode) => void;
   toggleLowPriority: () => void;
   toggleSemanticRail: () => void;
-  setDiffRailWidth: (width: number) => void;
+  toggleDiffComments: () => void;
+  setReviewBarOpen: (open: boolean) => void;
+  toggleReviewBar: () => void;
   setFilterQuery: (query: string) => void;
   toggleFilterFacet: (section: PRFilterSection, value: string) => void;
   setFilterFacet: (section: PRFilterSection, values: string[]) => void;
@@ -115,8 +118,9 @@ export const useUIStore = create<UIState>((set) => ({
   diffSort: "priority",
   diffMode: "files",
   hideLowPriority: false,
-  showSemanticRail: true,
-  diffRailWidth: 208,
+  showSemanticRail: false,
+  showDiffComments: true,
+  reviewBarOpen: false,
   prFilters: EMPTY_PR_FILTERS,
   detailIntent: null,
   selectRepo: (repo) =>
@@ -167,7 +171,11 @@ export const useUIStore = create<UIState>((set) => ({
     set((state) => ({ hideLowPriority: !state.hideLowPriority })),
   toggleSemanticRail: () =>
     set((state) => ({ showSemanticRail: !state.showSemanticRail })),
-  setDiffRailWidth: (width) => set({ diffRailWidth: width }),
+  toggleDiffComments: () =>
+    set((state) => ({ showDiffComments: !state.showDiffComments })),
+  setReviewBarOpen: (open) => set({ reviewBarOpen: open }),
+  toggleReviewBar: () =>
+    set((state) => ({ reviewBarOpen: !state.reviewBarOpen })),
   setFilterQuery: (query) =>
     set((state) => ({ prFilters: { ...state.prFilters, query } })),
   toggleFilterFacet: (section, value) =>

@@ -28,6 +28,10 @@ type UseDiffNavigationOptions = {
   firstVisibleKey: string | null;
   /** False in the grouped path view: there a step opens as a unit. */
   focusModeApplies: boolean;
+  /** The strip/popover owns this; the hook only honours it. */
+  focusMode: boolean;
+  /** Open the Files popover so `/` can focus its search input. */
+  openFilter: () => void;
   /** Present in the grouped path view: `j`/`k` move between steps, not files. */
   stepNavigation?: {
     ids: string[];
@@ -50,11 +54,12 @@ export function useDiffNavigation({
   visibleSignature,
   firstVisibleKey,
   focusModeApplies,
+  focusMode,
+  openFilter,
   stepNavigation,
   focusTarget,
 }: UseDiffNavigationOptions) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [focusMode, setFocusMode] = useState(true);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [jump, setJump] = useState<Jump | null>(null);
   const [flash, setFlash] = useState<Flash | null>(null);
@@ -88,6 +93,21 @@ export function useDiffNavigation({
     stepNavigationRef.current = stepNavigation;
     expandedRef.current = expanded;
   });
+
+  // Focus mode is a policy, not a per-file choice: turning it on keeps one
+  // file open, turning it off opens every visible file. Guarded by a ref so a
+  // visible-list change does not re-apply the mode.
+  const previousFocusMode = useRef(focusMode);
+  useEffect(() => {
+    if (previousFocusMode.current === focusMode) return;
+    previousFocusMode.current = focusMode;
+    if (focusMode) {
+      const keep = activeKeyRef.current ?? firstVisibleKey;
+      setExpanded(keep ? new Set([keep]) : new Set());
+    } else {
+      setExpanded(new Set(visibleRef.current.map(({ key }) => key)));
+    }
+  }, [focusMode, firstVisibleKey]);
 
   // Open the first file so the diff is visible without a click, but leave the
   // rest collapsed for large pull requests.
@@ -199,6 +219,7 @@ export function useDiffNavigation({
 
       if (event.key === "/") {
         event.preventDefault();
+        openFilter();
         filterInputRef.current?.focus();
         filterInputRef.current?.select();
         return;
@@ -236,7 +257,7 @@ export function useDiffNavigation({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [openFilter]);
 
   // Stable so a memoized file section never re-renders because the parent
   // render handed it a fresh closure. They read mutable state through refs.
@@ -297,19 +318,6 @@ export function useDiffNavigation({
     // instead of letting the scroll handler reassign it.
     programmaticScroll.current = true;
   }, []);
-
-  const toggleFocusMode = useCallback(() => {
-    const next = !focusMode;
-    setFocusMode(next);
-    if (next) {
-      const keep = activeKey ?? firstVisibleKey;
-      setExpanded(keep ? new Set([keep]) : new Set());
-    } else {
-      // Leaving focus mode opens every visible file. The user collapses the
-      // ones they do not want to read.
-      setExpanded(new Set(visible.map(({ key }) => key)));
-    }
-  }, [focusMode, activeKey, firstVisibleKey, visible]);
 
   /** Path steps open as a unit; collapse remains available per file. */
   const expandFiles = useCallback((keys: string[]) => {
@@ -386,7 +394,6 @@ export function useDiffNavigation({
   return {
     activeKey,
     expanded,
-    focusMode,
     flash,
     paneRef,
     filterInputRef,
@@ -394,7 +401,6 @@ export function useDiffNavigation({
     selectFile,
     selectHunk,
     toggleFile,
-    toggleFocusMode,
     expandFiles,
     handleScroll,
     releaseScrollLock,

@@ -169,11 +169,7 @@ export function App() {
             )}
           >
             {prSelection ? (
-              <PRDetail
-                repo={prSelection.repo}
-                number={prSelection.number}
-                tabID={activeTab.id}
-              />
+              <PRDetail repo={prSelection.repo} number={prSelection.number} />
             ) : (
               <DetailPlaceholder />
             )}

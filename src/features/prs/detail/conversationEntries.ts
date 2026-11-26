@@ -11,42 +11,23 @@ export type ConversationEntry = {
   line?: number;
 };
 
-type Verdict = {
-  action: string;
-  node: string;
-};
-
-export function verdictFor(state: string): Verdict {
+export function verdictFor(state: string): string {
   switch (state) {
     case "approved":
-      return {
-        action: "approved these changes",
-        node: "border-accent bg-accent",
-      };
+      return "approved these changes";
     case "changes_requested":
-      return {
-        action: "requested changes",
-        node: "border-danger bg-danger",
-      };
+      return "requested changes";
     case "dismissed":
-      return {
-        action: "review dismissed",
-        node: "border-line-strong bg-canvas",
-      };
+      return "review dismissed";
     default:
-      return { action: "reviewed", node: "border-line-strong bg-canvas" };
+      return "reviewed";
   }
 }
 
 export function actionFor(entry: ConversationEntry): string {
-  if (entry.kind === "verdict") return verdictFor(entry.state ?? "").action;
+  if (entry.kind === "verdict") return verdictFor(entry.state ?? "");
   if (entry.kind === "review") return "left a review comment";
   return "commented";
-}
-
-export function entryNodeClass(entry: ConversationEntry): string {
-  if (entry.kind === "verdict") return verdictFor(entry.state ?? "").node;
-  return "border-line-strong bg-canvas";
 }
 
 /**

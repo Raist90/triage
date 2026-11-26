@@ -116,13 +116,9 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
 
   function pickPR(pr: PR) {
     selectPR(prKey(pr));
-    // A row click always lands on the briefing, even when the same PR is
-    // already open in a place.
-    setDetailIntent({
-      prKey: prKey(pr),
-      view: "briefing",
-      token: Date.now(),
-    });
+    // A row click opens the document with Context collapsed. Clearing any open
+    // Context from the same PR is the remount's job.
+    setDetailIntent({ prKey: prKey(pr), token: Date.now() });
     // The list row carries the fresh head; a cached detail from an older
     // commit is re-read instead of being shown as current.
     void syncPRHead(queryClient, pr).catch(() => {});
@@ -130,7 +126,7 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
 
   function openDiff(pr: PR) {
     selectPR(prKey(pr));
-    setDetailIntent({ prKey: prKey(pr), view: "diff", token: Date.now() });
+    setDetailIntent({ prKey: prKey(pr), target: "diff", token: Date.now() });
     void syncPRHead(queryClient, pr).catch(() => {});
   }
 
