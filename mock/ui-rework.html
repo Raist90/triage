@@ -313,7 +313,8 @@ ul,ol{padding:0;list-style:none}
 .deck-row .age{font-family:"Geist Mono",monospace;font-size:10px;line-height:14px;color:var(--fg-faint)}
 
 /* ---------------------------------------------------------------------------
-   Detail — one PR screen: briefing + diff on the left, the rest on the right
+   Detail — one PR screen: identity bar, Context and diff on the left, the rest
+   on the right. No repeated title, no second state badge.
    --------------------------------------------------------------------------- */
 .detail{border-left:1px solid var(--line);display:flex;flex-direction:column;min-width:0}
 .detail-bar .back{display:flex;align-items:center;gap:8px;color:var(--fg-muted);height:var(--control);padding:0 8px;border-radius:4px;font-size:12px;line-height:16px}
@@ -326,22 +327,14 @@ ul,ol{padding:0;list-style:none}
 .detail-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 300px}
 .doc-main{display:flex;flex-direction:column;min-width:0;min-height:0}
 
-/* Briefing: four lines, no separate status or facts block. */
-.pr-head{flex:none;display:flex;flex-direction:column;gap:var(--s2);padding:var(--s4) var(--gutter-doc) var(--s3)}
-.kicker{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-family:"Geist Mono",monospace;font-size:10px;line-height:14px;color:var(--fg-faint)}
-.kicker .state{font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--danger)}
+/* No briefing block. Title, author and why-you belong to the list row; review
+   state to the right bar; commits, checks and head SHA to the strip. */
 .dot{width:2px;height:2px;border-radius:999px;background:var(--line-strong);flex:none}
-.brief-title{font-size:20px;line-height:26px;font-weight:500;letter-spacing:-.01em;color:var(--fg);max-width:38ch;text-wrap:balance}
-.brief-meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:12px;line-height:16px;color:var(--fg-faint)}
-.brief-meta .who{color:var(--fg-body)}
-.brief-meta .mono{color:var(--fg-faint)}
-.brief-meta .s{display:inline-flex;align-items:center;gap:4px;color:var(--fg-muted)}
-.brief-meta .s.danger{color:var(--danger)}
 
 /* Context: one collapsed row by default; expanding is the only growth. */
 .ctx{
   flex:none;height:40px;width:100%;display:flex;align-items:center;gap:8px;
-  padding:0 var(--gutter-doc);border-top:1px solid var(--line);text-align:left;min-width:0;
+  padding:0 var(--gutter-doc);text-align:left;min-width:0;
   transition:background-color .12s;
 }
 .ctx:hover{background:color-mix(in oklab,var(--surface) 55%,transparent)}
@@ -351,7 +344,7 @@ ul,ol{padding:0;list-style:none}
 .ctx .label{flex:none;font-size:12px;line-height:16px;font-weight:500;color:var(--fg-body)}
 .ctx .excerpt{flex:1;min-width:0;font-size:12px;line-height:16px;color:var(--fg-faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ctx .tail{flex:none;font-family:"Geist Mono",monospace;font-size:10px;line-height:14px;color:var(--fg-faint)}
-.ctx-body{padding:0 var(--gutter-doc) var(--s4);max-width:72ch;border-bottom:1px solid var(--line)}
+.ctx-body{padding:0 var(--gutter-doc) var(--s4);max-width:72ch}
 .prose{font-size:13px;line-height:20px;color:var(--fg-body)}
 .prose + .prose{margin-top:8px}
 .prose code{
@@ -359,13 +352,15 @@ ul,ol{padding:0;list-style:none}
   background:var(--surface);border:1px solid var(--line);color:var(--fg-body);
 }
 
-/* Diff strip: the only toolbar between briefing and code. */
+/* Diff strip: the only toolbar between Context and code, and the owner of the
+   PR-level facts the pane is allowed to print. */
 .diff-strip{
   height:var(--band);flex:none;display:flex;align-items:center;gap:8px;
   padding:0 var(--gutter-doc);border-block:1px solid var(--line);
   background:color-mix(in oklab,var(--surface) 50%,var(--canvas));min-width:0;
 }
 .diff-strip .totals{font-size:10px;line-height:14px;color:var(--fg-muted);white-space:nowrap}
+.diff-strip .fact{display:inline-flex;align-items:center;gap:4px}
 .diff-strip .right{margin-left:auto;display:flex;align-items:center;gap:4px}
 
 .diff-doc{
@@ -442,6 +437,8 @@ ul,ol{padding:0;list-style:none}
 .bar-sec + .bar-sec{border-top:1px solid var(--line)}
 .sec-head{display:flex;align-items:baseline;gap:8px;margin-bottom:8px;min-width:0}
 .sec-head .tail{margin-left:auto;font-family:"Geist Mono",monospace;font-size:10px;line-height:14px;color:var(--fg-faint);white-space:nowrap}
+.review-state{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-bottom:8px;min-width:0}
+.review-state .tag{flex:none}
 
 .verdict-line{font-size:13px;line-height:18px;font-weight:500;color:var(--fg-body);margin-bottom:8px}
 .verdict-line.danger{color:var(--danger)}
@@ -556,13 +553,14 @@ ul,ol{padding:0;list-style:none}
       <div class="story-num">01</div>
       <div>
         <h2 class="story-title">Cockpit — the PR screen is the PR</h2>
-        <p class="story-thesis">The detail pane stops being a document with three sibling views. It is one PR screen: a three-line briefing, a Context row that stays collapsed until you ask, then the diff itself. The old Diff / Conversation / Explain tabs, their place headers and their footer are gone. What used to be behind those tabs sits in a 300px bar that never moves: review state, conversation, explanation. The Start review action renders findings as comment threads on the lines they belong to, so there is no second document to visit and no clicking to gather context.</p>
+        <p class="story-thesis">The detail pane stops being a document with three sibling views. It is one PR screen: the identity bar, a Context row that stays collapsed until you ask, then the diff itself. Every fact has one owner: the list row carries title, author and why-you; the identity bar carries repo, number and branch; the 300px bar carries review state, conversation and explanation; the strip carries files, commits, checks and head. The old Diff / Conversation / Explain tabs, their place headers and their footer are gone, and the detail pane repeats none of it. The Start review action renders findings as comment threads on the lines they belong to, so there is no second document to visit and no clicking to gather context.</p>
       </div>
       <ul class="story-moves">
         <li><span class="k">0</span><span><b>No places.</b> No tabs, no per-place header, no place footer. One detail bar, one screen.</span></li>
-        <li><span class="k">300</span><span><b>One right bar.</b> Review, conversation and explanation. Fixed, never a destination.</span></li>
+        <li><span class="k">0</span><span><b>No repeats.</b> No PR title in the pane, no second author line, no duplicated review state.</span></li>
+        <li><span class="k">300</span><span><b>One right bar.</b> Review state opens it; conversation and explanation follow. Fixed, never a destination.</span></li>
         <li><span class="k">40</span><span><b>Context is a row.</b> Collapsed by default; one line of preview, expand in place.</span></li>
-        <li><span class="k">44</span><span><b>One diff strip.</b> Totals, head SHA and view toggles replace the second toolbar.</span></li>
+        <li><span class="k">44</span><span><b>One strip.</b> Files, totals, commits, checks, head SHA and view toggles replace the second toolbar.</span></li>
       </ul>
     </div>
 
@@ -729,7 +727,6 @@ ul,ol{padding:0;list-style:none}
           <span class="dot"></span>
           <span class="branch">maya/sidecar-port → main</span>
           <div class="right">
-            <span class="tag is-danger" style="margin-right:4px">changes requested</span>
             <button class="btn btn-ghost">Manage<svg class="i-sm"><use href="#i-chevron-down"/></svg></button>
             <button class="icon-btn" title="Open on GitHub"><svg class="i"><use href="#i-external"/></svg></button>
           </div>
@@ -737,27 +734,6 @@ ul,ol{padding:0;list-style:none}
 
         <div class="detail-body">
           <div class="doc-main">
-            <header class="pr-head">
-              <div class="kicker">
-                <span class="state">Needs you</span>
-                <span>maya chen requested changes</span>
-                <span class="dot"></span>
-                <span>2h ago</span>
-              </div>
-              <h1 class="brief-title">Handshake: tolerate a bound port and print the real one</h1>
-              <div class="brief-meta">
-                <span class="who">maya chen</span>
-                <span class="dot"></span>
-                <span class="mono">maya/sidecar-port → main</span>
-                <span class="dot"></span>
-                <span class="mono">4 commits</span>
-                <span class="dot"></span>
-                <span class="s"><svg class="i-xs" style="color:var(--fg-faint)"><use href="#i-check"/></svg>Checks passing</span>
-                <span class="dot"></span>
-                <span class="s danger"><svg class="i-xs"><use href="#i-alert"/></svg>Changes requested</span>
-              </div>
-            </header>
-
             <button class="ctx" aria-expanded="false">
               <svg class="i-sm chev"><use href="#i-chevron-down"/></svg>
               <span class="label">Context</span>
@@ -769,6 +745,10 @@ ul,ol{padding:0;list-style:none}
               <span class="mono totals">6 files</span>
               <span class="dot"></span>
               <span class="mono totals"><span class="accent">+128</span> <span class="danger">−41</span></span>
+              <span class="dot"></span>
+              <span class="mono totals">4 commits</span>
+              <span class="dot"></span>
+              <span class="mono totals fact"><svg class="i-xs" style="color:var(--fg-faint)"><use href="#i-check"/></svg>checks passing</span>
               <span class="dot"></span>
               <span class="mono totals faint">9c1f2ab</span>
               <div class="right">
@@ -840,7 +820,9 @@ ul,ol{padding:0;list-style:none}
               <section class="bar-sec">
                 <div class="sec-head">
                   <span class="micro">Review</span>
-                  <span class="tail">not run</span>
+                </div>
+                <div class="review-state">
+                  <span class="tag is-danger">Changes requested</span>
                 </div>
                 <p class="bar-note">No automatic review on <span class="mono">9c1f2ab</span> yet. Start review to anchor findings as comments on the diff — here and on the lines they belong to.</p>
               </section>
@@ -900,7 +882,7 @@ ul,ol{padding:0;list-style:none}
       <div class="story-num">02</div>
       <div>
         <h2 class="story-title">Review — findings land where they are true</h2>
-        <p class="story-thesis">Start review no longer opens a second document. Each finding renders as a comment thread under the line it anchors to: severity on the 2px rail, the patch action in place, the reply box where the comment is. The bar keeps a six-row index so the shape of the review is visible without scrolling the diff, and Context is shown expanded here only to prove it grows in place — the shipped default is the collapsed row in artboard 01. The fullscreen control is out of scope for this pass and is absent from both screens.</p>
+        <p class="story-thesis">Start review no longer opens a second document. Each finding renders as a comment thread under the line it anchors to: severity on the 2px rail, the patch action in place, the reply box where the comment is. The bar opens with the PR's review state, then keeps a six-row index so the shape of the review is visible without scrolling the diff; Context is shown expanded here only to prove it grows in place — the shipped default is the collapsed row in artboard 01. The fullscreen control is out of scope for this pass and is absent from both screens.</p>
       </div>
       <ul class="story-moves">
         <li><span class="k">88</span><span><b>Thread gutter.</b> The two line-number columns, so a comment sits exactly on its line.</span></li>
@@ -1040,7 +1022,6 @@ ul,ol{padding:0;list-style:none}
           <span class="dot"></span>
           <span class="branch">maya/sidecar-port → main</span>
           <div class="right">
-            <span class="tag is-danger" style="margin-right:4px">changes requested</span>
             <button class="btn btn-ghost">Manage<svg class="i-sm"><use href="#i-chevron-down"/></svg></button>
             <button class="icon-btn" title="Open on GitHub"><svg class="i"><use href="#i-external"/></svg></button>
           </div>
@@ -1048,27 +1029,6 @@ ul,ol{padding:0;list-style:none}
 
         <div class="detail-body">
           <div class="doc-main">
-            <header class="pr-head">
-              <div class="kicker">
-                <span class="state">Needs you</span>
-                <span>maya chen requested changes</span>
-                <span class="dot"></span>
-                <span>2h ago</span>
-              </div>
-              <h1 class="brief-title">Handshake: tolerate a bound port and print the real one</h1>
-              <div class="brief-meta">
-                <span class="who">maya chen</span>
-                <span class="dot"></span>
-                <span class="mono">maya/sidecar-port → main</span>
-                <span class="dot"></span>
-                <span class="mono">4 commits</span>
-                <span class="dot"></span>
-                <span class="s"><svg class="i-xs" style="color:var(--fg-faint)"><use href="#i-check"/></svg>Checks passing</span>
-                <span class="dot"></span>
-                <span class="s danger"><svg class="i-xs"><use href="#i-alert"/></svg>Changes requested</span>
-              </div>
-            </header>
-
             <button class="ctx is-open" aria-expanded="true">
               <svg class="i-sm chev"><use href="#i-chevron-down"/></svg>
               <span class="label">Context</span>
@@ -1085,9 +1045,12 @@ ul,ol{padding:0;list-style:none}
               <span class="dot"></span>
               <span class="mono totals"><span class="accent">+128</span> <span class="danger">−41</span></span>
               <span class="dot"></span>
+              <span class="mono totals">4 commits</span>
+              <span class="dot"></span>
+              <span class="mono totals fact"><svg class="i-xs" style="color:var(--fg-faint)"><use href="#i-check"/></svg>checks passing</span>
+              <span class="dot"></span>
               <span class="mono totals faint">9c1f2ab</span>
               <div class="right">
-                <span class="tag is-danger"><svg class="i-xs"><use href="#i-alert"/></svg>2 blocking</span>
                 <button class="icon-btn is-on" title="Show review comments"><svg class="i"><use href="#i-message"/></svg></button>
                 <button class="icon-btn" title="Hide cosmetic-only files"><svg class="i"><use href="#i-eyeoff"/></svg></button>
               </div>
@@ -1169,6 +1132,9 @@ ul,ol{padding:0;list-style:none}
                 <div class="sec-head">
                   <span class="micro">Review</span>
                   <span class="tail">claude · haiku 5.5 · 2m</span>
+                </div>
+                <div class="review-state">
+                  <span class="tag is-danger">Changes requested</span>
                 </div>
                 <div class="verdict-line danger">Two blocking findings</div>
                 <div class="strip" aria-hidden="true">
@@ -1266,7 +1232,7 @@ ul,ol{padding:0;list-style:none}
     <div class="spec-body">
       <div>
         <h2>The rules this mock enforces</h2>
-        <p>The PR screen is one grid: briefing, Context row and diff on the left; a fixed 300px bar on the right. There are no place headers, no tab footers, and no second toolbar. Information that used to live behind tabs is either in the bar or on the line it describes. The numbers below all appear in the two artboards above.</p>
+        <p>The PR screen is one grid: identity bar, Context row and diff on the left; a fixed 300px bar on the right. There are no place headers, no tab footers, and no second toolbar. Every fact has one owner, so nothing in the detail pane repeats the list row, the identity bar or the right bar. The numbers below all appear in the two artboards above.</p>
       </div>
 
       <div class="rules">
@@ -1275,12 +1241,13 @@ ul,ol{padding:0;list-style:none}
         <div class="k">Chrome band</div><div class="k">44px</div><div>Toolbars, diff strip and both footers share one height.</div>
         <div class="k">PR row</div><div class="k">52px</div><div>8 + 18 title + 2 + 16 identity + 8; exactly 52 in every bucket.</div>
         <div class="k">Context row</div><div class="k">40px</div><div>Label, one-line excerpt, tail. Body only exists while expanded.</div>
-        <div class="k">Right bar</div><div class="k">300px</div><div>Review, conversation, explanation. Fixed; never a destination.</div>
+        <div class="k">Right bar</div><div class="k">300px</div><div>Review (state first), conversation, explanation. Fixed; never a destination.</div>
+        <div class="k">Detail head</div><div class="k">0px</div><div>No repeated title. Title, author and why-you live in the list row only.</div>
         <div class="k">Thread gutter</div><div class="k">88px</div><div>Two 36px line columns and the 16px sign, so the comment sits on its line.</div>
         <div class="k">Control</div><div class="k">28px</div><div>Buttons and icon buttons; the only filled one is primary.</div>
         <div class="k">Tag</div><div class="k">18px</div><div>State, severity and facts. Chips are gone from this screen.</div>
-        <div class="k">Gutter</div><div class="k">12 / 24</div><div>Chrome and lists 12; briefing, diff and Context 24.</div>
-        <div class="k">Type</div><div class="k">10 / 12 / 13 / 16 / 20</div><div>Bar body is 12; diff is 12/20; the PR title is 20/26.</div>
+        <div class="k">Gutter</div><div class="k">12 / 24</div><div>Chrome and lists 12; Context, diff and strip 24.</div>
+        <div class="k">Type</div><div class="k">10 / 12 / 13 / 16</div><div>Bar body is 12; diff is 12/20; the 16 title belongs to the list hero, not the pane.</div>
         <div class="k">Measure</div><div class="k">72ch</div><div>Context and explanation; the diff uses the full column.</div>
         <div class="k">Primary</div><div class="k">1</div><div>Start review in the bar foot. Every other action is a ghost or a link.</div>
       </div>
@@ -1289,7 +1256,10 @@ ul,ol{padding:0;list-style:none}
         <h2 style="font-size:16px;line-height:24px;margin-bottom:8px">Removed</h2>
         <ul class="removed">
           <li><span><b>What changed.</b> Three phases of steps narrated a diff that the file headers already show.</span></li>
-          <li><span><b>Why you.</b> The request is a conversation entry; the bar already carries it.</span></li>
+          <li><span><b>Repeated PR title.</b> The list hero is the heading; the detail pane starts at Context.</span></li>
+          <li><span><b>Duplicate review state.</b> One badge at the top of the right bar; the detail-bar tag is gone.</span></li>
+          <li><span><b>Second author and branch line.</b> The list row owns the author, the identity bar owns the branch.</span></li>
+          <li><span><b>Why you.</b> The list row states it; the bar's review state carries the outcome.</span></li>
           <li><span><b>Diff / Conversation / Explain places.</b> No tabs, no place header, no place footer.</span></li>
           <li><span><b>Fullscreen toggle.</b> Out of scope for this pass; absent from the detail bar.</span></li>
           <li><span><b>Separate verdict document.</b> The review is an index in the bar and comments in the diff.</span></li>
