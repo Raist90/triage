@@ -1,7 +1,9 @@
 import { ArrowLeft, ExternalLink, Maximize2, Minimize2 } from "lucide-react";
+import { StatusIcon } from "../../../components/StatusBadge";
 import { IconButton } from "../../../components/ui";
 import { cx } from "../../../lib/cx";
 import { openExternal } from "../../../lib/open";
+import type { CheckState, ReviewState } from "../../../lib/types";
 
 type PRDetailBarProps = {
   repo: string;
@@ -11,6 +13,12 @@ type PRDetailBarProps = {
   onToggleFullscreen: () => void;
   /** Branch identity; present once the pull request has loaded. */
   branch?: string;
+  /** Target branch, shown after an arrow like the briefing mock. */
+  baseBranch?: string;
+  /** Review state, surfaced in the bar like the mock. */
+  reviewState?: ReviewState;
+  /** Check state, the fallback bar status when no review blocks the PR. */
+  checkStatus?: CheckState;
   /** GitHub link target; absent while the pull request is loading. */
   url?: string;
 };
@@ -22,13 +30,23 @@ export function PRDetailBar({
   onClose,
   onToggleFullscreen,
   branch,
+  baseBranch,
+  reviewState,
+  checkStatus,
   url,
 }: PRDetailBarProps) {
+  const blocked =
+    reviewState === "changes_requested" ? (
+      <StatusIcon kind="review" state="changes_requested" withLabel />
+    ) : checkStatus === "failure" || checkStatus === "error" ? (
+      <StatusIcon kind="check" state={checkStatus} withLabel />
+    ) : null;
+
   return (
     <div
       data-tauri-drag-region
       className={cx(
-        "flex h-11 shrink-0 items-center gap-2 pr-1 pl-2",
+        "flex h-11 shrink-0 items-center gap-2 border-b border-line pr-1 pl-2",
         fullscreen && "bg-canvas",
       )}
     >
@@ -48,9 +66,11 @@ export function PRDetailBar({
       {branch ? (
         <span className="hidden min-w-0 truncate font-mono text-meta text-fg-faint min-[1280px]:inline">
           {branch}
+          {baseBranch ? ` → ${baseBranch}` : null}
         </span>
       ) : null}
       <div className="ml-auto flex shrink-0 items-center gap-1">
+        {blocked ? <span className="mr-0.5">{blocked}</span> : null}
         <IconButton
           label={
             fullscreen

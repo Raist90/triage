@@ -15,8 +15,9 @@ stay side by side; reviewing is the only flow that matters.
 
 - **Type: Geist Sans + Geist Mono** (`src/index.css`, bundled woff2, OFL). Use the
   six-size scale only: `text-micro` 10, `text-meta` 12, `text-ui` 13,
-  `text-prose` 14, `text-lead` 16, `text-title` 20, plus `text-code` 12/20.
-  Weights are 400 and 500 only. `text-sm`/`text-xs`/`text-2xs` are gone.
+  `text-prose` 14, `text-lead` 16, `text-title` 20, plus `text-code` 12/20 and
+  the briefing-only `text-display` 23/31. Weights are 400 and 500 only.
+  `text-sm`/`text-xs`/`text-2xs` are gone.
   `text-micro` is for labels and state tags only: 0.08em tracking for labels,
   0.06em for tags. Actions and values use `text-meta`, except dense metadata
   inside the diff rail.

@@ -1,4 +1,4 @@
-import { FileDiff, MessageSquare, Sparkles } from "lucide-react";
+import { FileDiff, MessageSquare, Play, Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
 import { Button } from "../../../components/ui";
 import { cx } from "../../../lib/cx";
@@ -37,11 +37,9 @@ export function PlaceBar({
             : "Automatic review is not configured"
         }
       >
-        <Sparkles className="size-3.5" aria-hidden />
+        <Play className="size-3.5" aria-hidden />
         Start review
       </Button>
-
-      <span aria-hidden="true" className="h-4 w-px shrink-0 bg-line" />
 
       <PlaceLink
         view="diff"

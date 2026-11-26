@@ -331,6 +331,9 @@ function PRDetailBody({ repo, number, tabID = "all" }: PRDetailProps) {
         repo={repo}
         number={number}
         branch={pr?.branch}
+        baseBranch={pr?.baseBranch}
+        reviewState={pr?.reviewState}
+        checkStatus={pr?.checkStatus}
         fullscreen={fullscreen}
         onClose={closeDetail}
         onToggleFullscreen={toggleFullscreen}
@@ -351,7 +354,7 @@ function PRDetailBody({ repo, number, tabID = "all" }: PRDetailProps) {
                 onScroll={(event) => {
                   briefingScroll.current = event.currentTarget.scrollTop;
                 }}
-                className="min-h-0 flex-1 overflow-y-auto p-4"
+                className="min-h-0 flex-1 overflow-y-auto px-7 pt-4 pb-6.5"
               >
                 <Briefing
                   pr={detail.pr}

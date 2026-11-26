@@ -1,4 +1,4 @@
-import { ArrowRight, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
 import { Markdown } from "../../../components/Markdown";
 import { StatusIcon } from "../../../components/StatusBadge";
@@ -13,8 +13,7 @@ import type {
   ReviewDocument,
   ReviewFinding,
 } from "../../../lib/types";
-import { PRStateTag } from "../PRStateTag";
-import { prStatus } from "../prStatus";
+import { Avatar } from "./Avatar";
 import { RecentConversation } from "./Conversation";
 
 type BriefingProps = {
@@ -167,11 +166,35 @@ function titleCase(value: string): string {
   return value === "" ? value : value[0].toUpperCase() + value.slice(1);
 }
 
-function Fact({ children }: { children: ReactNode }) {
+function fileName(path: string): string {
+  const slash = path.lastIndexOf("/");
+  return slash < 0 ? path : path.slice(slash + 1);
+}
+
+function Fact({
+  children,
+  tone = "default",
+}: {
+  children: ReactNode;
+  tone?: "default" | "danger";
+}) {
   return (
-    <span className="inline-flex h-[18px] items-center rounded-sm border border-line px-1 font-mono text-micro whitespace-nowrap text-fg-faint tabular-nums">
+    <span
+      className={cx(
+        "inline-flex h-4.5 items-center rounded-sm px-1 font-mono text-micro whitespace-nowrap tabular-nums",
+        tone === "danger"
+          ? "border border-danger/30 bg-danger/8 text-danger"
+          : "border border-line text-fg-faint",
+      )}
+    >
       {children}
     </span>
+  );
+}
+
+function Dot() {
+  return (
+    <span aria-hidden="true" className="size-0.5 rounded-full bg-line-strong" />
   );
 }
 
@@ -200,44 +223,45 @@ export function Briefing({
   const warning = findings.filter(
     (finding) => finding.severity === "warning",
   ).length;
-  const status = prStatus(pr);
 
   return (
-    <div className="mx-auto flex w-full max-w-[76ch] flex-col gap-5">
+    <div className="mx-auto flex w-full max-w-[74ch] flex-col gap-4.5">
       <header className="flex flex-col gap-2">
         {why ? (
           <div className="flex flex-wrap items-center gap-2 font-mono text-micro text-fg-faint">
             {needsYou(pr, tab) ? (
-              <span className="font-medium tracking-[0.08em] text-danger uppercase">
-                Needs you
-              </span>
+              <>
+                <span className="font-medium tracking-[0.08em] text-danger uppercase">
+                  Needs you
+                </span>
+                <Dot />
+              </>
             ) : null}
             <span>
-              <span className="text-fg-muted">{why.author}</span>{" "}
-              {verdictLabel(why)}
+              {why.author} {verdictLabel(why)}
             </span>
-            <span
-              aria-hidden="true"
-              className="size-0.5 rounded-full bg-line-strong"
-            />
+            <Dot />
             <span className="tabular-nums">{formatAgo(why.createdAt)}</span>
           </div>
         ) : null}
 
-        <h1 className="flex min-w-0 items-baseline gap-2 text-title font-medium tracking-[-0.01em] text-fg">
-          <span className="min-w-0">{pr.title}</span>
-          <PRStateTag status={status} />
+        <h1 className="max-w-[36ch] text-display font-medium tracking-[-0.015em] text-balance text-fg">
+          {pr.title}
         </h1>
 
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-meta text-fg-faint">
-          <span className="text-fg-muted">{pr.author}</span>
-          <span aria-hidden="true">·</span>
+          <span className="text-fg-body">{pr.author}</span>
+          <span aria-hidden="true" className="text-line-strong">
+            ·
+          </span>
           <span className="font-mono">
             {pr.branch} → {pr.baseBranch}
           </span>
           {pr.commitCount > 0 ? (
             <>
-              <span aria-hidden="true">·</span>
+              <span aria-hidden="true" className="text-line-strong">
+                ·
+              </span>
               <span className="tabular-nums">{pr.commitCount} commits</span>
             </>
           ) : null}
@@ -260,36 +284,40 @@ export function Briefing({
           ) : null}
         </div>
 
-        <div className="mt-1 flex flex-wrap items-center gap-1">
-          <Fact>
-            <span className="text-accent">+{pr.additions}</span>
-            <span className="px-1 text-line-strong">−</span>
-            <span className="text-danger">{pr.deletions}</span>
-          </Fact>
+        <div className="mt-0.5 flex flex-wrap items-center gap-1">
+          <span className="font-mono text-meta whitespace-nowrap text-fg-faint tabular-nums">
+            +{pr.additions} −{pr.deletions}
+          </span>
           <Fact>{pr.changedFiles} files</Fact>
           {steps.length > 0 ? <Fact>{steps.length} steps</Fact> : null}
-          {blocking > 0 ? (
-            <span className="inline-flex h-[18px] items-center rounded-sm border border-danger/30 bg-danger/8 px-1 font-mono text-micro whitespace-nowrap text-danger tabular-nums">
-              {blocking} blocking
-            </span>
-          ) : null}
+          {blocking > 0 ? <Fact tone="danger">{blocking} blocking</Fact> : null}
         </div>
       </header>
 
       {why ? (
         <Section
           label={tab === "mine" ? "Why now" : "Why you"}
-          tail={formatAgo(why.createdAt)}
+          tail={
+            pr.headSHA
+              ? `on ${pr.headSHA.slice(0, 7)}`
+              : formatAgo(why.createdAt)
+          }
         >
-          <p className="text-ui text-fg-body">
-            <span className="font-medium text-fg">{why.author}</span>{" "}
-            <span className="text-fg-faint">{verdictLabel(why)}</span>
-          </p>
-          {why.body ? (
-            <p className="line-clamp-4 text-ui whitespace-pre-wrap text-fg-muted">
-              {why.body}
-            </p>
-          ) : null}
+          <div className="flex items-start gap-2.5">
+            <Avatar name={why.author} />
+            <div className="min-w-0 text-ui leading-5 text-fg-body">
+              <span className="font-medium text-fg">{why.author}</span>{" "}
+              {verdictLabel(why)}
+              <span className="ml-1.5 font-mono text-micro text-fg-faint">
+                {formatAgo(why.createdAt)}
+              </span>
+              {why.body ? (
+                <blockquote className="mt-1.5 border-l-2 border-line pl-2.5 whitespace-pre-wrap text-fg-muted">
+                  {why.body}
+                </blockquote>
+              ) : null}
+            </div>
+          </div>
         </Section>
       ) : null}
 
@@ -304,15 +332,15 @@ export function Briefing({
       {files.length > 0 ? (
         <Section
           label="Where the risk is"
-          tail={`${files.length} of ${pr.changedFiles} files`}
+          tail={`${Math.min(files.length, 3)} of ${pr.changedFiles} files`}
         >
-          <div className="flex flex-col">
+          <div className="flex flex-col border-t border-line">
             {files.slice(0, 3).map((file) => (
               <button
                 key={file.path}
                 type="button"
                 onClick={() => onOpenInDiff(file.path, file.findings[0]?.line)}
-                className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2.5 rounded-sm px-2 py-1.5 text-left transition-colors hover:bg-surface"
+                className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 border-b border-line px-1 py-2 text-left transition-colors hover:bg-surface/55"
               >
                 <span className="min-w-0 truncate font-mono text-meta text-fg-body">
                   {file.path}
@@ -320,19 +348,17 @@ export function Briefing({
                 <span className="text-micro tracking-[0.06em] text-fg-faint uppercase">
                   {titleCase(file.category)}
                 </span>
-                <span className="flex items-center gap-2">
-                  <span className="flex items-center gap-1">
-                    {file.findings.slice(0, 3).map((finding) => (
-                      <i
-                        key={finding.id}
-                        className={cx(
-                          "block size-2 rounded-[2px]",
-                          SEVERITY_MARK[finding.severity] ?? "bg-line-strong",
-                        )}
-                      />
-                    ))}
-                  </span>
-                  <ArrowRight className="size-3.5 text-fg-faint" aria-hidden />
+                <span className="flex items-center gap-1">
+                  {file.findings.slice(0, 3).map((finding) => (
+                    <i
+                      key={finding.id}
+                      aria-hidden="true"
+                      className={cx(
+                        "block size-2 rounded-[2px]",
+                        SEVERITY_MARK[finding.severity] ?? "bg-line-strong",
+                      )}
+                    />
+                  ))}
                 </span>
               </button>
             ))}
@@ -351,18 +377,25 @@ export function Briefing({
                   const path = step.files[0]?.path;
                   if (path) onOpenInDiff(path);
                 }}
-                className="flex flex-col gap-0.5 rounded-sm px-2 py-1.5 text-left transition-colors hover:bg-surface"
+                className="grid grid-cols-[18px_minmax(0,1fr)_auto] items-start gap-2.5 rounded-sm p-1 text-left transition-colors hover:bg-surface/55"
               >
-                <span className="flex items-baseline gap-2 text-ui text-fg-body">
-                  <span className="w-5 shrink-0 font-mono text-micro text-fg-faint tabular-nums">
-                    {String(index + 1).padStart(2, "0")}
+                <span className="font-mono text-micro leading-5 text-fg-faint tabular-nums">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <span className="block max-w-[58ch] text-meta leading-5 text-pretty text-fg-body">
+                  {step.title}
+                </span>
+                {step.files[0] ? (
+                  <span className="mt-0.5 inline-flex h-5 max-w-40 items-center gap-1 rounded-sm border border-line bg-surface px-1 font-mono text-micro whitespace-nowrap text-fg-muted">
+                    <span
+                      aria-hidden="true"
+                      className="size-1 shrink-0 rounded-full bg-current"
+                    />
+                    <span className="truncate">
+                      {fileName(step.files[0].path)}
+                    </span>
                   </span>
-                  <span className="min-w-0 truncate">{step.title}</span>
-                </span>
-                <span className="pl-7 font-mono text-micro text-fg-faint tabular-nums">
-                  {step.files.length} files · +{step.additions} −
-                  {step.deletions}
-                </span>
+                ) : null}
               </button>
             ))}
           </div>
