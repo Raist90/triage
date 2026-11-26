@@ -2,6 +2,10 @@
 
 Status: implementation contract. Dated 2026-11-26.
 
+Open-PR detail navigation is planned to move from the tab model in D9/D10 to
+the briefing in `docs/pr-detail-briefing.md`. Until that plan lands, D9/D10
+remain the contract.
+
 This file resolves every open item in `docs/deck-implementation.md`. Read it
 with that file and `mock/ui-directions.html`:
 
