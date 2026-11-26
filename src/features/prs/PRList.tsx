@@ -249,7 +249,7 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
         onClearSelection={() => selectPR(null)}
       />
 
-      <div className="flex h-8 shrink-0 items-center justify-between border-t border-line px-3 font-mono text-micro text-fg-faint">
+      <div className="flex h-11 shrink-0 items-center justify-between border-t border-line px-3 font-mono text-micro text-fg-faint">
         <span className="tabular-nums">
           {isLoading
             ? "Loading…"

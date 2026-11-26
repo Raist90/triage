@@ -170,6 +170,7 @@ export function PRListToolbar({
           </IconButton>
           {filtersOpen ? (
             <PRFilterPopover
+              anchorRef={filterRef}
               prs={prs}
               filters={filters}
               showRepos={repo === null}

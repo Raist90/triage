@@ -1,6 +1,7 @@
 import { EyeOff, ListTree, Search, X } from "lucide-react";
-import type { ComponentProps, RefObject } from "react";
+import { useRef, type ComponentProps, type RefObject } from "react";
 import { cx } from "../../../lib/cx";
+import { useOverlaySide } from "../../../lib/useOverlaySide";
 import type { DiffFile, WalkthroughStep } from "../../../lib/types";
 import { useUIStore } from "../../../stores/ui";
 import {
@@ -71,6 +72,12 @@ export function DiffFilesPopover({
   const setSort = useUIStore((state) => state.setDiffSort);
   const hideLowPriority = useUIStore((state) => state.hideLowPriority);
   const toggleLowPriority = useUIStore((state) => state.toggleLowPriority);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const placement = useOverlaySide({
+    panelRef,
+    open: true,
+    maxHeight: window.innerHeight * 0.7,
+  });
   const kinds = DIFF_FILE_KINDS.filter(
     (kind) => selection.kindCounts[kind] > 0,
   );
@@ -78,9 +85,14 @@ export function DiffFilesPopover({
   const first = matched[0];
   return (
     <div
+      ref={panelRef}
       role="dialog"
       aria-label="Diff files"
-      className="absolute top-full right-0 z-30 mt-1 flex max-h-[70vh] w-80 surface-in flex-col rounded-md border border-line-strong elevated"
+      style={{ maxHeight: placement.maxHeight }}
+      className={cx(
+        "absolute right-0 z-30 flex w-80 surface-in flex-col rounded-md border border-line-strong elevated",
+        placement.side === "up" ? "bottom-full mb-1" : "top-full mt-1",
+      )}
     >
       <div className="flex items-center gap-2 border-b border-line p-2">
         <Search className="size-3.5 shrink-0 text-fg-faint" aria-hidden />
@@ -151,6 +163,14 @@ export function DiffFilesPopover({
           <Chip
             active={focusMode}
             aria-pressed={focusMode}
+            disabled={pathMode}
+            title={
+              pathMode
+                ? "Steps already open one commit at a time"
+                : focusMode
+                  ? "Open every file"
+                  : "Open one file at a time"
+            }
             onClick={onToggleFocusMode}
           >
             One at a time
@@ -331,7 +351,7 @@ export function DiffFilesPopover({
 }
 
 const CHIP_BASE =
-  "inline-flex h-6 shrink-0 items-center gap-1 rounded-sm border px-2 text-meta transition-colors";
+  "inline-flex h-6 shrink-0 items-center gap-1 rounded-sm border px-2 text-meta transition-colors disabled:cursor-not-allowed disabled:opacity-45";
 const CHIP_ACTIVE = "border-line-strong bg-surface text-fg";
 const CHIP_IDLE =
   "border-line text-fg-faint hover:border-line-strong hover:text-fg";

@@ -75,6 +75,7 @@ export function DeckHero({
                 : needs
                   ? "before:bg-danger"
                   : "before:bg-accent",
+              cursor && "bg-surface/70",
             ),
       )}
     >
@@ -83,12 +84,7 @@ export function DeckHero({
         role="option"
         aria-selected={selected}
         onClick={onOpenPR}
-        className={cx(
-          "block w-full cursor-default rounded-sm text-left outline-none",
-          cursor &&
-            !selected &&
-            "outline-1 -outline-offset-1 outline-line-strong/80",
-        )}
+        className="block w-full cursor-default rounded-sm text-left"
       >
         <div className="mb-2 flex items-center gap-2">
           <span

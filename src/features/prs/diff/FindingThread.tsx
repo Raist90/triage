@@ -33,7 +33,10 @@ export function FindingThread({ finding }: { finding: ReviewFinding }) {
   const when = artifact ? formatAgo(artifact.createdAt) : "";
 
   return (
-    <div className="border-b border-line bg-surface">
+    <div
+      data-finding-id={finding.id}
+      className="border-b border-line bg-surface"
+    >
       <div
         className={cx(
           "border-l-2 px-3 py-2",

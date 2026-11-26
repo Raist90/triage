@@ -10,6 +10,8 @@ import {
 type Jump = {
   key: string;
   hunkIndex?: number;
+  /** Land on this finding's thread instead of the hunk header. */
+  findingID?: string;
   token: number;
 };
 
@@ -135,6 +137,7 @@ export function useDiffNavigation({
   // hidden by a user filter is left alone rather than silently un-filtered.
   const focusPath = focusTarget?.path;
   const focusLine = focusTarget?.line;
+  const focusFindingID = focusTarget?.findingID;
   const focusToken = focusTarget?.token;
   useEffect(() => {
     if (focusToken === undefined || focusPath === undefined) return;
@@ -162,9 +165,10 @@ export function useDiffNavigation({
     setJump((current) => ({
       key,
       hunkIndex,
+      findingID: focusFindingID,
       token: (current?.token ?? 0) + 1,
     }));
-  }, [focusToken, focusPath, focusLine, visibleSignature]);
+  }, [focusToken, focusPath, focusLine, focusFindingID, visibleSignature]);
 
   // Run the jump after the expanded-state commit, never before it: collapsing
   // the previously open file changes the height of every section above, so a
@@ -172,6 +176,17 @@ export function useDiffNavigation({
   useEffect(() => {
     if (!jump) return;
     const pane = paneRef.current;
+    // A finding jump targets the rendered thread itself, so the comment the
+    // user clicked is centred instead of the head of its hunk.
+    if (jump.findingID && pane) {
+      const thread = Array.from(
+        pane.querySelectorAll<HTMLElement>("[data-finding-id]"),
+      ).find((candidate) => candidate.dataset.findingId === jump.findingID);
+      if (thread) {
+        thread.scrollIntoView({ block: "center" });
+        return;
+      }
+    }
     const section = sectionRefs.current.get(jump.key);
     let element: HTMLElement | undefined = section;
     let id: string | null = null;

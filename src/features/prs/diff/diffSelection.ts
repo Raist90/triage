@@ -13,6 +13,8 @@ import {
 export type DiffTarget = {
   path: string;
   line?: number;
+  /** Scroll straight to this finding's thread instead of its hunk header. */
+  findingID?: string;
   token: number;
 };
 

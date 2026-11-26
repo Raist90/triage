@@ -43,17 +43,15 @@ export function DeckRow({
       aria-selected={selected}
       onClick={onPick}
       className={cx(
-        "group relative grid w-full cursor-default grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-0.5 rounded-sm py-2 pr-2 pl-[11px] text-left transition-colors duration-120 outline-none",
+        "group relative grid w-full cursor-default grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-0.5 rounded-sm py-2 pr-2 pl-[11px] text-left transition-colors duration-120",
         "before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full",
         selected
           ? "row-selected"
           : cx(
               "hover:bg-surface/70 hover:before:w-[3px]",
               dim ? "before:bg-line" : RAIL[severityFor(pr)],
+              cursor && "bg-surface/70 before:w-[3px]",
             ),
-        cursor &&
-          !selected &&
-          "outline-1 -outline-offset-1 outline-line-strong/80",
       )}
     >
       <span

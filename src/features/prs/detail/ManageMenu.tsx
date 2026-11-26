@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cx } from "../../../lib/cx";
+import { useOverlaySide } from "../../../lib/useOverlaySide";
 import { useUIStore } from "../../../stores/ui";
 import type { PR } from "../../../lib/types";
 import {
@@ -44,6 +45,12 @@ export function ManageMenu({
   const [open, setOpen] = useState(false);
   const setReviewBarOpen = useUIStore((state) => state.setReviewBarOpen);
   const wrapRef = useRef<HTMLDivElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const placement = useOverlaySide({
+    anchorRef: wrapRef,
+    panelRef: menuRef,
+    open,
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -85,9 +92,14 @@ export function ManageMenu({
 
       {open ? (
         <div
+          ref={menuRef}
           role="menu"
           aria-label="Manage pull request"
-          className="absolute right-0 bottom-full z-30 mb-1 w-60 surface-in rounded-md border border-line-strong elevated p-1"
+          style={{ maxHeight: placement.maxHeight }}
+          className={cx(
+            "absolute right-0 z-30 w-60 surface-in overflow-y-auto rounded-md border border-line-strong elevated p-1",
+            placement.side === "up" ? "bottom-full mb-1" : "top-full mt-1",
+          )}
         >
           {reviewable ? (
             <>

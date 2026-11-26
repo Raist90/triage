@@ -55,6 +55,7 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
     setDiffTarget({
       path: finding.file,
       line: finding.line,
+      findingID: finding.id,
       token: Date.now(),
     });
   }

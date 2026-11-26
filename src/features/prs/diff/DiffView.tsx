@@ -4,6 +4,7 @@ import type { DiffFile, PR, Walkthrough } from "../../../lib/types";
 import { scrollEdgeClass, useScrollEdges } from "../../../lib/useScrollEdges";
 import { useUIStore } from "../../../stores/ui";
 import { DiffCommentsContext } from "./DiffCommentsContext";
+import { isCosmeticFile } from "./diffFile";
 import { DiffFileSection } from "./DiffFileSection";
 import { DiffFilesPopover } from "./DiffFilesPopover";
 import {
@@ -52,7 +53,9 @@ export function DiffView({
   revealToken,
 }: DiffViewProps) {
   const [draft, setDraft] = useState<string | null>(null);
-  const [hideCosmetic, setHideCosmetic] = useState(true);
+  // Null means "no explicit choice": cosmetic files stay hidden unless the
+  // focused finding lives in one, in which case its file must be reachable.
+  const [showCosmetic, setShowCosmetic] = useState<boolean | null>(null);
   const [filter, setFilter] = useState("");
   const [focusMode, setFocusMode] = useState(true);
   const [openFilesRequest, setOpenFilesRequest] = useState(0);
@@ -71,6 +74,21 @@ export function DiffView({
   const toggleDiffComments = useUIStore((state) => state.toggleDiffComments);
   const diffMode = useUIStore((state) => state.diffMode);
   const setDiffMode = useUIStore((state) => state.setDiffMode);
+
+  // A finding clicked in the review bar must land on its thread even when the
+  // default cosmetic filter hid the file. That default is not an explicit
+  // choice, so a focused cosmetic file reveals its kind; the EyeOff control
+  // still writes an explicit choice that wins.
+  const focusTargetFile = focusTarget
+    ? files.find(
+        (file) =>
+          file.path === focusTarget.path || file.oldPath === focusTarget.path,
+      )
+    : undefined;
+  const focusNeedsCosmetic =
+    focusTargetFile !== undefined && isCosmeticFile(focusTargetFile);
+  const hideCosmetic =
+    showCosmetic === null ? !focusNeedsCosmetic : !showCosmetic;
 
   // Filters and the priority sort are pure but O(files); a selection render
   // must not recompute them.
@@ -217,7 +235,7 @@ export function DiffView({
           onToggleComments={toggleDiffComments}
           hideCosmetic={hideCosmetic}
           openRequest={openFilesRequest}
-          onToggleHideCosmetic={() => setHideCosmetic((current) => !current)}
+          onToggleHideCosmetic={() => setShowCosmetic(hideCosmetic)}
           renderFilesPopover={(close) => (
             <DiffFilesPopover
               files={files}
@@ -237,7 +255,16 @@ export function DiffView({
               onSelectFile={selectFile}
               onSelectStep={setActiveStepID}
               onToggleFocusMode={() => setFocusMode((current) => !current)}
-              onTogglePathMode={() => setDiffMode(pathMode ? "files" : "path")}
+              onTogglePathMode={() => {
+                if (pathMode) {
+                  setDiffMode("files");
+                  return;
+                }
+                // Steps are reviewed one commit at a time, so selecting them
+                // also turns on the single-file mode and locks it.
+                setDiffMode("path");
+                setFocusMode(true);
+              }}
               onToggleSemanticRail={toggleSemanticRail}
               onClearFileKinds={clearFileKinds}
               onClose={close}
@@ -278,7 +305,7 @@ export function DiffView({
                   All files are cosmetic-only.{" "}
                   <button
                     type="button"
-                    onClick={() => setHideCosmetic(false)}
+                    onClick={() => setShowCosmetic(true)}
                     className="text-fg-muted underline decoration-line-strong underline-offset-2 transition-colors hover:text-fg"
                   >
                     Show them

@@ -66,7 +66,7 @@ export function ContextRow({
       <div
         id={bodyID}
         hidden={!open}
-        className="max-h-[40vh] max-w-[72ch] overflow-y-auto px-6 pb-4 text-ui text-fg-body"
+        className="max-h-[40vh] overflow-y-auto px-6 pb-4 text-ui text-fg-body"
       >
         <Markdown>{description}</Markdown>
       </div>
