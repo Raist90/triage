@@ -30,7 +30,8 @@
      is-active   the current item in a single-selection list: rail tab, pick,
                  file/step row, rail mode. Ephemeral — follows the cursor.
      is-selected the committed pick that survives a refetch: repo row, deck
-                 row. Always paired with aria-selected="true".
+                 row. The deck implements it as the shipped `deck-open` dot;
+                 its keyboard cursor is `deck-cursor`.
      is-link     the anchor id currently linked across the three surfaces.
      is-done     a finding is decided: stays in the list, leaves the count.
      is-dim      de-emphasised but present (deck rows waiting on the author).
@@ -297,7 +298,7 @@ a{color:inherit}
   gap:2px 12px; width:100%; padding:8px 8px 8px 11px; text-align:left;
   border-radius:4px; transition:background-color .12s;
 }
-.deck-row:hover:not(.is-selected),.spec-hover .deck-row:not(.is-selected){background:color-mix(in oklab,var(--surface) 70%,transparent)}
+.deck-row:hover:not(.deck-open),.spec-hover .deck-row:not(.deck-open){background:color-mix(in oklab,var(--surface) 70%,transparent)}
 .deck-row::before{
   content:"";position:absolute;inset-block:6px;left:0;width:2px;border-radius:999px;
   background:var(--line-strong);
@@ -752,6 +753,7 @@ a{color:inherit}
 }
 .state-cell:nth-child(3n){border-right:0}
 .state-cell:nth-last-child(-n+3){border-bottom:0}
+.state-cell .hero{margin:0}
 .state-head{display:flex;align-items:baseline;gap:8px;min-width:0}
 .state-label{
   font-size:10px;line-height:14px;font-weight:500;letter-spacing:.08em;
@@ -837,6 +839,12 @@ button:focus-visible{outline-offset:-2px}
   box-shadow:inset 0 1px 0 color-mix(in oklab,var(--fg) 7%,transparent),0 10px 30px -24px #000;
 }
 .hero-title{transition:color .12s}
+/* The hero's rail carries the bucket, not a state: danger for "Needs you",
+   accent for "Up next". Selection and cursor stay in the gutter. */
+.hero[data-bucket="up-next"]::before{
+  background:linear-gradient(180deg,var(--accent),color-mix(in oklab,var(--accent) 30%,transparent));
+}
+.hero[data-bucket="up-next"] .hero-top .micro{color:var(--accent)}
 
 /* Deck rows: the severity bar thickens under the cursor, and the title warms.
    `.spec-hover` is the appendix's static replay of this block: one recipe, two
@@ -847,24 +855,26 @@ button:focus-visible{outline-offset:-2px}
 .deck-row .title{transition:color .12s}
 .deck-row:hover .title,.spec-hover .deck-row .title{color:color-mix(in oklab,var(--fg) 92%,var(--accent))}
 
-/* Deck row selection. Two tiers, exactly like the shipped list:
-     is-active   = keyboard cursor (PRRow `active` → bg-surface/60)
-     is-selected = committed pick    (PRRow `selected` → row-selected)
-   Selection replaces the severity bar with the accent bar; the title stays
-   --fg even while hovered. */
-.deck-row.is-active{background:color-mix(in oklab,var(--surface) 60%,transparent)}
-.deck-row.is-selected{
-  background-image:linear-gradient(90deg,var(--surface) 0%,color-mix(in oklab,var(--surface) 55%,transparent) 42%,transparent 82%);
+/* Deck selection, as shipped: the open PR is a 4px accent dot in
+   the 8px list gutter; the keyboard cursor is a 1px neutral ring. Both are
+   additive to the severity rail, so a blocked row stays red while open. The
+   mock paints the dot with ::after because ::before already carries the rail
+   here; the shipped utility uses ::before on a child rail. */
+.deck-open::after{
+  content:"";position:absolute;top:50%;left:-6px;
+  width:4px;height:4px;border-radius:999px;transform:translateY(-50%);
+  background:var(--accent);
+  box-shadow:0 0 8px 0 color-mix(in oklab,var(--accent) 45%,transparent);
+  pointer-events:none;
 }
-.deck-row.is-selected::before,
-.deck-row.is-selected:hover::before,
-.spec-hover .deck-row.is-selected::before{
-  width:2px;
-  background-image:linear-gradient(180deg,var(--accent) 0%,color-mix(in oklab,var(--accent) 30%,transparent) 100%);
-  box-shadow:0 0 10px 0 color-mix(in oklab,var(--accent) 35%,transparent);
-}
-.deck-row.is-selected .title,
-.deck-row.is-selected:hover .title{color:var(--fg)}
+.deck-cursor{outline:1px solid color-mix(in oklab,var(--line-strong) 80%,transparent);outline-offset:-1px}
+.deck-row.deck-open{background:var(--surface)}
+.deck-row.deck-open .title,
+.deck-row.deck-open:hover .title,
+.spec-hover .deck-row.deck-open .title{color:var(--fg)}
+.deck-row.deck-open::before,
+.deck-row.deck-open:hover::before,
+.spec-hover .deck-row.deck-open::before{width:2px;box-shadow:none}
 
 /* Buckets: counts become chips, heads react. */
 .bucket-head{transition:background-color .12s}
@@ -1840,8 +1850,8 @@ button:focus-visible{outline-offset:-2px}
       </p>
     </div>
     <ul class="story-moves">
-      <li><b>Two tiers of highlight.</b> <span class="k">is-active</span> is the keyboard cursor and follows the eye; <span class="k">is-selected</span> is the committed pick and survives a refetch. A row is never both.</li>
-      <li><b>One selection recipe.</b> Deck rows and repo rows share the shipped <span class="k">row-selected</span> utility from <span class="k">src/index.css</span>: a left-entering gradient plus a 2px accent bar with a halo. Severity bars lose to it.</li>
+      <li><b>Two tiers of highlight.</b> <span class="k">deck-cursor</span> is the keyboard cursor and follows the eye; <span class="k">deck-open</span> is the committed pick and survives a refetch. They compose — dot plus ring — and never touch the severity rail.</li>
+      <li><b>One selection recipe per surface family.</b> Repo rows and the flat list share the shipped <span class="k">row-selected</span> utility from <span class="k">src/index.css</span>: a left-entering gradient plus a 2px accent bar with a halo. The deck's left edge is severity, so its open pick is <span class="k">deck-open</span>: a 4px accent dot in the 8px gutter. Both utilities ship.</li>
       <li><b>The suffix is the meaning.</b> <span class="k">is-on</span> toggle · <span class="k">is-active</span> current item · <span class="k">is-selected</span> committed · <span class="k">is-link</span> linked anchor · <span class="k">is-done</span> decided · <span class="k">is-dim</span> de-emphasised.</li>
       <li><b>Hover is shown, not felt.</b> Gallery cells replay the real <span class="k">:hover</span> recipe statically via <span class="k">.spec-hover</span>; the product still uses the pseudo-class.</li>
     </ul>
@@ -1850,7 +1860,7 @@ button:focus-visible{outline-offset:-2px}
   <div class="spec-sheet">
     <div class="card">
       <h3>Deck row <span class="micro">six states, one axis</span></h3>
-      <p class="note">Same row in every cell so only the state changes. Severity is <span class="mono">sev-blocked</span> except the dim cell. The bar is the severity channel; selection replaces it with the accent channel.</p>
+      <p class="note">Same row in every cell so only the state changes. Severity is <span class="mono">sev-blocked</span> except the dim cell. The bar is the severity channel; the open dot and the cursor ring are additive, so selection never recolors the edge.</p>
       <div class="state-grid">
         <div class="state-cell">
           <div class="state-head"><span class="state-label">rest</span><span class="state-sel">.deck-row</span></div>
@@ -1869,24 +1879,24 @@ button:focus-visible{outline-offset:-2px}
           </button>
         </div>
         <div class="state-cell">
-          <div class="state-head"><span class="state-label">cursor</span><span class="state-sel">.is-active</span></div>
-          <button class="deck-row sev-blocked is-active">
+          <div class="state-head"><span class="state-label">cursor</span><span class="state-sel">.deck-cursor</span></div>
+          <button class="deck-row sev-blocked deck-cursor">
             <span class="title trunc">fix(worker): drop duplicate retry on 429</span>
             <span class="right"><span class="age">18m</span></span>
             <span class="sub"><span class="repo">forge/worker</span><span class="num">#409</span><span class="why">checks failing</span></span>
           </button>
         </div>
         <div class="state-cell">
-          <div class="state-head"><span class="state-label">selected</span><span class="state-sel">.is-selected</span></div>
-          <button class="deck-row sev-blocked is-selected">
+          <div class="state-head"><span class="state-label">selected</span><span class="state-sel">.deck-open</span></div>
+          <button class="deck-row sev-blocked deck-open">
             <span class="title trunc">fix(worker): drop duplicate retry on 429</span>
             <span class="right"><span class="age">18m</span></span>
             <span class="sub"><span class="repo">forge/worker</span><span class="num">#409</span><span class="why">checks failing</span></span>
           </button>
         </div>
         <div class="state-cell spec-hover">
-          <div class="state-head"><span class="state-label">selected + hover</span><span class="state-sel">.is-selected:hover</span></div>
-          <button class="deck-row sev-blocked is-selected">
+          <div class="state-head"><span class="state-label">selected + hover</span><span class="state-sel">.deck-open:hover</span></div>
+          <button class="deck-row sev-blocked deck-open">
             <span class="title trunc">fix(worker): drop duplicate retry on 429</span>
             <span class="right"><span class="age">18m</span></span>
             <span class="sub"><span class="repo">forge/worker</span><span class="num">#409</span><span class="why">checks failing</span></span>
@@ -1901,7 +1911,63 @@ button:focus-visible{outline-offset:-2px}
           </button>
         </div>
       </div>
-      <p class="state-note">Resolved on canvas <span class="mono">#09090b</span>: cursor <span class="mono">#0e0e10</span> (surface 60%) · hover <span class="mono">#0f0f11</span> (surface 70%) · selected starts at <span class="mono">#111113</span> on the left edge and fades to canvas by 82%. Severity bar: 2px at rest, 3px on hover, replaced by the 2px accent bar when selected.</p>
+      <p class="state-note">Resolved on canvas <span class="mono">#09090b</span>: hover <span class="mono">#0f0f11</span> (surface 70%) · open fill <span class="mono">#111113</span> (surface) + 4px accent dot at <span class="mono">x=-6px</span> · cursor 1px <span class="mono">--line-strong</span> @80% ring. Severity bar: 2px at rest, 3px on hover, unchanged by cursor and selection.</p>
+    </div>
+
+    <div class="card">
+      <h3>Hero · Up next / Needs you <span class="micro">same card, two buckets, three states</span></h3>
+      <p class="note">The hero is a selectable option, not a banner. The bucket decides the rail and the label hue; cursor and open stay in the gutter and never outline, fill or recolor the card. Open and cursor compose.</p>
+      <div class="state-grid">
+        <div class="state-cell">
+          <div class="state-head"><span class="state-label">rest · needs you</span><span class="state-sel">.hero</span></div>
+          <article class="hero">
+            <div class="hero-top"><span class="micro">Needs you</span><span class="hero-wait">22h</span></div>
+            <p class="hero-title">refactor(auth): rotate session keys</p>
+            <p class="hero-why"><span class="who">l.okafor</span><span>requested changes</span><span class="faint">·</span><span class="mono">forge/api #412</span></p>
+          </article>
+        </div>
+        <div class="state-cell">
+          <div class="state-head"><span class="state-label">cursor · needs you</span><span class="state-sel">.deck-cursor</span></div>
+          <article class="hero deck-cursor">
+            <div class="hero-top"><span class="micro">Needs you</span><span class="hero-wait">22h</span></div>
+            <p class="hero-title">refactor(auth): rotate session keys</p>
+            <p class="hero-why"><span class="who">l.okafor</span><span>requested changes</span><span class="faint">·</span><span class="mono">forge/api #412</span></p>
+          </article>
+        </div>
+        <div class="state-cell">
+          <div class="state-head"><span class="state-label">open · needs you</span><span class="state-sel">.deck-open</span></div>
+          <article class="hero deck-open">
+            <div class="hero-top"><span class="micro">Needs you</span><span class="hero-wait">22h</span></div>
+            <p class="hero-title">refactor(auth): rotate session keys</p>
+            <p class="hero-why"><span class="who">l.okafor</span><span>requested changes</span><span class="faint">·</span><span class="mono">forge/api #412</span></p>
+          </article>
+        </div>
+        <div class="state-cell">
+          <div class="state-head"><span class="state-label">rest · up next</span><span class="state-sel">.hero</span></div>
+          <article class="hero" data-bucket="up-next">
+            <div class="hero-top"><span class="micro">Up next</span><span class="hero-wait">22h</span></div>
+            <p class="hero-title">refactor(auth): rotate session keys</p>
+            <p class="hero-why"><span class="who">l.okafor</span><span>review requested</span><span class="faint">·</span><span class="mono">forge/api #412</span></p>
+          </article>
+        </div>
+        <div class="state-cell">
+          <div class="state-head"><span class="state-label">cursor · up next</span><span class="state-sel">.deck-cursor</span></div>
+          <article class="hero deck-cursor" data-bucket="up-next">
+            <div class="hero-top"><span class="micro">Up next</span><span class="hero-wait">22h</span></div>
+            <p class="hero-title">refactor(auth): rotate session keys</p>
+            <p class="hero-why"><span class="who">l.okafor</span><span>review requested</span><span class="faint">·</span><span class="mono">forge/api #412</span></p>
+          </article>
+        </div>
+        <div class="state-cell">
+          <div class="state-head"><span class="state-label">open · up next</span><span class="state-sel">.deck-open</span></div>
+          <article class="hero deck-open" data-bucket="up-next">
+            <div class="hero-top"><span class="micro">Up next</span><span class="hero-wait">22h</span></div>
+            <p class="hero-title">refactor(auth): rotate session keys</p>
+            <p class="hero-why"><span class="who">l.okafor</span><span>review requested</span><span class="faint">·</span><span class="mono">forge/api #412</span></p>
+          </article>
+        </div>
+      </div>
+      <p class="state-note">Bucket rail: <span class="mono">--danger</span> for Needs you, <span class="mono">--accent</span> for Up next. Open dot: 4px accent at <span class="mono">left:-6px</span>, halo <span class="mono">0 0 8px</span> @45%. Cursor ring: 1px <span class="mono">--line-strong</span> @80%, <span class="mono">outline-offset:-1px</span>.</p>
     </div>
 
     <div class="card">
@@ -1942,18 +2008,19 @@ button:focus-visible{outline-offset:-2px}
         <tbody>
           <tr><td class="surface">Deck row</td><td class="state">rest</td><td class="sel">.deck-row</td><td>Transparent. 2px severity bar, <code>inset-block:6px</code>, radius 999: blocked <code>--danger</code>, warn <code>--fg-muted</code>, wait <code>--line-strong</code>.</td></tr>
           <tr><td class="surface">Deck row</td><td class="state">hover</td><td class="sel">:hover</td><td>Fill <code>--surface</code> @70%. Bar grows to 3px; blocked bar gains <code>0 0 10px -2px</code> danger @80. Title <code>--fg</code> @92% + accent.</td></tr>
-          <tr><td class="surface">Deck row</td><td class="state">cursor</td><td class="sel">.is-active</td><td>Fill <code>--surface</code> @60%. Bar unchanged. Set by j/k, reflected by <code>aria-activedescendant</code> on the listbox, never by focus.</td></tr>
-          <tr><td class="surface">Deck row</td><td class="state">selected</td><td class="sel">.is-selected</td><td><code>row-selected</code>: 90° gradient <code>--surface</code> → 55% @42% → transparent @82%; 2px accent bar, accent→30%, halo <code>0 0 10px</code> @35%. Replaces the severity bar. Title <code>--fg</code>.</td></tr>
-          <tr><td class="surface">Deck row</td><td class="state">selected + hover</td><td class="sel">both</td><td>Selection fill and accent bar win; title stays <code>--fg</code>. Hover only brightens the pointer, never demotes the pick.</td></tr>
+          <tr><td class="surface">Deck row</td><td class="state">cursor</td><td class="sel">.deck-cursor</td><td>1px neutral <code>--line-strong</code> @80% ring, <code>outline-offset:-1px</code>. Hover is suppressed while the cursor rests; the severity bar is untouched. Set by j/k, reflected by <code>aria-activedescendant</code> on the listbox, never by focus.</td></tr>
+          <tr><td class="surface">Deck row</td><td class="state">selected</td><td class="sel">.deck-open + aria-selected</td><td><code>bg-surface</code> fill + 4px accent dot in the 8px list gutter at <code>left:-6px</code>, halo <code>0 0 8px</code> @45%. Severity rail and title <code>--fg</code> unchanged. The dot is additive, never a border or ring on the card.</td></tr>
+          <tr><td class="surface">Deck row</td><td class="state">selected + hover</td><td class="sel">.deck-open:hover</td><td>Open fill and dot win; hover leaves the title and rail alone. The cursor ring may compose with the dot; selection never demotes the severity.</td></tr>
           <tr><td class="surface">Deck row</td><td class="state">dim</td><td class="sel">.is-dim</td><td>Title <code>--fg-body</code> at 400; bar <code>--line</code>. Orthogonal: composes with rest/hover/cursor, never with selected.</td></tr>
           <tr><td class="surface">Deck row</td><td class="state">focus</td><td class="sel">:focus-visible</td><td>2px accent @55%, <code>outline-offset:-2px</code> — buttons draw the ring inside their own box, never outside a flush pane edge.</td></tr>
-          <tr><td class="surface">Hero</td><td class="state">rest</td><td class="sel">.hero</td><td>1px <code>--line-strong</code>; <code>--raised</code>/70% → <code>--surface</code> gradient + danger radial 12% at 6%/-30%; 2px <code>--danger</code> bar, <code>inset-block:10px</code>.</td></tr>
+          <tr><td class="surface">Hero</td><td class="state">rest</td><td class="sel">.hero</td><td>1px <code>--line-strong</code>; <code>--raised</code>/70% → <code>--surface</code> gradient + radial 12% at 6%/-30%; 2px rail, <code>inset-block:10px</code>: <code>--danger</code> for Needs you, <code>--accent</code> for Up next. Label hue follows the rail.</td></tr>
           <tr><td class="surface">Hero</td><td class="state">hover</td><td class="sel">.hero-title:hover</td><td>Title <code>--fg</code> @88% + accent. The row itself does not lift.</td></tr>
-          <tr><td class="surface">Hero</td><td class="state">selected</td><td class="sel">none</td><td>Never selected: there is one hero, and it is by construction the PR in the pre-flight. Selection lives on the quiet rows below it.</td></tr>
+          <tr><td class="surface">Hero</td><td class="state">cursor</td><td class="sel">.deck-cursor</td><td>1px neutral <code>--line-strong</code> @80% ring, <code>outline-offset:-1px</code>; composes with <code>.deck-open</code>. The cursor never becomes the selection.</td></tr>
+          <tr><td class="surface">Hero</td><td class="state">selected</td><td class="sel">.deck-open + aria-selected</td><td>4px accent dot in the 8px gutter, <code>left:-6px</code>, halo <code>0 0 8px</code> @45%. The <code>lit</code> card, 1px border and bucket rail stay; selection never outlines, fills or recolors the card.</td></tr>
           <tr><td class="surface">Bucket head</td><td class="state">rest / hover</td><td class="sel">.bucket-head</td><td>1px top <code>--line</code>; count is a chip, <code>--fg</code> @4%. Hover: micro → <code>--fg</code>, chev → <code>--fg-muted</code>.</td></tr>
           <tr><td class="surface">Bucket head</td><td class="state">collapsed</td><td class="sel">.is-collapsed</td><td>Chevron <code>rotate(-90deg)</code>; body <code>display:none</code>; <code>aria-expanded="false"</code>.</td></tr>
           <tr><td class="surface">Repo row</td><td class="state">rest / hover</td><td class="sel">.repo-row</td><td><code>--fg-muted</code>; hover fill <code>--surface</code> @60% + <code>--fg</code>.</td></tr>
-          <tr><td class="surface">Repo row</td><td class="state">selected</td><td class="sel">.is-selected</td><td>Same recipe as a selected deck row, icon → <code>--accent</code>. One selection look across the app.</td></tr>
+          <tr><td class="surface">Repo row</td><td class="state">selected</td><td class="sel">.is-selected</td><td><code>row-selected</code>: 90° gradient <code>--surface</code> → 55% @42% → transparent @82%; 2px accent bar with halo; icon → <code>--accent</code>. Deck rows use <code>deck-open</code> instead because their left edge belongs to severity.</td></tr>
           <tr><td class="surface">Rail tab</td><td class="state">rest / hover</td><td class="sel">.rail-tab</td><td>36px square, <code>--fg-faint</code>; hover <code>--surface</code> + <code>--fg</code>.</td></tr>
           <tr><td class="surface">Rail tab</td><td class="state">active</td><td class="sel">.is-active</td><td>Lit <code>--raised</code>→<code>--surface</code> + inset top highlight; 2px accent rail at <code>left:-6px</code>, inset-block 8px, accent→25%, glow <code>0 0 8px -1px</code>. <code>role="tab"</code> + <code>aria-selected</code>.</td></tr>
           <tr><td class="surface">Draft row / more</td><td class="state">rest / hover</td><td class="sel">.draft-row / .deck-more</td><td><code>--fg-muted</code>; hover <code>--surface</code> @70% + <code>--fg</code>; the more arrow translates 2px.</td></tr>
