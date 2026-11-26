@@ -85,7 +85,7 @@ hover, focus and motion.
   Hide the section when `walkthrough` is absent.
 - **Recent conversation** (`:1478-1499`): two latest timeline entries inline,
   author, action/verdict, relative time, body clamped to two lines. `All N
-  entries` opens the Conversation place. Description is not a timeline entry
+entries` opens the Conversation place. Description is not a timeline entry
   here; Context owns it.
 - **Conversation place** (`:1501-1538`): place header with Briefing back,
   title, and `N entries`. Full timeline of comments, verdicts and inline review
@@ -124,19 +124,19 @@ hover, focus and motion.
 
 ## Data gaps
 
-| Briefing element | Mock ref | What exists | Gap / decision |
-|---|---|---|---|
-| Kicker `Needs you` + `l.okafor requested changes` + `22h ago` | `:1396` | `pr.comments` newest verdict, `pr.reviewState`, `pr.checkStatus` | No `needs` predicate. Derive from review/check state and the list tab, or use the hero severity rule. Do not invent a new field for v1. |
-| `22h ago` on Why | `:1417` | `Comment.createdAt` | `Comment` has no commit SHA, so the mock's `on 7f3a9c2` is not renderable from the Why entry. Show the relative time, or `on <pr.headSHA>` only if the head is an acceptable stand-in. |
-| `6 steps` | `:1410` | `diff.walkthrough.steps` | Absent when `sem` is unavailable; hide the fact. |
-| `~8 min` | `:1411` | Nothing | Dropped. |
-| Review counts `2 blocking · 3 warning` | `:1405`, `:1413` | Review artifact via `useClaudeAction` | Counts only exist when a Review action is configured and an artifact exists. Hide the counts otherwise; keep checks and review-state status. |
-| Linear context card | `:1428-1447` | Config has team keys only; no client, route or types | Deferred with no placeholder, per decision 6. |
-| “What changed” prose + anchor chips | `:1459-1475` | `WalkthroughStep.title`, `files`, `additions`, `deletions` | No prose and no line anchor. Keep title/meta and first-file jump. |
-| Recent two entries | `:1480-1494` | `pr.comments` | Selection and order are undefined; see open items. |
-| Conversation composer | `:1533-1537` | `POST /review` with `COMMENT`; inline diff-comment routes | No general issue-comment endpoint. A composer either submits a `COMMENT` review through the existing route or needs a new Go route, cache invalidation and types. |
-| Explain empty/running/artifact states | `:1565-1580` | `useClaudeAction` (`artifact`, `running`, `liveText`, `stale`, `error`) | UI only. Prompt and artifact schema stay unchanged. |
-| Complexity, head commit, status facts | Current `ContextRail` | `diff.complexity`, `pr.headSHA`, `pr.checkStatus` | B's mock does not show complexity. Fold what survives into the briefing facts; drop complexity from the pane unless a new home is chosen. |
+| Briefing element                                              | Mock ref              | What exists                                                             | Gap / decision                                                                                                                                                                         |
+| ------------------------------------------------------------- | --------------------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Kicker `Needs you` + `l.okafor requested changes` + `22h ago` | `:1396`               | `pr.comments` newest verdict, `pr.reviewState`, `pr.checkStatus`        | No `needs` predicate. Derive from review/check state and the list tab, or use the hero severity rule. Do not invent a new field for v1.                                                |
+| `22h ago` on Why                                              | `:1417`               | `Comment.createdAt`                                                     | `Comment` has no commit SHA, so the mock's `on 7f3a9c2` is not renderable from the Why entry. Show the relative time, or `on <pr.headSHA>` only if the head is an acceptable stand-in. |
+| `6 steps`                                                     | `:1410`               | `diff.walkthrough.steps`                                                | Absent when `sem` is unavailable; hide the fact.                                                                                                                                       |
+| `~8 min`                                                      | `:1411`               | Nothing                                                                 | Dropped.                                                                                                                                                                               |
+| Review counts `2 blocking · 3 warning`                        | `:1405`, `:1413`      | Review artifact via `useClaudeAction`                                   | Counts only exist when a Review action is configured and an artifact exists. Hide the counts otherwise; keep checks and review-state status.                                           |
+| Linear context card                                           | `:1428-1447`          | Config has team keys only; no client, route or types                    | Deferred with no placeholder, per decision 6.                                                                                                                                          |
+| “What changed” prose + anchor chips                           | `:1459-1475`          | `WalkthroughStep.title`, `files`, `additions`, `deletions`              | No prose and no line anchor. Keep title/meta and first-file jump.                                                                                                                      |
+| Recent two entries                                            | `:1480-1494`          | `pr.comments`                                                           | Selection and order are undefined; see open items.                                                                                                                                     |
+| Conversation composer                                         | `:1533-1537`          | `POST /review` with `COMMENT`; inline diff-comment routes               | No general issue-comment endpoint. A composer either submits a `COMMENT` review through the existing route or needs a new Go route, cache invalidation and types.                      |
+| Explain empty/running/artifact states                         | `:1565-1580`          | `useClaudeAction` (`artifact`, `running`, `liveText`, `stale`, `error`) | UI only. Prompt and artifact schema stay unchanged.                                                                                                                                    |
+| Complexity, head commit, status facts                         | Current `ContextRail` | `diff.complexity`, `pr.headSHA`, `pr.checkStatus`                       | B's mock does not show complexity. Fold what survives into the briefing facts; drop complexity from the pane unless a new home is chosen.                                              |
 
 ## Composition and behaviour still to decide
 
@@ -167,7 +167,7 @@ hover, focus and motion.
    fullscreen/close. Decide whether Escape in a place from fullscreen returns to
    Briefing first or exits fullscreen first.
 7. **Keyboard hints.** The mock advertises `enter review`, `d diff`, `esc
-   close/return`. None of the detail shortcuts exist today. Implement them or
+close/return`. None of the detail shortcuts exist today. Implement them or
    omit the hints; do not ship dead keycaps.
 8. **“Needs you” predicate.** Define it from `reviewState`, failing checks,
    `reviewRequested` and the opened list tab. Until then, use a neutral kicker
@@ -225,6 +225,7 @@ Frontend only, unless a real conversation composer is chosen:
   ```
 
   Update `src/stores/ui.ts`, `PRList` intents and `PRDetail` local state.
+
 - No OpenAPI change for briefing, Conversation, Diff, Review or Explain: their
   data already exists in `Pr`, `Response`, `ActionArtifact` and `Review`.
 - If the composer is built as a real issue comment, add a Go request/response,

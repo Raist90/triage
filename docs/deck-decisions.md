@@ -43,11 +43,11 @@ Out, explicitly:
 
 Bucket sets are tab-specific. Empty buckets are not rendered.
 
-| Tab | Buckets, in visual order | Hero |
-|---|---|---|
-| `mine` | **Blocked on you**, **Ready to merge**, **Waiting on reviewers**, **Your drafts** | Up next, draft fallback |
-| `review` | **Needs your review**, **Drafts** | Needs you |
-| `all` | **Needs you**, **Your PRs**, **Waiting on author**, **Drafts** | Needs you |
+| Tab      | Buckets, in visual order                                                          | Hero                    |
+| -------- | --------------------------------------------------------------------------------- | ----------------------- |
+| `mine`   | **Blocked on you**, **Ready to merge**, **Waiting on reviewers**, **Your drafts** | Up next, draft fallback |
+| `review` | **Needs your review**, **Drafts**                                                 | Needs you               |
+| `all`    | **Needs you**, **Your PRs**, **Waiting on author**, **Drafts**                    | Needs you               |
 
 Predicates:
 
@@ -113,9 +113,9 @@ draftsOrder = updatedAt desc -> repo asc -> number asc
 Severity:
 
 ```ts
-blocked = reviewState === "changes_requested" || failing
-warn    = !blocked && (reviewState === "review_required" || pending)
-wait    = otherwise
+blocked = reviewState === "changes_requested" || failing;
+warn = !blocked && (reviewState === "review_required" || pending);
+wait = otherwise;
 ```
 
 Draft rows have no severity. `Ready to merge` rows are `wait`.
@@ -280,13 +280,13 @@ the navigation and composition summary.
 
 Briefing sections, in order, all conditional except Context:
 
-| Section | Render when | Source |
-|---|---|---|
-| Why | Any verdict/comment exists | `pr.comments` |
-| Context | Always | `pr.description` only |
-| Where the risk is | A non-stale review artifact has findings | review artifact |
-| What changed | The diff has a walkthrough with steps | `diff.walkthrough` |
-| Conversation | Any comment/verdict exists | `pr.comments`, latest two |
+| Section           | Render when                              | Source                    |
+| ----------------- | ---------------------------------------- | ------------------------- |
+| Why               | Any verdict/comment exists               | `pr.comments`             |
+| Context           | Always                                   | `pr.description` only     |
+| Where the risk is | A non-stale review artifact has findings | review artifact           |
+| What changed      | The diff has a walkthrough with steps    | `diff.walkthrough`        |
+| Conversation      | Any comment/verdict exists               | `pr.comments`, latest two |
 
 Details:
 
@@ -321,19 +321,19 @@ Details:
 
 ### D10. Actions and navigation targets
 
-| Action | Result |
-|---|---|
-| Row click / Enter | Select PR, open detail on **Briefing** |
-| Hero **Open PR** | Select PR, open detail on **Briefing** |
-| Hero **Open diff** | Select PR, open the **Diff** place, no target |
-| Hero **Skip** | Exclude from hero election for this mount; do not select |
-| Draft hero **Open draft** | Select PR, open **Briefing** |
-| Briefing risk row | Open the **Diff** place at `{ path, line }` of the first finding |
-| Briefing phase row | Open the **Diff** place at `{ path }` of the step's first file |
-| Footer **Start review** | Open the **Review** place |
-| Footer places | Open Diff / Conversation / Explain; active place marked |
-| Place **Briefing** back | Return to the briefing; restore its scroll position |
-| Manage | Approve, request changes, draft, close, squash merge |
+| Action                    | Result                                                           |
+| ------------------------- | ---------------------------------------------------------------- |
+| Row click / Enter         | Select PR, open detail on **Briefing**                           |
+| Hero **Open PR**          | Select PR, open detail on **Briefing**                           |
+| Hero **Open diff**        | Select PR, open the **Diff** place, no target                    |
+| Hero **Skip**             | Exclude from hero election for this mount; do not select         |
+| Draft hero **Open draft** | Select PR, open **Briefing**                                     |
+| Briefing risk row         | Open the **Diff** place at `{ path, line }` of the first finding |
+| Briefing phase row        | Open the **Diff** place at `{ path }` of the step's first file   |
+| Footer **Start review**   | Open the **Review** place                                        |
+| Footer places             | Open Diff / Conversation / Explain; active place marked          |
+| Place **Briefing** back   | Return to the briefing; restore its scroll position              |
+| Manage                    | Approve, request changes, draft, close, squash merge             |
 
 Cross-pane navigation from the list uses
 `detailIntent: { prKey, view, diffTarget?, token }`; `PRDetail` consumes and
@@ -393,32 +393,32 @@ leaves fullscreen, then closes the detail.
 
 Every open item from `docs/deck-implementation.md` is closed by a decision:
 
-| Original item | Decision |
-|---|---|
-| 1. “First” order | D2 |
-| 2. Draft hero | D2, D7 |
-| 3. Buckets per tab | D1 |
-| 4. Counts and truncation | D4 |
-| 5. Severity rail mapping | D3 |
-| 6. Skip semantics | D2 |
-| 7. Open diff target | D10 |
-| 8. Collapse persistence and filters | D6 |
-| 9. Draft row states | D8 |
-| 10. Repo panel collapsed layout | D11 |
-| 11. Narrow windows | D11 |
-| 12. Empty and edge states | D12 |
-| 13. Markup vs contract | D5 |
-| 14. Selected vs open | D5 |
-| Hero/preflight size facts | Contract changes |
-| Review counts / stale rule | Contract changes, D9 |
-| Review effort | Out (no minutes) |
-| Commit count | Contract changes |
-| Risk file categories | D9 |
-| “What changed” prose | D9 |
-| `waiting 22h` | D7 (`updated` instead) |
-| Linear context | Out |
-| Pre-review preflight | D9 |
-| Semantic unavailable | D9, D12 |
+| Original item                       | Decision               |
+| ----------------------------------- | ---------------------- |
+| 1. “First” order                    | D2                     |
+| 2. Draft hero                       | D2, D7                 |
+| 3. Buckets per tab                  | D1                     |
+| 4. Counts and truncation            | D4                     |
+| 5. Severity rail mapping            | D3                     |
+| 6. Skip semantics                   | D2                     |
+| 7. Open diff target                 | D10                    |
+| 8. Collapse persistence and filters | D6                     |
+| 9. Draft row states                 | D8                     |
+| 10. Repo panel collapsed layout     | D11                    |
+| 11. Narrow windows                  | D11                    |
+| 12. Empty and edge states           | D12                    |
+| 13. Markup vs contract              | D5                     |
+| 14. Selected vs open                | D5                     |
+| Hero/preflight size facts           | Contract changes       |
+| Review counts / stale rule          | Contract changes, D9   |
+| Review effort                       | Out (no minutes)       |
+| Commit count                        | Contract changes       |
+| Risk file categories                | D9                     |
+| “What changed” prose                | D9                     |
+| `waiting 22h`                       | D7 (`updated` instead) |
+| Linear context                      | Out                    |
+| Pre-review preflight                | D9                     |
+| Semantic unavailable                | D9, D12                |
 
 ## Contract changes
 
@@ -547,7 +547,7 @@ type ReviewSummary = {
   `src/features/prs/detail/`. Pass the briefing the detail PR, review
   controller, diff walkthrough and the existing `openInDiff` callback.
 - Use the `DetailView` union (`briefing | conversation | diff | review |
-  explain`); the briefing is the default for open PRs, merged/closed falls back
+explain`); the briefing is the default for open PRs, merged/closed falls back
   to the receipt.
 - Put the briefing header inside the briefing body (`Briefing.tsx`). Delete
   `PRHeader`, `PreflightTab`, `DetailTabs`, `DetailPanel` and `ContextRail`.
