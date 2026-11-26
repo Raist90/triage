@@ -50,7 +50,6 @@ ul,ol{padding:0;list-style:none}
 
 .mono{font-family:"Geist Mono",ui-monospace,monospace;font-variant-ligatures:none;font-variant-numeric:tabular-nums}
 .micro{font-size:10px;line-height:14px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-faint)}
-.tag-micro{font-size:10px;line-height:14px;font-weight:400;letter-spacing:.06em;text-transform:uppercase}
 .faint{color:var(--fg-faint)} .muted{color:var(--fg-muted)} .body-t{color:var(--fg-body)}
 .danger{color:var(--danger)} .accent{color:var(--accent)}
 .trunc{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -109,7 +108,6 @@ ul,ol{padding:0;list-style:none}
 
 /* One band height everywhere. Chrome gutters are 12; document gutters 24. */
 .band{height:var(--band);flex:none;display:flex;align-items:center;gap:8px;padding:0 var(--gutter-list);min-width:0}
-.band.doc-pad{padding:0 var(--gutter-doc)}
 .seam{position:relative}
 .seam::after{
   content:"";position:absolute;inset-inline:0;bottom:-1px;height:1px;z-index:2;
@@ -198,7 +196,6 @@ ul,ol{padding:0;list-style:none}
 .btn-ghost{color:var(--fg-muted)}
 .btn-ghost:hover{background:var(--surface);color:var(--fg)}
 .btn[disabled]{opacity:.45;pointer-events:none}
-.btn-sm{height:var(--chip);padding:0 8px;font-size:12px}
 .icon-btn{
   width:var(--control);height:var(--control);display:grid;place-items:center;border-radius:4px;color:var(--fg-faint);
   transition:background-color .12s,color .12s;flex:none;position:relative;
@@ -314,17 +311,9 @@ ul,ol{padding:0;list-style:none}
 .deck-row .sub .why{color:var(--fg-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .deck-row .right{display:flex;flex-direction:column;align-items:flex-end;justify-content:center;gap:4px}
 .deck-row .age{font-family:"Geist Mono",monospace;font-size:10px;line-height:14px;color:var(--fg-faint)}
-.draft-row{
-  position:relative;display:flex;align-items:center;gap:8px;height:var(--nav);padding:0 var(--gutter-list);
-  border-radius:4px;font-size:12px;line-height:16px;color:var(--fg-muted);
-}
-.draft-row:hover{background:color-mix(in oklab,var(--surface) 70%,transparent);color:var(--fg)}
-.draft-row .draft-tag{flex:none;border:1px solid var(--line);border-radius:4px;padding:0 4px;font-family:"Geist Mono",monospace;font-size:10px;line-height:14px;color:var(--fg-faint)}
-.draft-row .t{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.draft-row .num,.draft-row .age{font-family:"Geist Mono",monospace;font-size:10px;line-height:14px;color:var(--fg-faint);flex:none}
 
 /* ---------------------------------------------------------------------------
-   Detail document
+   Detail — one PR screen: briefing + diff on the left, the rest on the right
    --------------------------------------------------------------------------- */
 .detail{border-left:1px solid var(--line);display:flex;flex-direction:column;min-width:0}
 .detail-bar .back{display:flex;align-items:center;gap:8px;color:var(--fg-muted);height:var(--control);padding:0 8px;border-radius:4px;font-size:12px;line-height:16px}
@@ -334,189 +323,73 @@ ul,ol{padding:0;list-style:none}
 .detail-bar .branch{font-family:"Geist Mono",monospace;font-size:12px;line-height:16px;color:var(--fg-faint);white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .detail-bar .right{margin-left:auto;display:flex;align-items:center;gap:4px}
 
-.doc{
-  flex:1;min-height:0;overflow:hidden;
-  padding:var(--s5) var(--gutter-doc) 0;
-}
-/* A place longer than the pane ends on a soft scroll edge, not a hard cut. */
-.doc.cut{
-  mask-image:linear-gradient(180deg,#000 calc(100% - 40px),transparent);
-  -webkit-mask-image:linear-gradient(180deg,#000 calc(100% - 40px),transparent);
-}
-.doc-inner{max-width:72ch;display:flex;flex-direction:column;gap:var(--s5)}
-.doc-inner.wide{max-width:none}
+.detail-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 300px}
+.doc-main{display:flex;flex-direction:column;min-width:0;min-height:0}
 
-.brief-head{display:flex;flex-direction:column;gap:8px}
+/* Briefing: four lines, no separate status or facts block. */
+.pr-head{flex:none;display:flex;flex-direction:column;gap:var(--s2);padding:var(--s4) var(--gutter-doc) var(--s3)}
 .kicker{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-family:"Geist Mono",monospace;font-size:10px;line-height:14px;color:var(--fg-faint)}
 .kicker .state{font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--danger)}
-.kicker .state.accent{color:var(--accent)}
 .dot{width:2px;height:2px;border-radius:999px;background:var(--line-strong);flex:none}
 .brief-title{font-size:20px;line-height:26px;font-weight:500;letter-spacing:-.01em;color:var(--fg);max-width:38ch;text-wrap:balance}
-.brief-meta{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;font-size:12px;line-height:16px;color:var(--fg-faint)}
+.brief-meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:12px;line-height:16px;color:var(--fg-faint)}
 .brief-meta .who{color:var(--fg-body)}
 .brief-meta .mono{color:var(--fg-faint)}
-.brief-status{display:flex;flex-wrap:wrap;align-items:center;gap:12px;font-size:12px;line-height:16px;color:var(--fg-muted)}
-.brief-status .s{display:inline-flex;align-items:center;gap:4px}
-.brief-status .s.danger{color:var(--danger)}
-.brief-facts{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
+.brief-meta .s{display:inline-flex;align-items:center;gap:4px;color:var(--fg-muted)}
+.brief-meta .s.danger{color:var(--danger)}
 
-/* One section recipe: hairline, label, optional mono tail, 8px, body. */
-.sec{border-top:1px solid var(--line);padding-top:8px}
-.sec-head{display:flex;align-items:baseline;gap:8px;margin-bottom:8px;min-width:0}
-.sec-head .tail{margin-left:auto;font-family:"Geist Mono",monospace;font-size:10px;line-height:14px;color:var(--fg-faint);white-space:nowrap}
-.prose{font-size:14px;line-height:22px;color:var(--fg-body)}
+/* Context: one collapsed row by default; expanding is the only growth. */
+.ctx{
+  flex:none;height:40px;width:100%;display:flex;align-items:center;gap:8px;
+  padding:0 var(--gutter-doc);border-top:1px solid var(--line);text-align:left;min-width:0;
+  transition:background-color .12s;
+}
+.ctx:hover{background:color-mix(in oklab,var(--surface) 55%,transparent)}
+.ctx .chev{transform:rotate(-90deg);color:var(--fg-faint);transition:transform .12s}
+.ctx.is-open .chev{transform:none}
+.ctx.is-open .excerpt{display:none}
+.ctx .label{flex:none;font-size:12px;line-height:16px;font-weight:500;color:var(--fg-body)}
+.ctx .excerpt{flex:1;min-width:0;font-size:12px;line-height:16px;color:var(--fg-faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ctx .tail{flex:none;font-family:"Geist Mono",monospace;font-size:10px;line-height:14px;color:var(--fg-faint)}
+.ctx-body{padding:0 var(--gutter-doc) var(--s4);max-width:72ch;border-bottom:1px solid var(--line)}
+.prose{font-size:13px;line-height:20px;color:var(--fg-body)}
 .prose + .prose{margin-top:8px}
 .prose code{
   font-family:"Geist Mono",monospace;font-size:12px;padding:0 4px;border-radius:4px;
   background:var(--surface);border:1px solid var(--line);color:var(--fg-body);
 }
-.why-row{display:flex;align-items:flex-start;gap:8px}
-.avatar{
-  width:24px;height:24px;border-radius:999px;flex:none;display:grid;place-items:center;
-  background:var(--raised);border:1px solid var(--line);
-  font-family:"Geist Mono",monospace;font-size:10px;line-height:14px;color:var(--fg-muted);
-}
-.why-body{min-width:0;font-size:13px;line-height:20px;color:var(--fg-body)}
-.why-body b{font-weight:500;color:var(--fg)}
-.quote{margin-top:8px;padding-left:8px;border-left:2px solid var(--line);color:var(--fg-muted);white-space:pre-wrap}
 
-.risk-row{
-  display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:12px;
-  height:40px;width:100%;padding:0 0;text-align:left;border-bottom:1px solid var(--line);
-  transition:background-color .12s;
-}
-.risk-row:hover{background:color-mix(in oklab,var(--surface) 55%,transparent)}
-.risk-row .path{font-family:"Geist Mono",monospace;font-size:12px;line-height:16px;color:var(--fg-body);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.risk-row .cat{font-size:10px;line-height:14px;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-faint)}
-.risk-row .marks{display:flex;align-items:center;gap:2px}
-.mark{width:8px;height:8px;border-radius:2px;flex:none}
-.mark.blocking{background:var(--danger)} .mark.warning{background:var(--fg-muted)}
-.mark.nitpick{background:var(--line-strong)} .mark.praise{background:var(--accent)}
-
-.step-row{
-  display:grid;grid-template-columns:24px minmax(0,1fr) auto;align-items:start;gap:12px;
-  padding:4px 0;text-align:left;border-bottom:1px solid color-mix(in oklab,var(--line) 55%,transparent);
-}
-.step-row:hover{background:color-mix(in oklab,var(--surface) 55%,transparent)}
-.step-row .n{font-family:"Geist Mono",monospace;font-size:10px;line-height:20px;color:var(--fg-faint)}
-.step-row .t{font-size:13px;line-height:20px;color:var(--fg-body);text-wrap:pretty}
-.step-row .file{
-  display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 4px;margin-top:2px;
-  border:1px solid var(--line);border-radius:4px;background:var(--surface);
-  font-family:"Geist Mono",monospace;font-size:10px;line-height:14px;color:var(--fg-muted);max-width:160px;
-}
-.step-row .file .i-xs{color:var(--fg-faint)}
-
-.conv-row{display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
-.conv-row .who{font-size:13px;line-height:20px;color:var(--fg-body);min-width:0}
-.conv-row .who b{font-weight:500;color:var(--fg)}
-.conv-row .who .meta{font-family:"Geist Mono",monospace;font-size:10px;line-height:14px;color:var(--fg-faint);margin-left:6px}
-.conv-row .excerpt{font-size:13px;line-height:20px;color:var(--fg-muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-
-.detail-foot{
+/* Diff strip: the only toolbar between briefing and code. */
+.diff-strip{
   height:var(--band);flex:none;display:flex;align-items:center;gap:8px;
-  border-top:1px solid var(--line);padding:0 var(--gutter-list);
+  padding:0 var(--gutter-doc);border-block:1px solid var(--line);
+  background:color-mix(in oklab,var(--surface) 50%,var(--canvas));min-width:0;
 }
-.place-link{
-  display:inline-flex;align-items:center;gap:6px;height:var(--control);flex:none;
-  padding:0 8px;border-radius:4px;font-size:12px;line-height:16px;color:var(--fg-faint);
-  transition:background-color .12s,color .12s;
-}
-.place-link:hover{background:var(--surface);color:var(--fg)}
-.place-link.is-on{background:var(--surface);color:var(--fg)}
-.place-link .n{font-family:"Geist Mono",monospace;font-size:10px;line-height:14px;color:var(--fg-faint)}
-.detail-foot .right{margin-left:auto;display:flex;align-items:center;gap:4px}
+.diff-strip .totals{font-size:10px;line-height:14px;color:var(--fg-muted);white-space:nowrap}
+.diff-strip .right{margin-left:auto;display:flex;align-items:center;gap:4px}
 
-/* ---------------------------------------------------------------------------
-   Places: review + diff
-   --------------------------------------------------------------------------- */
-.place-band{border-bottom:1px solid var(--line)}
-.place-band .back{display:flex;align-items:center;gap:4px;height:var(--control);padding:0 4px;border-radius:4px;font-size:12px;line-height:16px;color:var(--fg-muted)}
-.place-band .back:hover{background:var(--surface);color:var(--fg)}
-.place-band h2{font-size:16px;line-height:24px;font-weight:500;color:var(--fg);white-space:nowrap}
-.place-band .tail{margin-left:auto;font-family:"Geist Mono",monospace;font-size:10px;line-height:14px;color:var(--fg-faint);white-space:nowrap}
-.place-band .right{margin-left:auto;display:flex;align-items:center;gap:4px}
-
-.review-body{display:flex;flex-direction:column;gap:24px}
-.verdict{display:flex;flex-direction:column;gap:8px}
-.verdict-head{display:flex;align-items:baseline;gap:12px;min-width:0}
-.verdict-head .v{font-size:16px;line-height:24px;font-weight:500}
-.verdict-head .v.danger{color:var(--danger)}
-.verdict-head .v.accent{color:var(--accent)}
-.verdict-head .when{margin-left:auto;font-family:"Geist Mono",monospace;font-size:10px;line-height:14px;color:var(--fg-faint);white-space:nowrap}
-.strip{display:flex;height:4px;gap:2px;border-radius:999px;overflow:hidden;background:var(--line)}
-.strip .seg{height:100%}
-.seg.blocking{background:var(--danger)} .seg.warning{background:var(--fg-muted)}
-.seg.nitpick{background:var(--line-strong)} .seg.praise{background:var(--accent)}
-.verdict-counts{display:flex;flex-wrap:wrap;align-items:center;gap:16px;font-family:"Geist Mono",monospace;font-size:10px;line-height:14px;color:var(--fg-faint)}
-.verdict-counts .c{display:inline-flex;align-items:center;gap:6px}
-.verdict-counts .sw{width:6px;height:6px;border-radius:2px;flex:none}
-.verdict-counts .sw.blocking{background:var(--danger)} .verdict-counts .sw.warning{background:var(--fg-muted)}
-.verdict-counts .sw.nitpick{background:var(--line-strong)} .verdict-counts .sw.praise{background:var(--accent)}
-
-.findings{display:flex;flex-direction:column}
-.finding{position:relative;padding:8px 0 8px 12px;border-top:1px solid var(--line)}
-.finding::before{
-  content:"";position:absolute;left:0;top:8px;bottom:8px;width:2px;border-radius:999px;
+.diff-doc{
+  flex:1;min-height:0;overflow:hidden;
+  mask-image:linear-gradient(180deg,#000 calc(100% - 48px),transparent);
+  -webkit-mask-image:linear-gradient(180deg,#000 calc(100% - 48px),transparent);
 }
-.finding.sev-blocking::before{background:var(--danger)}
-.finding.sev-warning::before{background:var(--fg-muted)}
-.finding.sev-nitpick::before{background:var(--line-strong)}
-.finding.sev-praise::before{background:var(--accent)}
-.finding-top{display:flex;align-items:baseline;gap:8px;min-width:0}
-.finding-top .loc{font-family:"Geist Mono",monospace;font-size:12px;line-height:16px;color:var(--fg-muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.finding-top .sev{margin-left:auto;font-size:10px;line-height:14px;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-faint);white-space:nowrap}
-.finding-top .sev.danger{color:var(--danger)}
-.finding h3{font-size:13px;line-height:18px;font-weight:500;color:var(--fg);margin-top:4px}
-.finding p{font-size:13px;line-height:18px;color:var(--fg-body);margin-top:2px}
-.finding-actions{display:flex;align-items:center;gap:16px;margin-top:8px}
-.link-action{display:inline-flex;align-items:center;gap:4px;font-size:12px;line-height:16px;color:var(--fg-muted);transition:color .12s}
-.link-action:hover{color:var(--fg)}
-
-/* Diff */
-.diff{display:flex;min-height:0;flex:1}
-.diff-rail{width:208px;flex:none;border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
-.rail-search{height:var(--band);flex:none;display:flex;align-items:center;padding:0 var(--gutter-list);border-bottom:1px solid var(--line)}
-.rail-search .field{
-  height:var(--control);width:100%;display:flex;align-items:center;gap:6px;padding:0 8px;
-  border:1px solid var(--line);border-radius:4px;background:var(--surface);
-  font-size:12px;line-height:16px;color:var(--fg-faint);
-}
-.rail-list{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;padding:4px 8px}
-.rail-file{
-  position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;
-  height:40px;padding:0 8px;border-radius:4px;text-align:left;color:var(--fg-muted);
-}
-.rail-file:hover{background:color-mix(in oklab,var(--surface) 60%,transparent);color:var(--fg)}
-.rail-file .p{font-family:"Geist Mono",monospace;font-size:12px;line-height:16px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rail-file .n{font-family:"Geist Mono",monospace;font-size:10px;line-height:14px;color:var(--fg-faint);white-space:nowrap}
-.rail-file .n .a{color:var(--accent)} .rail-file .n .d{color:var(--danger)}
-.rail-file.is-on{color:var(--fg);background-image:linear-gradient(90deg,var(--surface) 0%,color-mix(in oklab,var(--surface) 55%,transparent) 50%,transparent 92%)}
-.rail-file.is-on::before{
-  content:"";position:absolute;inset-block:8px;left:0;width:2px;border-radius:999px;
-  background:linear-gradient(180deg,var(--accent),color-mix(in oklab,var(--accent) 30%,transparent));
-}
-.rail-foot{
-  height:var(--band);flex:none;display:flex;align-items:center;justify-content:space-between;gap:8px;
-  border-top:1px solid var(--line);padding:0 var(--gutter-list);
-  font-family:"Geist Mono",monospace;font-size:10px;line-height:14px;color:var(--fg-faint);
-}
-.diff-main{flex:1;min-width:0;min-height:0;overflow:hidden;display:flex;flex-direction:column;position:relative}
 .file-head{
-  height:var(--band);flex:none;display:flex;align-items:center;gap:8px;padding:0 var(--gutter-list);
+  height:var(--band);flex:none;display:flex;align-items:center;gap:8px;padding:0 var(--gutter-doc);
   border-bottom:1px solid var(--line);background:var(--surface);
 }
+.code + .file-head{border-top:1px solid var(--line)}
 .file-head .p{font-family:"Geist Mono",monospace;font-size:12px;line-height:16px;color:var(--fg-body);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .file-head .n{font-family:"Geist Mono",monospace;font-size:10px;line-height:14px;color:var(--fg-faint);white-space:nowrap}
 .file-head .n .a{color:var(--accent)} .file-head .n .d{color:var(--danger)}
 .file-head .right{margin-left:auto;display:flex;align-items:center;gap:4px}
 .code{font-family:"Geist Mono",monospace;font-variant-ligatures:none;font-size:12px;line-height:20px}
 .dhunk{
-  height:28px;display:flex;align-items:center;padding:0 var(--gutter-list);
+  height:28px;display:flex;align-items:center;padding:0 var(--gutter-doc);
   background:color-mix(in oklab,var(--surface) 70%,var(--canvas));
   border-bottom:1px solid var(--line);color:var(--fg-faint);font-size:12px;
+  white-space:nowrap;overflow:hidden;
 }
-.dline{display:grid;grid-template-columns:44px 44px 20px minmax(0,1fr);height:20px;padding-right:52px}
+.dline{display:grid;grid-template-columns:36px 36px 16px minmax(0,1fr);height:20px;padding-right:var(--gutter-doc)}
 .dline .ln{text-align:right;padding-right:12px;color:var(--fg-faint);font-size:10px;line-height:20px;user-select:none}
 .dline .sign{color:var(--fg-faint);text-align:center}
 .dline .src{white-space:pre;overflow:hidden;color:var(--fg-body)}
@@ -528,13 +401,95 @@ ul,ol{padding:0;list-style:none}
 .dline .src .w-del{background:var(--del-word);border-radius:2px}
 .k{color:var(--syn-keyword)} .s{color:var(--syn-string)} .n{color:var(--syn-number)}
 .c{color:var(--syn-comment)} .t{color:var(--syn-type)} .f{color:var(--syn-func)} .tg{color:var(--syn-tag)}
-.semmap{
-  position:absolute;top:var(--band);bottom:0;right:0;width:40px;
-  border-left:1px solid var(--line);background:color-mix(in oklab,var(--canvas) 85%,var(--surface));
+
+/* Review findings, rendered as comment threads under the line they anchor to. */
+.thread{display:grid;grid-template-columns:88px minmax(0,1fr);background:var(--surface);border-block:1px solid var(--line)}
+.thread .tg{
+  display:flex;justify-content:flex-end;align-items:flex-start;gap:4px;padding:8px 8px 0 0;
+  border-right:1px solid var(--line);font-family:"Geist Mono",monospace;font-size:10px;line-height:14px;color:var(--fg-faint);
 }
-.semmap i{position:absolute;left:10px;right:10px;height:3px;border-radius:999px;display:block}
-.semmap i.b{background:var(--danger)} .semmap i.w{background:var(--fg-muted)}
-.semmap i.a{background:var(--accent)}
+.thread .tb{padding:8px var(--s3) 10px;border-left:2px solid transparent;min-width:0}
+.thread.sev-blocking .tb{border-left-color:var(--danger)}
+.thread.sev-warning .tb{border-left-color:var(--fg-muted)}
+.thread.sev-nitpick .tb{border-left-color:var(--line-strong)}
+.thread.sev-praise .tb{border-left-color:var(--accent)}
+.thread-head{display:flex;align-items:center;gap:8px;min-width:0}
+.thread-head .when{margin-left:auto;font-family:"Geist Mono",monospace;font-size:10px;line-height:14px;color:var(--fg-faint);white-space:nowrap}
+.thread-head b{font-size:12px;line-height:16px;font-weight:500;color:var(--fg-body);white-space:nowrap}
+.thread h3{font-size:13px;line-height:18px;font-weight:500;color:var(--fg);margin-top:4px}
+.thread p{font-size:12px;line-height:18px;color:var(--fg-muted);margin-top:2px}
+.thread p code{
+  font-family:"Geist Mono",monospace;font-size:11px;padding:0 3px;border-radius:4px;
+  background:var(--canvas);border:1px solid var(--line);color:var(--fg-body);
+}
+.thread-actions{display:flex;align-items:center;gap:16px;margin-top:8px}
+.link-action{display:inline-flex;align-items:center;gap:4px;font-size:12px;line-height:16px;color:var(--fg-muted);transition:color .12s}
+.link-action:hover{color:var(--fg)}
+
+.avatar{
+  width:24px;height:24px;border-radius:999px;flex:none;display:grid;place-items:center;
+  background:var(--raised);border:1px solid var(--line);
+  font-family:"Geist Mono",monospace;font-size:10px;line-height:14px;color:var(--fg-muted);
+}
+.avatar.i-avatar{width:18px;height:18px;color:var(--fg-faint)}
+
+/* ---------------------------------------------------------------------------
+   Right bar: review, conversation, explanation. Nothing else.
+   --------------------------------------------------------------------------- */
+.bar{border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0;background:color-mix(in oklab,var(--canvas) 94%,var(--surface))}
+.bar .scroll{flex:1;min-height:0;overflow:hidden;padding:0 var(--s4);display:flex;flex-direction:column}
+.bar-sec{padding:var(--s3) 0}
+.bar-sec + .bar-sec{border-top:1px solid var(--line)}
+.sec-head{display:flex;align-items:baseline;gap:8px;margin-bottom:8px;min-width:0}
+.sec-head .tail{margin-left:auto;font-family:"Geist Mono",monospace;font-size:10px;line-height:14px;color:var(--fg-faint);white-space:nowrap}
+
+.verdict-line{font-size:13px;line-height:18px;font-weight:500;color:var(--fg-body);margin-bottom:8px}
+.verdict-line.danger{color:var(--danger)}
+.strip{display:flex;height:4px;gap:2px;border-radius:999px;overflow:hidden;background:var(--line)}
+.strip .seg{height:100%}
+.seg.blocking{background:var(--danger)} .seg.warning{background:var(--fg-muted)}
+.seg.nitpick{background:var(--line-strong)} .seg.praise{background:var(--accent)}
+.verdict-counts{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:8px;font-family:"Geist Mono",monospace;font-size:10px;line-height:14px;color:var(--fg-faint)}
+.verdict-counts .c{display:inline-flex;align-items:center;gap:6px}
+.verdict-counts .sw{width:6px;height:6px;border-radius:2px;flex:none}
+.verdict-counts .sw.blocking{background:var(--danger)} .verdict-counts .sw.warning{background:var(--fg-muted)}
+.verdict-counts .sw.nitpick{background:var(--line-strong)} .verdict-counts .sw.praise{background:var(--accent)}
+
+.find-list{margin-top:8px}
+.find-row{
+  position:relative;display:flex;flex-direction:column;gap:2px;width:100%;
+  padding:6px 0 6px 12px;text-align:left;
+  border-bottom:1px solid color-mix(in oklab,var(--line) 55%,transparent);
+}
+.find-row:last-child{border-bottom:0}
+.find-row::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:2px;border-radius:999px;background:var(--line-strong)}
+.find-row.sev-blocking::before{background:var(--danger)}
+.find-row.sev-warning::before{background:var(--fg-muted)}
+.find-row.sev-nitpick::before{background:var(--line-strong)}
+.find-row.sev-praise::before{background:var(--accent)}
+.find-row:hover .lt{color:var(--fg)}
+.find-row .loc{font-family:"Geist Mono",monospace;font-size:10px;line-height:14px;color:var(--fg-faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.find-row .lt{font-size:12px;line-height:16px;color:var(--fg-body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.bar-note{font-size:12px;line-height:18px;color:var(--fg-faint)}
+.bar-note .mono{color:var(--fg-muted)}
+
+.conv-item{display:grid;grid-template-columns:24px minmax(0,1fr);gap:8px;padding:8px 0;border-bottom:1px solid color-mix(in oklab,var(--line) 55%,transparent)}
+.conv-item:last-child{border-bottom:0}
+.conv-item .who{font-size:12px;line-height:16px;color:var(--fg-muted);min-width:0}
+.conv-item .who b{font-weight:500;color:var(--fg-body)}
+.conv-item .meta{font-family:"Geist Mono",monospace;font-size:10px;line-height:14px;color:var(--fg-faint);margin-left:6px;white-space:nowrap}
+.conv-item .x{font-size:12px;line-height:18px;color:var(--fg-muted);margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.conv-item .x b{font-weight:500;color:var(--fg-body)}
+.bar .prose{font-size:12px;line-height:18px;color:var(--fg-muted)}
+.bar .prose + .prose{margin-top:6px}
+.bar .link-action{margin-top:8px}
+
+.bar-foot{
+  height:var(--band);flex:none;display:flex;align-items:center;gap:8px;
+  border-top:1px solid var(--line);padding:0 var(--s4);
+}
+.bar-foot .btn{flex:1}
 
 /* ---------------------------------------------------------------------------
    Spec appendix (mock chrome)
@@ -576,13 +531,8 @@ ul,ol{padding:0;list-style:none}
   <symbol id="i-sparkles" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></symbol>
   <symbol id="i-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 3 14 9-14 9Z"/></symbol>
   <symbol id="i-skip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4v16l10-8Z"/><path d="M19 4v16"/></symbol>
-  <symbol id="i-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/><path d="M9 21H3v-6"/></symbol>
   <symbol id="i-external" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
-  <symbol id="i-panel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3v18"/></symbol>
-  <symbol id="i-focus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></symbol>
-  <symbol id="i-tree" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12h-8"/><path d="M21 6H8"/><path d="M21 18h-8"/><path d="M3 6v4c0 1.1.9 2 2 2h3"/><path d="M3 10v6c0 1.1.9 2 2 2h3"/></symbol>
   <symbol id="i-eyeoff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.53 13.53 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><path d="M2 2l20 20"/><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/></symbol>
-  <symbol id="i-gitpr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M6 9v12"/></symbol>
   <symbol id="i-apply" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></symbol>
 </svg>
 
@@ -590,9 +540,8 @@ ul,ol{padding:0;list-style:none}
   <div class="brandmark">Triage <span>consistency rework</span></div>
   <nav class="mocknav">
     <a href="#s1" class="is-on">01 Cockpit</a>
-    <a href="#s2">02 Review</a>
-    <a href="#s3">03 Diff</a>
-    <a href="#s4">04 Rules</a>
+    <a href="#s2">02 PR screen</a>
+    <a href="#s3">03 Rules</a>
   </nav>
   <div class="hint">static mock · 1440×1000 · Geist / Geist Mono</div>
 </header>
@@ -600,20 +549,20 @@ ul,ol{padding:0;list-style:none}
 <div class="stage">
 
   <!-- =====================================================================
-       01 · Cockpit
+       01 · Cockpit — the PR screen before a review exists
        ===================================================================== -->
   <article class="story" id="s1">
     <div class="story-head">
       <div class="story-num">01</div>
       <div>
-        <h2 class="story-title">Cockpit — one grid, one band, one row</h2>
-        <p class="story-thesis">Every pane starts on the same 44px band and every vertical edge lands on 12px (chrome) or 24px (document). The hero stops being a card: it is a row with a reason line and one action, aligned to the same gutter and 2px rail as every other row. The list footer no longer repeats the count that the toolbar already shows.</p>
+        <h2 class="story-title">Cockpit — the PR screen is the PR</h2>
+        <p class="story-thesis">The detail pane stops being a document with three sibling views. It is one PR screen: a three-line briefing, a Context row that stays collapsed until you ask, then the diff itself. The old Diff / Conversation / Explain tabs, their place headers and their footer are gone. What used to be behind those tabs sits in a 300px bar that never moves: review state, conversation, explanation. The Start review action renders findings as comment threads on the lines they belong to, so there is no second document to visit and no clicking to gather context.</p>
       </div>
       <ul class="story-moves">
-        <li><span class="k">44</span><b>All bands are 44.</b> Toolbar, detail bar, footer and filter strip align across the four panes.</li>
-        <li><span class="k">52</span><b>PR rows are exactly 52.</b> Eight pixels, an 18px title and a 16px identity line, repeated.</li>
-        <li><span class="k">12/24</span><b>Two gutters only.</b> 12 for chrome and list rows, 24 for the briefing document; no 11, 26 or 28px edges.</li>
-        <li><span class="k">1</span><b>One primary per surface.</b> Hero: Open PR. Footer: Start review. Everything else is a ghost or an icon.</li>
+        <li><span class="k">0</span><span><b>No places.</b> No tabs, no per-place header, no place footer. One detail bar, one screen.</span></li>
+        <li><span class="k">300</span><span><b>One right bar.</b> Review, conversation and explanation. Fixed, never a destination.</span></li>
+        <li><span class="k">40</span><span><b>Context is a row.</b> Collapsed by default; one line of preview, expand in place.</span></li>
+        <li><span class="k">44</span><span><b>One diff strip.</b> Totals, head SHA and view toggles replace the second toolbar.</span></li>
       </ul>
     </div>
 
@@ -781,14 +730,14 @@ ul,ol{padding:0;list-style:none}
           <span class="branch">maya/sidecar-port → main</span>
           <div class="right">
             <span class="tag is-danger" style="margin-right:4px">changes requested</span>
-            <button class="icon-btn" title="Enter fullscreen"><svg class="i"><use href="#i-maximize"/></svg></button>
+            <button class="btn btn-ghost">Manage<svg class="i-sm"><use href="#i-chevron-down"/></svg></button>
             <button class="icon-btn" title="Open on GitHub"><svg class="i"><use href="#i-external"/></svg></button>
           </div>
         </div>
 
-        <div class="doc">
-          <div class="doc-inner">
-            <header class="brief-head">
+        <div class="detail-body">
+          <div class="doc-main">
+            <header class="pr-head">
               <div class="kicker">
                 <span class="state">Needs you</span>
                 <span>maya chen requested changes</span>
@@ -802,144 +751,162 @@ ul,ol{padding:0;list-style:none}
                 <span class="mono">maya/sidecar-port → main</span>
                 <span class="dot"></span>
                 <span class="mono">4 commits</span>
-              </div>
-              <div class="brief-status">
-                <span class="s"><svg class="i-sm" style="color:var(--fg-faint)"><use href="#i-check"/></svg>Checks passing</span>
-                <span class="s danger"><svg class="i-sm"><use href="#i-alert"/></svg>Changes requested</span>
-                <span class="s"><svg class="i-sm" style="color:var(--fg-faint)"><use href="#i-sparkles"/></svg><span class="mono">2 blocking · 1 warning</span></span>
-              </div>
-              <div class="brief-facts">
-                <span class="tag">6 files</span>
-                <span class="tag plain mono"><span class="accent">+128</span>&nbsp;<span>−41</span></span>
-                <span class="tag plain mono">9c1f2ab</span>
+                <span class="dot"></span>
+                <span class="s"><svg class="i-xs" style="color:var(--fg-faint)"><use href="#i-check"/></svg>Checks passing</span>
+                <span class="dot"></span>
+                <span class="s danger"><svg class="i-xs"><use href="#i-alert"/></svg>Changes requested</span>
               </div>
             </header>
 
-            <section class="sec">
-              <div class="sec-head">
-                <span class="micro">Why you</span>
-                <span class="tail">on 9c1f2ab</span>
+            <button class="ctx" aria-expanded="false">
+              <svg class="i-sm chev"><use href="#i-chevron-down"/></svg>
+              <span class="label">Context</span>
+              <span class="excerpt">The sidecar binds a random port, writes the handshake to stdout, and lets Tauri read it…</span>
+              <span class="tail">PR body</span>
+            </button>
+
+            <div class="diff-strip">
+              <span class="mono totals">6 files</span>
+              <span class="dot"></span>
+              <span class="mono totals"><span class="accent">+128</span> <span class="danger">−41</span></span>
+              <span class="dot"></span>
+              <span class="mono totals faint">9c1f2ab</span>
+              <div class="right">
+                <button class="icon-btn is-on" title="Show review comments"><svg class="i"><use href="#i-message"/></svg></button>
+                <button class="icon-btn" title="Hide cosmetic-only files"><svg class="i"><use href="#i-eyeoff"/></svg></button>
               </div>
-              <div class="why-row">
-                <span class="avatar">MC</span>
-                <div class="why-body">
-                  <b>maya chen</b> requested changes
-                  <span class="mono faint" style="font-size:10px;margin-left:6px">2h ago</span>
-                  <blockquote class="quote">The retry can race the stdout read — the port has to be printed before the server loop starts.</blockquote>
+            </div>
+
+            <div class="diff-doc">
+              <div class="file-head">
+                <svg class="i-sm faint"><use href="#i-chevron-down"/></svg>
+                <span class="p">src-tauri/src/sidecar.rs</span>
+                <span class="n"><span class="a">+24</span> <span class="d">−8</span></span>
+                <div class="right">
+                  <button class="icon-btn" title="Comment on this file"><svg class="i-sm"><use href="#i-message"/></svg></button>
                 </div>
               </div>
-            </section>
+              <div class="code">
+                <div class="dhunk">@@ -132,18 +132,26 @@ fn spawn_sidecar() -&gt; Result&lt;Child&gt;</div>
+                <div class="dline"><span class="ln">132</span><span class="ln">132</span><span class="sign"></span><span class="src">    <span class="k">let</span> <span class="k">mut</span> child = Command::new(<span class="s">"triage-server"</span>)</span></div>
+                <div class="dline"><span class="ln">133</span><span class="ln">133</span><span class="sign"></span><span class="src">        .stdout(Stdio::piped())</span></div>
+                <div class="dline"><span class="ln">134</span><span class="ln">134</span><span class="sign"></span><span class="src">        .spawn()?;</span></div>
+                <div class="dline del"><span class="ln">135</span><span class="ln"></span><span class="sign">−</span><span class="src">    <span class="k">let</span> handshake = read_handshake(child.stdout.take())?;</span></div>
+                <div class="dline add"><span class="ln"></span><span class="ln">135</span><span class="sign">+</span><span class="src">    <span class="k">let</span> <span class="k">mut</span> port = <span class="k">None</span>;</span></div>
+                <div class="dline add"><span class="ln"></span><span class="ln">136</span><span class="sign">+</span><span class="src">    <span class="k">for</span> attempt <span class="k">in</span> <span class="n">0</span>..<span class="n">5</span> {</span></div>
+                <div class="dline add"><span class="ln"></span><span class="ln">137</span><span class="sign">+</span><span class="src">        <span class="k">match</span> read_handshake(child.stdout.take()) {</span></div>
+                <div class="dline add"><span class="ln"></span><span class="ln">138</span><span class="sign">+</span><span class="src">            <span class="k">Ok</span>(h) =&gt; { port = <span class="k">Some</span>(h.port); <span class="k">break</span> }</span></div>
+                <div class="dline add"><span class="ln"></span><span class="ln">139</span><span class="sign">+</span><span class="src">            <span class="k">Err</span>(_e) <span class="k">if</span> attempt &lt; <span class="n">4</span> =&gt; {</span></div>
+                <div class="dline add"><span class="ln"></span><span class="ln">140</span><span class="sign">+</span><span class="src">                <span class="f">std::thread::sleep</span>(Duration::from_millis(<span class="n">250</span> * (attempt + <span class="n">1</span>)));</span></div>
+                <div class="dline add"><span class="ln"></span><span class="ln">141</span><span class="sign">+</span><span class="src">            }</span></div>
+                <div class="dline add"><span class="ln"></span><span class="ln">142</span><span class="sign">+</span><span class="src">            <span class="k">Err</span>(e) =&gt; <span class="k">return</span> <span class="k">Err</span>(e.<span class="f">into</span>()),</span></div>
+                <div class="dline"><span class="ln">136</span><span class="ln">143</span><span class="sign"></span><span class="src">        }</span></div>
+                <div class="dline"><span class="ln">137</span><span class="ln">144</span><span class="sign"></span><span class="src">    }</span></div>
+                <div class="dline"><span class="ln">138</span><span class="ln">145</span><span class="sign"></span><span class="src">    <span class="k">let</span> port = port.<span class="f">ok_or</span>(<span class="s">"no handshake"</span>)?;</span></div>
+                <div class="dline"><span class="ln">139</span><span class="ln">146</span><span class="sign"></span><span class="src">    <span class="f">emit</span>(<span class="s">"sidecar-ready"</span>, port);</span></div>
+                <div class="dhunk">@@ -151,6 +159,8 @@ fn spawn_sidecar() -&gt; Result&lt;Child&gt;</div>
+                <div class="dline"><span class="ln">151</span><span class="ln">159</span><span class="sign"></span><span class="src">    <span class="c">// The window waits for this event before the first query.</span></span></div>
+                <div class="dline add"><span class="ln"></span><span class="ln">160</span><span class="sign">+</span><span class="src">    <span class="c">// Print before the listener loop so a retry can never beat it.</span></span></div>
+                <div class="dline add"><span class="ln"></span><span class="ln">161</span><span class="sign">+</span><span class="src">    <span class="f">println!</span>(<span class="s">"{{\"port\":{}}}"</span>, port);</span></div>
+              </div>
 
-            <section class="sec">
-              <div class="sec-head">
-                <span class="micro">Context</span>
-                <span class="tail">PR body</span>
+              <div class="file-head">
+                <svg class="i-sm faint"><use href="#i-chevron-down"/></svg>
+                <span class="p">src/lib/api.ts</span>
+                <span class="n"><span class="a">+18</span> <span class="d">−6</span></span>
+                <div class="right">
+                  <button class="icon-btn" title="Comment on this file"><svg class="i-sm"><use href="#i-message"/></svg></button>
+                </div>
               </div>
-              <p class="prose">The sidecar binds a random port, writes the handshake to stdout, and lets Tauri read it. When the port is already taken, the bind fails and stdout stays empty, so the window waits forever.</p>
-              <p class="prose">This patch retries the bind up to five times and prints the port it actually got. <code>read_handshake</code> now also fails fast when the child exits before printing.</p>
-            </section>
+              <div class="code">
+                <div class="dhunk">@@ -84,7 +84,17 @@ export async function getPRs</div>
+                <div class="dline"><span class="ln">84</span><span class="ln">84</span><span class="sign"></span><span class="src"><span class="k">export async function</span> <span class="f">getPRs</span>(params: PRQuery)</span></div>
+                <div class="dline"><span class="ln">85</span><span class="ln">85</span><span class="sign"></span><span class="src">  : Promise&lt;PRListResponse&gt; {</span></div>
+                <div class="dline del"><span class="ln">86</span><span class="ln"></span><span class="sign">−</span><span class="src">  <span class="k">return</span> <span class="f">request</span>(<span class="s">"/prs"</span>, { params });</span></div>
+                <div class="dline add"><span class="ln"></span><span class="ln">86</span><span class="sign">+</span><span class="src">  <span class="k">const</span> abort = <span class="k">new</span> <span class="t">AbortController</span>();</span></div>
+                <div class="dline add"><span class="ln"></span><span class="ln">87</span><span class="sign">+</span><span class="src">  <span class="k">const</span> timer = <span class="f">setTimeout</span>(() =&gt; abort.<span class="f">abort</span>(), HANDSHAKE_TIMEOUT);</span></div>
+                <div class="dline add"><span class="ln"></span><span class="ln">88</span><span class="sign">+</span><span class="src">  <span class="k">try</span> {</span></div>
+                <div class="dline add"><span class="ln"></span><span class="ln">89</span><span class="sign">+</span><span class="src">    <span class="k">return</span> <span class="k">await</span> <span class="f">request</span>(<span class="s">"/prs"</span>, { params, signal: abort.signal });</span></div>
+                <div class="dline add"><span class="ln"></span><span class="ln">90</span><span class="sign">+</span><span class="src">  } <span class="k">finally</span> {</span></div>
+                <div class="dline add"><span class="ln"></span><span class="ln">91</span><span class="sign">+</span><span class="src">    <span class="f">clearTimeout</span>(timer);</span></div>
+                <div class="dline add"><span class="ln"></span><span class="ln">92</span><span class="sign">+</span><span class="src">  }</span></div>
+                <div class="dline"><span class="ln">87</span><span class="ln">93</span><span class="sign"></span><span class="src">}</span></div>
+              </div>
+            </div>
+          </div>
 
-            <section class="sec">
-              <div class="sec-head">
-                <span class="micro">Where the risk is</span>
-                <span class="tail">3 of 6 files</span>
-              </div>
-              <div>
-                <button class="risk-row">
-                  <span class="path">src-tauri/src/sidecar.rs</span>
-                  <span class="cat">Concurrency</span>
-                  <span class="marks"><i class="mark blocking"></i><i class="mark blocking"></i></span>
-                </button>
-                <button class="risk-row">
-                  <span class="path">backend/cmd/triage-server/main.go</span>
-                  <span class="cat">Startup</span>
-                  <span class="marks"><i class="mark blocking"></i></span>
-                </button>
-                <button class="risk-row">
-                  <span class="path">src/lib/api.ts</span>
-                  <span class="cat">Errors</span>
-                  <span class="marks"><i class="mark warning"></i><i class="mark nitpick"></i></span>
-                </button>
-              </div>
-            </section>
+          <aside class="bar" aria-label="Pull request details">
+            <div class="scroll">
+              <section class="bar-sec">
+                <div class="sec-head">
+                  <span class="micro">Review</span>
+                  <span class="tail">not run</span>
+                </div>
+                <p class="bar-note">No automatic review on <span class="mono">9c1f2ab</span> yet. Start review to anchor findings as comments on the diff — here and on the lines they belong to.</p>
+              </section>
 
-            <section class="sec">
-              <div class="sec-head">
-                <span class="micro">What changed</span>
-                <span class="tail">3 phases</span>
-              </div>
-              <div>
-                <button class="step-row">
-                  <span class="n">01</span>
-                  <span class="t">Bind loop with backoff and an explicit port print</span>
-                  <span class="file"><svg class="i-xs"><use href="#i-filediff"/></svg>sidecar.rs</span>
-                </button>
-                <button class="step-row">
-                  <span class="n">02</span>
-                  <span class="t">Child-exit guard in the handshake reader</span>
-                  <span class="file"><svg class="i-xs"><use href="#i-filediff"/></svg>main.go</span>
-                </button>
-                <button class="step-row">
-                  <span class="n">03</span>
-                  <span class="t">Cover the retry path in the Tauri glue</span>
-                  <span class="file"><svg class="i-xs"><use href="#i-filediff"/></svg>api.ts</span>
-                </button>
-              </div>
-            </section>
-
-            <section class="sec">
-              <div class="sec-head">
-                <span class="micro">Conversation</span>
-                <span class="tail">3 entries</span>
-              </div>
-              <div>
-                <div class="conv-row" style="padding-top:0">
+              <section class="bar-sec">
+                <div class="sec-head">
+                  <span class="micro">Conversation</span>
+                  <span class="tail">3</span>
+                </div>
+                <div class="conv-item">
                   <span class="avatar">MC</span>
-                  <div style="min-width:0">
-                    <div class="who"><b>maya chen</b> requested changes<span class="meta">2h ago</span></div>
-                    <div class="excerpt">The retry can race the stdout read…</div>
+                  <div>
+                    <div class="who"><b>maya chen</b> requested changes<span class="meta">2h</span></div>
+                    <div class="x">The retry can race the stdout read — the port has to be printed before the server loop starts.</div>
                   </div>
                 </div>
-                <div class="conv-row">
+                <div class="conv-item">
                   <span class="avatar">LM</span>
-                  <div style="min-width:0">
-                    <div class="who"><b>leo martin</b> commented<span class="meta">5h ago</span></div>
-                    <div class="excerpt">Can we log the chosen port in dev too?</div>
+                  <div>
+                    <div class="who"><b>leo martin</b> commented<span class="meta">5h</span></div>
+                    <div class="x">Can we log the chosen port in dev too? The retry makes it harder to see which one we got.</div>
                   </div>
                 </div>
-              </div>
-            </section>
-          </div>
-        </div>
+                <div class="conv-item">
+                  <span class="avatar">MC</span>
+                  <div>
+                    <div class="who"><b>maya chen</b> commented<span class="meta">6h</span></div>
+                    <div class="x">I reduced the backoff twice already; please keep it under a second in total.</div>
+                  </div>
+                </div>
+              </section>
 
-        <div class="detail-foot">
-          <button class="btn btn-primary"><svg class="i-sm"><use href="#i-play"/></svg>Start review</button>
-          <button class="place-link"><svg class="i-sm"><use href="#i-filediff"/></svg>Diff<span class="n">6</span></button>
-          <button class="place-link"><svg class="i-sm"><use href="#i-message"/></svg>Conversation<span class="n">3</span></button>
-          <button class="place-link"><svg class="i-sm"><use href="#i-sparkles"/></svg>Explain</button>
-          <div class="right">
-            <button class="btn btn-ghost">Manage<svg class="i-sm"><use href="#i-chevron-down"/></svg></button>
-          </div>
+              <section class="bar-sec">
+                <div class="sec-head">
+                  <span class="micro">Explain</span>
+                  <span class="tail">on demand</span>
+                </div>
+                <p class="bar-note">Walk the change end to end: what it is trying to do, what the diff hides, and where the risk sits.</p>
+                <button class="link-action"><svg class="i-xs"><use href="#i-sparkles"/></svg>Explain this PR</button>
+              </section>
+            </div>
+
+            <div class="bar-foot">
+              <button class="btn btn-primary"><svg class="i-sm"><use href="#i-play"/></svg>Start review</button>
+            </div>
+          </aside>
         </div>
       </section>
     </div>
   </article>
 
   <!-- =====================================================================
-       02 · Review place
+       02 · PR screen after review — findings land on the line
        ===================================================================== -->
   <article class="story" id="s2">
     <div class="story-head">
       <div class="story-num">02</div>
       <div>
-        <h2 class="story-title">Review — the same document, a different subject</h2>
-        <p class="story-thesis">A place is one 44px header inside the same 24px document gutter, not a second chrome system. The verdict is the headline; findings are rows with a 2px severity rail, not stacked cards. The footer is unchanged, so the way back is always in the same place.</p>
+        <h2 class="story-title">Review — findings land where they are true</h2>
+        <p class="story-thesis">Start review no longer opens a second document. Each finding renders as a comment thread under the line it anchors to: severity on the 2px rail, the patch action in place, the reply box where the comment is. The bar keeps a six-row index so the shape of the review is visible without scrolling the diff, and Context is shown expanded here only to prove it grows in place — the shipped default is the collapsed row in artboard 01. The fullscreen control is out of scope for this pass and is absent from both screens.</p>
       </div>
       <ul class="story-moves">
-        <li><span class="k">44</span><b>One place band.</b> Back, title, provenance and re-run in a single row.</li>
-        <li><span class="k">24</span><b>Same document gutter.</b> Review, briefing and conversation share one measure.</li>
-        <li><span class="k">2</span><b>Finding rail, no card.</b> A hairline between findings and one severity rail.</li>
-        <li><span class="k">52</span><b>Footer stays put.</b> Start review, places and Manage do not move between surfaces.</li>
+        <li><span class="k">88</span><span><b>Thread gutter.</b> The two line-number columns, so a comment sits exactly on its line.</span></li>
+        <li><span class="k">6</span><span><b>One index.</b> The bar lists every finding; the diff holds the text.</span></li>
+        <li><span class="k">2</span><span><b>Severity on the rail.</b> Blocking and warning are carried by one 2px border, not by a card.</span></li>
+        <li><span class="k">1</span><span><b>One primary.</b> Re-run review in the bar foot; the diff only offers local actions.</span></li>
       </ul>
     </div>
 
@@ -951,7 +918,9 @@ ul,ol{padding:0;list-style:none}
           <button class="rail-tab is-active" title="Review requested"><svg class="i"><use href="#i-eye"/></svg></button>
           <button class="rail-tab" title="All open"><svg class="i"><use href="#i-layers"/></svg></button>
         </div>
-        <div class="rail-foot"><button class="rail-tab" title="Settings"><svg class="i"><use href="#i-settings"/></svg></button></div>
+        <div class="rail-foot">
+          <button class="rail-tab" title="Settings"><svg class="i"><use href="#i-settings"/></svg></button>
+        </div>
       </nav>
 
       <aside class="repos">
@@ -1072,26 +1041,136 @@ ul,ol{padding:0;list-style:none}
           <span class="branch">maya/sidecar-port → main</span>
           <div class="right">
             <span class="tag is-danger" style="margin-right:4px">changes requested</span>
-            <button class="icon-btn" title="Enter fullscreen"><svg class="i"><use href="#i-maximize"/></svg></button>
+            <button class="btn btn-ghost">Manage<svg class="i-sm"><use href="#i-chevron-down"/></svg></button>
             <button class="icon-btn" title="Open on GitHub"><svg class="i"><use href="#i-external"/></svg></button>
           </div>
         </div>
 
-        <div class="band place-band doc-pad">
-          <button class="back"><svg class="i"><use href="#i-chevron-left"/></svg>Briefing</button>
-          <h2>Review</h2>
-          <span class="tail">claude · haiku 5.5 · 2m ago</span>
-          <button class="btn btn-outline" style="margin-left:8px">Re-run</button>
-        </div>
+        <div class="detail-body">
+          <div class="doc-main">
+            <header class="pr-head">
+              <div class="kicker">
+                <span class="state">Needs you</span>
+                <span>maya chen requested changes</span>
+                <span class="dot"></span>
+                <span>2h ago</span>
+              </div>
+              <h1 class="brief-title">Handshake: tolerate a bound port and print the real one</h1>
+              <div class="brief-meta">
+                <span class="who">maya chen</span>
+                <span class="dot"></span>
+                <span class="mono">maya/sidecar-port → main</span>
+                <span class="dot"></span>
+                <span class="mono">4 commits</span>
+                <span class="dot"></span>
+                <span class="s"><svg class="i-xs" style="color:var(--fg-faint)"><use href="#i-check"/></svg>Checks passing</span>
+                <span class="dot"></span>
+                <span class="s danger"><svg class="i-xs"><use href="#i-alert"/></svg>Changes requested</span>
+              </div>
+            </header>
 
-        <div class="doc cut">
-          <div class="doc-inner">
-            <div class="review-body">
-              <section class="verdict">
-                <div class="verdict-head">
-                  <span class="v danger">Two blocking findings</span>
-                  <span class="when">9c1f2ab · 2m ago</span>
+            <button class="ctx is-open" aria-expanded="true">
+              <svg class="i-sm chev"><use href="#i-chevron-down"/></svg>
+              <span class="label">Context</span>
+              <span class="excerpt">The sidecar binds a random port, writes the handshake to stdout, and lets Tauri read it…</span>
+              <span class="tail">PR body · short</span>
+            </button>
+            <div class="ctx-body">
+              <p class="prose">The sidecar binds a random port, writes the handshake to stdout, and lets Tauri read it. When the port is already taken, the bind fails and stdout stays empty, so the window waits forever.</p>
+              <p class="prose">This patch retries the bind up to five times and prints the port it actually got. <code>read_handshake</code> now also fails fast when the child exits before printing.</p>
+            </div>
+
+            <div class="diff-strip">
+              <span class="mono totals">6 files</span>
+              <span class="dot"></span>
+              <span class="mono totals"><span class="accent">+128</span> <span class="danger">−41</span></span>
+              <span class="dot"></span>
+              <span class="mono totals faint">9c1f2ab</span>
+              <div class="right">
+                <span class="tag is-danger"><svg class="i-xs"><use href="#i-alert"/></svg>2 blocking</span>
+                <button class="icon-btn is-on" title="Show review comments"><svg class="i"><use href="#i-message"/></svg></button>
+                <button class="icon-btn" title="Hide cosmetic-only files"><svg class="i"><use href="#i-eyeoff"/></svg></button>
+              </div>
+            </div>
+
+            <div class="diff-doc">
+              <div class="file-head">
+                <svg class="i-sm faint"><use href="#i-chevron-down"/></svg>
+                <span class="p">src-tauri/src/sidecar.rs</span>
+                <span class="n"><span class="a">+24</span> <span class="d">−8</span></span>
+                <div class="right">
+                  <button class="icon-btn" title="Comment on this file"><svg class="i-sm"><use href="#i-message"/></svg></button>
                 </div>
+              </div>
+              <div class="code">
+                <div class="dhunk">@@ -135,10 +135,26 @@ fn spawn_sidecar() -&gt; Result&lt;Child&gt;</div>
+                <div class="dline del"><span class="ln">135</span><span class="ln"></span><span class="sign">−</span><span class="src">    <span class="k">let</span> handshake = read_handshake(child.stdout.take())?;</span></div>
+                <div class="dline add"><span class="ln"></span><span class="ln">135</span><span class="sign">+</span><span class="src">    <span class="k">let</span> <span class="k">mut</span> port = <span class="k">None</span>;</span></div>
+                <div class="dline add"><span class="ln"></span><span class="ln">136</span><span class="sign">+</span><span class="src">    <span class="k">for</span> attempt <span class="k">in</span> <span class="n">0</span>..<span class="n">5</span> {</span></div>
+                <div class="dline add"><span class="ln"></span><span class="ln">137</span><span class="sign">+</span><span class="src">        <span class="k">match</span> read_handshake(child.stdout.take()) {</span></div>
+                <div class="dline add"><span class="ln"></span><span class="ln">138</span><span class="sign">+</span><span class="src">            <span class="k">Ok</span>(h) =&gt; { port = <span class="k">Some</span>(h.port); <span class="k">break</span> }</span></div>
+                <div class="dline add"><span class="ln"></span><span class="ln">139</span><span class="sign">+</span><span class="src">            <span class="k">Err</span>(_e) <span class="k">if</span> attempt &lt; <span class="n">4</span> =&gt; {</span></div>
+                <div class="dline add"><span class="ln"></span><span class="ln">140</span><span class="sign">+</span><span class="src">                <span class="f">std::thread::sleep</span>(Duration::from_millis(<span class="n">250</span> * (attempt + <span class="n">1</span>)));</span></div>
+                <div class="dline add"><span class="ln"></span><span class="ln">141</span><span class="sign">+</span><span class="src">            }</span></div>
+                <div class="dline add"><span class="ln"></span><span class="ln">142</span><span class="sign">+</span><span class="src">            <span class="k">Err</span>(e) =&gt; <span class="k">return</span> <span class="k">Err</span>(e.<span class="f">into</span>()),</span></div>
+                <div class="dline"><span class="ln">136</span><span class="ln">143</span><span class="sign"></span><span class="src">        }</span></div>
+                <div class="dline"><span class="ln">137</span><span class="ln">144</span><span class="sign"></span><span class="src">    }</span></div>
+                <div class="dline"><span class="ln">138</span><span class="ln">145</span><span class="sign"></span><span class="src">    <span class="k">let</span> port = port.<span class="f">ok_or</span>(<span class="s">"no handshake"</span>)?;</span></div>
+                <div class="dline"><span class="ln">139</span><span class="ln">146</span><span class="sign"></span><span class="src">    <span class="f">emit</span>(<span class="s">"sidecar-ready"</span>, port);</span></div>
+              </div>
+
+              <div class="thread sev-blocking">
+                <div class="tg"><svg class="i-xs"><use href="#i-message"/></svg><span>142</span></div>
+                <div class="tb">
+                  <div class="thread-head">
+                    <span class="avatar i-avatar"><svg class="i-xs"><use href="#i-sparkles"/></svg></span>
+                    <b>triage review</b>
+                    <span class="tag is-danger">Blocking</span>
+                    <span class="when">2m ago</span>
+                  </div>
+                  <h3>Port is printed after the server starts</h3>
+                  <p>The handshake line is written once <code>spawn</code> returns, but the listener is bound inside the thread. A client can read a port that nothing is listening on yet. Print after <code>TcpListener::bind</code> succeeds, before the loop.</p>
+                  <div class="thread-actions">
+                    <button class="link-action"><svg class="i-xs"><use href="#i-apply"/></svg>Apply patch</button>
+                    <button class="link-action"><svg class="i-xs"><use href="#i-message"/></svg>Reply</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="code">
+                <div class="dhunk">@@ -151,6 +159,8 @@ fn spawn_sidecar() -&gt; Result&lt;Child&gt;</div>
+                <div class="dline"><span class="ln">151</span><span class="ln">159</span><span class="sign"></span><span class="src">    <span class="c">// The window waits for this event before the first query.</span></span></div>
+                <div class="dline add"><span class="ln"></span><span class="ln">160</span><span class="sign">+</span><span class="src">    <span class="c">// Print before the listener loop so a retry can never beat it.</span></span></div>
+                <div class="dline add"><span class="ln"></span><span class="ln">161</span><span class="sign">+</span><span class="src">    <span class="f">println!</span>(<span class="s">"{{\"port\":{}}}"</span>, port);</span></div>
+              </div>
+
+              <div class="thread sev-nitpick">
+                <div class="tg"><svg class="i-xs"><use href="#i-message"/></svg><span>158</span></div>
+                <div class="tb">
+                  <div class="thread-head">
+                    <span class="avatar i-avatar"><svg class="i-xs"><use href="#i-sparkles"/></svg></span>
+                    <b>triage review</b>
+                    <span class="tag">Nitpick</span>
+                    <span class="when">2m ago</span>
+                  </div>
+                  <h3>Backoff constant belongs at the top</h3>
+                  <p>The 250ms step is repeated in the retry branch. A named constant keeps the five attempts and the backoff in one place.</p>
+                  <div class="thread-actions">
+                    <button class="link-action"><svg class="i-xs"><use href="#i-apply"/></svg>Apply patch</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <aside class="bar" aria-label="Pull request details">
+            <div class="scroll">
+              <section class="bar-sec">
+                <div class="sec-head">
+                  <span class="micro">Review</span>
+                  <span class="tail">claude · haiku 5.5 · 2m</span>
+                </div>
+                <div class="verdict-line danger">Two blocking findings</div>
                 <div class="strip" aria-hidden="true">
                   <span class="seg blocking" style="flex:2"></span>
                   <span class="seg warning" style="flex:1"></span>
@@ -1104,413 +1183,119 @@ ul,ol{padding:0;list-style:none}
                   <span class="c"><i class="sw nitpick"></i>2 nitpicks</span>
                   <span class="c"><i class="sw praise"></i>1 praise</span>
                 </div>
-                <p class="prose" style="margin-top:8px">The retry approach is right, but the printed port can be seen before the listener is ready, and the loop does not notice a dead parent. Both are narrow races; the rest reads clean.</p>
-              </section>
-
-              <section aria-label="Findings">
-                <div class="sec-head" style="border-top:1px solid var(--line);padding-top:8px">
-                  <span class="micro">Findings</span>
-                  <span class="tail">6 total</span>
-                </div>
-                <div class="findings">
-                  <article class="finding sev-blocking" style="border-top:0">
-                    <div class="finding-top">
-                      <span class="loc">src-tauri/src/sidecar.rs:142</span>
-                      <span class="sev danger">Blocking</span>
-                    </div>
-                    <h3>Port is printed after the server starts</h3>
-                    <p>The handshake line is written once <code class="mono">spawn</code> returns, but the listener is bound inside the thread. A client can read a port that nothing is listening on yet. Print after <code class="mono">TcpListener::bind</code> succeeds, before the loop.</p>
-                    <div class="finding-actions">
-                      <button class="link-action"><svg class="i-xs"><use href="#i-filediff"/></svg>Open in diff</button>
-                      <button class="link-action"><svg class="i-xs"><use href="#i-apply"/></svg>Apply patch</button>
-                    </div>
-                  </article>
-
-                  <article class="finding sev-blocking">
-                    <div class="finding-top">
-                      <span class="loc">backend/cmd/triage-server/main.go:31</span>
-                      <span class="sev danger">Blocking</span>
-                    </div>
-                    <h3>Retry loop can outlive the parent</h3>
-                    <p>The five retries happen with no parent check, so a killed window leaves the sidecar retrying for the full backoff. Watch stdin or the process group and exit on EOF.</p>
-                    <div class="finding-actions">
-                      <button class="link-action"><svg class="i-xs"><use href="#i-filediff"/></svg>Open in diff</button>
-                      <button class="link-action"><svg class="i-xs"><use href="#i-apply"/></svg>Apply patch</button>
-                    </div>
-                  </article>
-
-                  <article class="finding sev-warning">
-                    <div class="finding-top">
-                      <span class="loc">src/lib/api.ts:88</span>
-                      <span class="sev">Warning</span>
-                    </div>
-                    <h3>Handshake timeout is unbounded</h3>
-                    <p>The reader now fails fast when the child exits, but a child that hangs before printing still blocks the window. A short timeout keeps the first render responsive.</p>
-                    <div class="finding-actions">
-                      <button class="link-action"><svg class="i-xs"><use href="#i-filediff"/></svg>Open in diff</button>
-                    </div>
-                  </article>
-
-                  <article class="finding sev-nitpick">
-                    <div class="finding-top">
-                      <span class="loc">src-tauri/src/sidecar.rs:158</span>
-                      <span class="sev">Nitpick</span>
-                    </div>
-                    <h3>Backoff constant belongs at the top</h3>
-                    <p>The 250ms step is repeated in the retry branch. A named constant keeps the five attempts and the backoff in one place.</p>
-                    <div class="finding-actions">
-                      <button class="link-action"><svg class="i-xs"><use href="#i-filediff"/></svg>Open in diff</button>
-                    </div>
-                  </article>
-
-                  <article class="finding sev-nitpick">
-                    <div class="finding-top">
-                      <span class="loc">backend/internal/api/server.go:41</span>
-                      <span class="sev">Nitpick</span>
-                    </div>
-                    <h3>Comment repeats the function name</h3>
-                    <p>“Checks the bearer token” says nothing the signature does not. Say what happens on failure instead.</p>
-                  </article>
-
-                  <article class="finding sev-praise">
-                    <div class="finding-top">
-                      <span class="loc">backend/internal/api/server.go:64</span>
-                      <span class="sev">Praise</span>
-                    </div>
-                    <h3>One place owns the bearer check</h3>
-                    <p>The middleware change is small and keeps token handling out of every handler. Good.</p>
-                  </article>
+                <div class="find-list">
+                  <button class="find-row sev-blocking">
+                    <span class="loc">sidecar.rs:142</span>
+                    <span class="lt">Port is printed after the server starts</span>
+                  </button>
+                  <button class="find-row sev-blocking">
+                    <span class="loc">triage-server/main.go:31</span>
+                    <span class="lt">Retry loop can outlive the parent</span>
+                  </button>
+                  <button class="find-row sev-warning">
+                    <span class="loc">api.ts:88</span>
+                    <span class="lt">Handshake timeout is unbounded</span>
+                  </button>
+                  <button class="find-row sev-nitpick">
+                    <span class="loc">sidecar.rs:158</span>
+                    <span class="lt">Backoff constant belongs at the top</span>
+                  </button>
+                  <button class="find-row sev-nitpick">
+                    <span class="loc">server.go:41</span>
+                    <span class="lt">Comment repeats the function name</span>
+                  </button>
+                  <button class="find-row sev-praise">
+                    <span class="loc">server.go:64</span>
+                    <span class="lt">One place owns the bearer check</span>
+                  </button>
                 </div>
               </section>
-            </div>
-          </div>
-        </div>
 
-        <div class="detail-foot">
-          <button class="btn btn-primary"><svg class="i-sm"><use href="#i-play"/></svg>Start review</button>
-          <button class="place-link"><svg class="i-sm"><use href="#i-filediff"/></svg>Diff<span class="n">6</span></button>
-          <button class="place-link"><svg class="i-sm"><use href="#i-message"/></svg>Conversation<span class="n">3</span></button>
-          <button class="place-link"><svg class="i-sm"><use href="#i-sparkles"/></svg>Explain</button>
-          <div class="right">
-            <button class="btn btn-ghost">Manage<svg class="i-sm"><use href="#i-chevron-down"/></svg></button>
-          </div>
-        </div>
-      </section>
-    </div>
-  </article>
+              <section class="bar-sec">
+                <div class="sec-head">
+                  <span class="micro">Conversation</span>
+                  <span class="tail">3</span>
+                </div>
+                <div class="conv-item">
+                  <span class="avatar">MC</span>
+                  <div>
+                    <div class="who"><b>maya chen</b> requested changes<span class="meta">2h</span></div>
+                    <div class="x">The retry can race the stdout read — the port has to be printed before the server loop starts.</div>
+                  </div>
+                </div>
+                <div class="conv-item">
+                  <span class="avatar">LM</span>
+                  <div>
+                    <div class="who"><b>leo martin</b> commented<span class="meta">5h</span></div>
+                    <div class="x">Can we log the chosen port in dev too? The retry makes it harder to see which one we got.</div>
+                  </div>
+                </div>
+                <div class="conv-item">
+                  <span class="avatar">MC</span>
+                  <div>
+                    <div class="who"><b>maya chen</b> commented<span class="meta">6h</span></div>
+                    <div class="x">I reduced the backoff twice already; please keep it under a second in total.</div>
+                  </div>
+                </div>
+              </section>
 
-  <!-- =====================================================================
-       03 · Diff place
-       ===================================================================== -->
-  <article class="story" id="s3">
-    <div class="story-head">
-      <div class="story-num">03</div>
-      <div>
-        <h2 class="story-title">Diff — one band, then the code</h2>
-        <p class="story-thesis">The diff used to stack a place header and a second 36px toolbar. They become one 44px band: back, title, totals on the left; the four view toggles on the right. The file rail is a normal 208px list with 40px rows and the same selection recipe as every other list.</p>
-      </div>
-      <ul class="story-moves">
-        <li><span class="k">1</span><b>One band.</b> No 36px toolbar under a 48px header; totals live in the band, filters in the rail.</li>
-        <li><span class="k">40</span><b>File rows are 40.</b> One path line and one count line never wrap.</li>
-        <li><span class="k">208</span><b>Rail is a list.</b> Same row grammar, same rail, same 12px gutter.</li>
-        <li><span class="k">20</span><b>Code line stays 20.</b> Unified lines, 12/20 mono, one diff tint.</li>
-      </ul>
-    </div>
+              <section class="bar-sec">
+                <div class="sec-head">
+                  <span class="micro">Explain</span>
+                  <span class="tail">haiku 5.5 · 2m</span>
+                </div>
+                <p class="prose">The patch turns a single bind attempt into a five-attempt retry and makes the handshake reader fail fast when the child exits. The risky seam is ordering: the window trusts the first line on stdout, so the port must be printed only once a listener exists.</p>
+                <button class="link-action"><svg class="i-xs"><use href="#i-external"/></svg>Open full explanation</button>
+              </section>
+            </div>
 
-    <div class="app">
-      <nav class="rail" aria-label="Primary">
-        <div class="brand">T</div>
-        <div class="rail-tabs">
-          <button class="rail-tab" title="My pull requests"><svg class="i"><use href="#i-user"/></svg></button>
-          <button class="rail-tab is-active" title="Review requested"><svg class="i"><use href="#i-eye"/></svg></button>
-          <button class="rail-tab" title="All open"><svg class="i"><use href="#i-layers"/></svg></button>
-        </div>
-        <div class="rail-foot"><button class="rail-tab" title="Settings"><svg class="i"><use href="#i-settings"/></svg></button></div>
-      </nav>
-
-      <aside class="repos">
-        <div class="band seam">
-          <span class="micro">Repositories</span>
-          <button class="icon-btn" style="margin-left:auto" title="Hide repositories"><svg class="i"><use href="#i-chevrons-left"/></svg></button>
-        </div>
-        <div class="body">
-          <button class="repo-row"><svg class="i-sm"><use href="#i-inbox"/></svg>All repos</button>
-          <button class="repo-row is-selected"><svg class="i-sm"><use href="#i-folder"/></svg>forge/triage</button>
-          <button class="repo-row"><svg class="i-sm"><use href="#i-folder"/></svg>forge/sem</button>
-          <button class="repo-row"><svg class="i-sm"><use href="#i-folder"/></svg>acme/api</button>
-          <button class="repo-row"><svg class="i-sm"><use href="#i-folder"/></svg>acme/web</button>
-        </div>
-        <div class="foot">
-          <span class="mono">@manuel</span>
-          <span class="statusline"><i class="live-dot"></i>connected</span>
-        </div>
-      </aside>
-
-      <section class="list">
-        <div class="band seam">
-          <div class="toolbar-meta">
-            <span class="name">Review requested</span>
-            <span class="count">12 open</span>
-            <span class="div"></span>
-            <button class="search"><svg class="i-sm"><use href="#i-search"/></svg>Search</button>
-          </div>
-          <button class="icon-btn is-on" title="Filter pull requests (f)"><svg class="i"><use href="#i-filter"/></svg></button>
-          <button class="icon-btn" title="Refresh from GitHub"><svg class="i"><use href="#i-refresh"/></svg></button>
-        </div>
-        <div class="chips">
-          <button class="chip">author: maya <svg class="i-xs"><use href="#i-x"/></svg></button>
-          <button class="chip">blocked <svg class="i-xs"><use href="#i-x"/></svg></button>
-          <button class="clear">Clear</button>
-        </div>
-        <div class="body">
-          <article class="hero is-selected">
-            <div class="hero-top">
-              <span class="micro danger">Needs you</span>
-              <span class="mono faint" style="margin-left:auto;font-size:10px;line-height:14px">updated 2h ago</span>
+            <div class="bar-foot">
+              <button class="btn btn-outline"><svg class="i-sm"><use href="#i-refresh"/></svg>Re-run review</button>
             </div>
-            <button class="hero-title">Handshake: tolerate a bound port and print the real one</button>
-            <div class="hero-why">
-              <span class="who">maya chen</span><span>requested changes</span><span class="faint">·</span>
-              <span class="mono faint">forge/triage#412</span>
-            </div>
-            <div class="hero-facts">
-              <span class="tag is-danger"><svg class="i-xs"><use href="#i-alert"/></svg>2 blocking</span>
-              <span class="tag">6 files</span>
-              <span class="tag plain mono"><span class="accent">+128</span>&nbsp;<span>−41</span></span>
-            </div>
-            <div class="hero-actions">
-              <button class="btn btn-primary">Open PR</button>
-              <button class="btn btn-ghost"><svg class="i-sm"><use href="#i-skip"/></svg>Skip</button>
-            </div>
-          </article>
-          <section class="bucket">
-            <button class="bucket-head">
-              <span class="micro">Needs your review</span><span class="count">8</span>
-              <svg class="i-sm chev"><use href="#i-chevron-down"/></svg>
-            </button>
-            <div>
-              <button class="deck-row sev-blocked">
-                <span class="title trunc">fix: sidecar handshake fails when port is taken</span>
-                <span class="right"><span class="age">1d</span></span>
-                <span class="sub"><span class="repo">forge/triage</span><span class="num">#398</span><span class="why trunc">changes requested · 1 blocking</span></span>
-              </button>
-              <button class="deck-row sev-warn">
-                <span class="title trunc">feat: cache PR diffs by head SHA</span>
-                <span class="right"><span class="age">5h</span></span>
-                <span class="sub"><span class="repo">forge/triage</span><span class="num">#401</span><span class="why trunc">checks pending</span></span>
-              </button>
-              <button class="deck-row sev-wait">
-                <span class="title trunc">chore: bump chroma to 2.9.1</span>
-                <span class="right"><span class="age">3h</span></span>
-                <span class="sub"><span class="repo">forge/sem</span><span class="num">#88</span><span class="why trunc">2 files · +12 −4</span></span>
-              </button>
-              <button class="deck-row sev-wait">
-                <span class="title trunc">feat: inline review comments</span>
-                <span class="right"><span class="age">6h</span></span>
-                <span class="sub"><span class="repo">forge/triage</span><span class="num">#405</span><span class="why trunc">review requested · 9 files</span></span>
-              </button>
-              <button class="deck-row sev-blocked">
-                <span class="title trunc">fix: stale worktree lock after crash</span>
-                <span class="right"><span class="age">9h</span></span>
-                <span class="sub"><span class="repo">acme/api</span><span class="num">#1204</span><span class="why trunc">checks failing</span></span>
-              </button>
-              <button class="deck-row sev-wait">
-                <span class="title trunc">docs: clarify repoPaths setup</span>
-                <span class="right"><span class="age">1d</span></span>
-                <span class="sub"><span class="repo">forge/triage</span><span class="num">#409</span><span class="why trunc">1 file · +18 −2</span></span>
-              </button>
-              <button class="deck-row sev-wait">
-                <span class="title trunc">refactor: split diff fixture loader</span>
-                <span class="right"><span class="age">2d</span></span>
-                <span class="sub"><span class="repo">forge/triage</span><span class="num">#410</span><span class="why trunc">3 files · +64 −28</span></span>
-              </button>
-              <button class="deck-row sev-warn">
-                <span class="title trunc">fix: keyboard cursor jumps on filter</span>
-                <span class="right"><span class="age">2d</span></span>
-                <span class="sub"><span class="repo">forge/triage</span><span class="num">#407</span><span class="why trunc">review requested · 2 files</span></span>
-              </button>
-            </div>
-          </section>
-        </div>
-        <div class="foot">
-          <span class="keys"><kbd class="kbd">j</kbd><kbd class="kbd">k</kbd> move <span class="faint">·</span> <kbd class="kbd">↵</kbd> open <span class="faint">·</span> <kbd class="kbd">/</kbd> search</span>
-          <span class="fresh"><i class="live-dot" style="width:4px;height:4px"></i>updated 2m ago</span>
-        </div>
-      </section>
-
-      <section class="detail">
-        <div class="band seam detail-bar">
-          <button class="back"><svg class="i"><use href="#i-chevron-left"/></svg>Back</button>
-          <span class="identity">forge/triage<b>#412</b></span>
-          <span class="dot"></span>
-          <span class="branch">maya/sidecar-port → main</span>
-          <div class="right">
-            <span class="tag is-danger" style="margin-right:4px">changes requested</span>
-            <button class="icon-btn" title="Enter fullscreen"><svg class="i"><use href="#i-maximize"/></svg></button>
-            <button class="icon-btn" title="Open on GitHub"><svg class="i"><use href="#i-external"/></svg></button>
-          </div>
-        </div>
-
-        <div class="band place-band">
-          <button class="back"><svg class="i"><use href="#i-chevron-left"/></svg>Briefing</button>
-          <h2>Diff</h2>
-          <span class="tail" style="margin-left:0">6 files · +128 −41</span>
-          <div class="right">
-            <button class="icon-btn" title="Group files into steps"><svg class="i"><use href="#i-tree"/></svg></button>
-            <button class="icon-btn" title="Show one file at a time"><svg class="i"><use href="#i-focus"/></svg></button>
-            <button class="icon-btn" title="Hide cosmetic-only files"><svg class="i"><use href="#i-eyeoff"/></svg></button>
-            <button class="icon-btn is-on" title="Hide semantic change map"><svg class="i"><use href="#i-panel"/></svg></button>
-          </div>
-        </div>
-
-        <div class="diff">
-          <aside class="diff-rail" aria-label="Files in this pull request">
-            <div class="rail-search">
-              <div class="field"><svg class="i-sm"><use href="#i-search"/></svg>Filter files</div>
-            </div>
-            <div class="rail-list">
-              <button class="rail-file is-on">
-                <span class="p">src-tauri/src/sidecar.rs</span>
-                <span class="n"><span class="a">+24</span> <span class="d">−8</span></span>
-              </button>
-              <button class="rail-file">
-                <span class="p">backend/cmd/triage-server/main.go</span>
-                <span class="n"><span class="a">+31</span> <span class="d">−12</span></span>
-              </button>
-              <button class="rail-file">
-                <span class="p">src/lib/api.ts</span>
-                <span class="n"><span class="a">+18</span> <span class="d">−6</span></span>
-              </button>
-              <button class="rail-file">
-                <span class="p">backend/internal/api/server.go</span>
-                <span class="n"><span class="a">+9</span> <span class="d">−3</span></span>
-              </button>
-              <button class="rail-file">
-                <span class="p">src-tauri/tauri.conf.json</span>
-                <span class="n"><span class="a">+4</span> <span class="d">−0</span></span>
-              </button>
-              <button class="rail-file">
-                <span class="p">docs/architecture.md</span>
-                <span class="n"><span class="a">+42</span> <span class="d">−12</span></span>
-              </button>
-            </div>
-            <div class="rail-foot"><span>6 of 6 files</span><span>2 blocking</span></div>
           </aside>
-
-          <div class="diff-main">
-            <div class="file-head">
-              <svg class="i-sm faint"><use href="#i-chevron-down"/></svg>
-              <span class="p">src-tauri/src/sidecar.rs</span>
-              <span class="n"><span class="a">+24</span> <span class="d">−8</span></span>
-              <div class="right">
-                <button class="icon-btn" title="Comment on this file"><svg class="i-sm"><use href="#i-message"/></svg></button>
-              </div>
-            </div>
-            <div class="code">
-              <div class="dhunk">@@ -132,18 +132,26 @@ fn spawn_sidecar() -&gt; Result&lt;Child&gt;</div>
-              <div class="dline"><span class="ln">132</span><span class="ln">132</span><span class="sign"></span><span class="src">    <span class="k">let</span> <span class="k">mut</span> child = Command::new(<span class="s">"triage-server"</span>)</span></div>
-              <div class="dline"><span class="ln">133</span><span class="ln">133</span><span class="sign"></span><span class="src">        .stdout(Stdio::piped())</span></div>
-              <div class="dline"><span class="ln">134</span><span class="ln">134</span><span class="sign"></span><span class="src">        .spawn()?;</span></div>
-              <div class="dline del"><span class="ln">135</span><span class="ln"></span><span class="sign">−</span><span class="src">    <span class="k">let</span> handshake = read_handshake(child.stdout.take())?;</span></div>
-              <div class="dline add"><span class="ln"></span><span class="ln">135</span><span class="sign">+</span><span class="src">    <span class="k">let</span> <span class="k">mut</span> port = <span class="k">None</span>;</span></div>
-              <div class="dline add"><span class="ln"></span><span class="ln">136</span><span class="sign">+</span><span class="src">    <span class="k">for</span> attempt <span class="k">in</span> <span class="n">0</span>..<span class="n">5</span> {</span></div>
-              <div class="dline add"><span class="ln"></span><span class="ln">137</span><span class="sign">+</span><span class="src">        <span class="k">match</span> read_handshake(child.stdout.take()) {</span></div>
-              <div class="dline add"><span class="ln"></span><span class="ln">138</span><span class="sign">+</span><span class="src">            <span class="k">Ok</span>(h) =&gt; { port = <span class="k">Some</span>(h.port); <span class="k">break</span> }</span></div>
-              <div class="dline add"><span class="ln"></span><span class="ln">139</span><span class="sign">+</span><span class="src">            <span class="k">Err</span>(_e) <span class="k">if</span> attempt &lt; <span class="n">4</span> =&gt; {</span></div>
-              <div class="dline add"><span class="ln"></span><span class="ln">140</span><span class="sign">+</span><span class="src">                <span class="f">std::thread::sleep</span>(Duration::from_millis(<span class="n">250</span> * (attempt + <span class="n">1</span>)));</span></div>
-              <div class="dline add"><span class="ln"></span><span class="ln">141</span><span class="sign">+</span><span class="src">            }</span></div>
-              <div class="dline add"><span class="ln"></span><span class="ln">142</span><span class="sign">+</span><span class="src">            <span class="k">Err</span>(e) =&gt; <span class="k">return</span> <span class="k">Err</span>(e.<span class="f">into</span>()),</span></div>
-              <div class="dline"><span class="ln">136</span><span class="ln">143</span><span class="sign"></span><span class="src">        }</span></div>
-              <div class="dline"><span class="ln">137</span><span class="ln">144</span><span class="sign"></span><span class="src">    }</span></div>
-              <div class="dline"><span class="ln">138</span><span class="ln">145</span><span class="sign"></span><span class="src">    <span class="k">let</span> port = port.<span class="f">ok_or</span>(<span class="s">"no handshake"</span>)?;</span></div>
-              <div class="dline"><span class="ln">139</span><span class="ln">146</span><span class="sign"></span><span class="src">    <span class="f">emit</span>(<span class="s">"sidecar-ready"</span>, port);</span></div>
-              <div class="dhunk">@@ -151,6 +159,8 @@ fn spawn_sidecar() -&gt; Result&lt;Child&gt;</div>
-              <div class="dline"><span class="ln">151</span><span class="ln">159</span><span class="sign"></span><span class="src">    <span class="c">// The window waits for this event before the first query.</span></span></div>
-              <div class="dline add"><span class="ln"></span><span class="ln">160</span><span class="sign">+</span><span class="src">    <span class="c">// Print before the listener loop so a retry can never beat it.</span></span></div>
-              <div class="dline add"><span class="ln"></span><span class="ln">161</span><span class="sign">+</span><span class="src">    <span class="f">println!</span>(<span class="s">"{{\"port\":{}}}"</span>, port);</span></div>
-            </div>
-            <div class="file-head" style="border-top:1px solid var(--line)">
-              <svg class="i-sm faint"><use href="#i-chevron-down"/></svg>
-              <span class="p">src/lib/api.ts</span>
-              <span class="n"><span class="a">+18</span> <span class="d">−6</span></span>
-              <div class="right">
-                <button class="icon-btn" title="Comment on this file"><svg class="i-sm"><use href="#i-message"/></svg></button>
-              </div>
-            </div>
-            <div class="code">
-              <div class="dhunk">@@ -84,7 +84,17 @@ export async function getPRs</div>
-              <div class="dline"><span class="ln">84</span><span class="ln">84</span><span class="sign"></span><span class="src"><span class="k">export async function</span> <span class="f">getPRs</span>(params: PRQuery)</span></div>
-              <div class="dline"><span class="ln">85</span><span class="ln">85</span><span class="sign"></span><span class="src">  : Promise&lt;PRListResponse&gt; {</span></div>
-              <div class="dline del"><span class="ln">86</span><span class="ln"></span><span class="sign">−</span><span class="src">  <span class="k">return</span> <span class="f">request</span>(<span class="s">"/prs"</span>, { params });</span></div>
-              <div class="dline add"><span class="ln"></span><span class="ln">86</span><span class="sign">+</span><span class="src">  <span class="k">const</span> abort = <span class="k">new</span> <span class="t">AbortController</span>();</span></div>
-              <div class="dline add"><span class="ln"></span><span class="ln">87</span><span class="sign">+</span><span class="src">  <span class="k">const</span> timer = <span class="f">setTimeout</span>(() =&gt; abort.<span class="f">abort</span>(), HANDSHAKE_TIMEOUT);</span></div>
-              <div class="dline add"><span class="ln"></span><span class="ln">88</span><span class="sign">+</span><span class="src">  <span class="k">try</span> {</span></div>
-              <div class="dline add"><span class="ln"></span><span class="ln">89</span><span class="sign">+</span><span class="src">    <span class="k">return</span> <span class="k">await</span> <span class="f">request</span>(<span class="s">"/prs"</span>, { params, signal: abort.signal });</span></div>
-              <div class="dline add"><span class="ln"></span><span class="ln">90</span><span class="sign">+</span><span class="src">  } <span class="k">finally</span> {</span></div>
-              <div class="dline add"><span class="ln"></span><span class="ln">91</span><span class="sign">+</span><span class="src">    <span class="f">clearTimeout</span>(timer);</span></div>
-              <div class="dline add"><span class="ln"></span><span class="ln">92</span><span class="sign">+</span><span class="src">  }</span></div>
-              <div class="dline"><span class="ln">87</span><span class="ln">93</span><span class="sign"></span><span class="src">}</span></div>
-            </div>
-            <div class="semmap" aria-hidden="true">
-              <i class="b" style="top:96px"></i>
-              <i class="b" style="top:150px"></i>
-              <i class="w" style="top:210px"></i>
-              <i class="a" style="top:290px"></i>
-            </div>
-          </div>
-        </div>
-
-        <div class="detail-foot">
-          <button class="btn btn-primary"><svg class="i-sm"><use href="#i-play"/></svg>Start review</button>
-          <button class="place-link is-on"><svg class="i-sm"><use href="#i-filediff"/></svg>Diff<span class="n">6</span></button>
-          <button class="place-link"><svg class="i-sm"><use href="#i-message"/></svg>Conversation<span class="n">3</span></button>
-          <button class="place-link"><svg class="i-sm"><use href="#i-sparkles"/></svg>Explain</button>
-          <div class="right">
-            <button class="btn btn-ghost">Manage<svg class="i-sm"><use href="#i-chevron-down"/></svg></button>
-          </div>
         </div>
       </section>
     </div>
   </article>
 
   <!-- =====================================================================
-       04 · Rules
+       03 · Rules
        ===================================================================== -->
-  <section class="spec" id="s4">
-    <div class="story-num">04</div>
+  <section class="spec" id="s3">
+    <div class="story-num">03</div>
     <div class="spec-body">
       <div>
         <h2>The rules this mock enforces</h2>
-        <p>One grid, one band, one row recipe, one document measure. Every number below appears in the three artboards above; nothing else does. The current code ships roughly twice as many values — 10, 11, 26, 28px offsets, four footer heights, three row heights, a 23px title and a 36px toolbar — which is why the surfaces read as separate designs.</p>
+        <p>The PR screen is one grid: briefing, Context row and diff on the left; a fixed 300px bar on the right. There are no place headers, no tab footers, and no second toolbar. Information that used to live behind tabs is either in the bar or on the line it describes. The numbers below all appear in the two artboards above.</p>
       </div>
 
       <div class="rules">
         <div class="h">Element</div><div class="h">Value</div><div class="h">Rule</div>
 
-        <div class="k">Chrome band</div><div class="k">44px</div><div>Toolbar, detail bar, filter strip, place band, every footer.</div>
+        <div class="k">Chrome band</div><div class="k">44px</div><div>Toolbars, diff strip and both footers share one height.</div>
         <div class="k">PR row</div><div class="k">52px</div><div>8 + 18 title + 2 + 16 identity + 8; exactly 52 in every bucket.</div>
-        <div class="k">Nav row</div><div class="k">32px</div><div>Repos and draft rows; one 16px line.</div>
+        <div class="k">Context row</div><div class="k">40px</div><div>Label, one-line excerpt, tail. Body only exists while expanded.</div>
+        <div class="k">Right bar</div><div class="k">300px</div><div>Review, conversation, explanation. Fixed; never a destination.</div>
+        <div class="k">Thread gutter</div><div class="k">88px</div><div>Two 36px line columns and the 16px sign, so the comment sits on its line.</div>
         <div class="k">Control</div><div class="k">28px</div><div>Buttons and icon buttons; the only filled one is primary.</div>
-        <div class="k">Chip / tag</div><div class="k">24 / 18px</div><div>Removable filters are 24; facts and state are 18.</div>
-        <div class="k">Spacing</div><div class="k">4 8 12 16 24 32</div><div>No 6, 10, 11, 14, 20, 26 or 28px padding or gaps.</div>
-        <div class="k">Gutter</div><div class="k">12 / 24</div><div>Chrome and lists 12; briefing, review and conversation 24.</div>
-        <div class="k">Type</div><div class="k">10 / 12 / 13 / 14 / 16 / 20</div><div>Drop the 23px display size; the PR title is 20/26.</div>
-        <div class="k">Measure</div><div class="k">72ch</div><div>One reading column for every detail place.</div>
-        <div class="k">Radius</div><div class="k">4 / 6</div><div>4 on every control and row; 6 only on floating dialogs.</div>
-        <div class="k">Counts</div><div class="k">once</div><div>The toolbar owns the count; footers own keys and freshness.</div>
+        <div class="k">Tag</div><div class="k">18px</div><div>State, severity and facts. Chips are gone from this screen.</div>
+        <div class="k">Gutter</div><div class="k">12 / 24</div><div>Chrome and lists 12; briefing, diff and Context 24.</div>
+        <div class="k">Type</div><div class="k">10 / 12 / 13 / 16 / 20</div><div>Bar body is 12; diff is 12/20; the PR title is 20/26.</div>
+        <div class="k">Measure</div><div class="k">72ch</div><div>Context and explanation; the diff uses the full column.</div>
+        <div class="k">Primary</div><div class="k">1</div><div>Start review in the bar foot. Every other action is a ghost or a link.</div>
       </div>
 
       <div>
         <h2 style="font-size:16px;line-height:24px;margin-bottom:8px">Removed</h2>
         <ul class="removed">
-          <li><span><b>Hero card frame.</b> The margin, radius and second action row go; it becomes a row with a reason line.</span></li>
-          <li><span><b>Duplicate count.</b> The 32px list footer no longer repeats “12 open”; it shows keys and freshness.</span></li>
-          <li><span><b>Second diff toolbar.</b> The 36px toolbar folds into the 44px place band.</span></li>
-          <li><span><b>52px detail footer.</b> Same 44 as every other band; controls stay 28.</span></li>
-          <li><span><b>28px document gutter.</b> Replaced by 24, the same as the place bodies.</span></li>
-          <li><span><b>23px display title.</b> Replaced by the 20px title size already in the scale.</span></li>
-          <li><span><b>Places with their own header style.</b> Prose and diff places share one 44px band.</span></li>
-          <li><span><b>Two vocabularies for the same state.</b> Tag, chip, badge, marker resolve to 18px tag or 24px chip.</span></li>
+          <li><span><b>What changed.</b> Three phases of steps narrated a diff that the file headers already show.</span></li>
+          <li><span><b>Why you.</b> The request is a conversation entry; the bar already carries it.</span></li>
+          <li><span><b>Diff / Conversation / Explain places.</b> No tabs, no place header, no place footer.</span></li>
+          <li><span><b>Fullscreen toggle.</b> Out of scope for this pass; absent from the detail bar.</span></li>
+          <li><span><b>Separate verdict document.</b> The review is an index in the bar and comments in the diff.</span></li>
+          <li><span><b>File rail and its search.</b> One scroll with 44px file headers is the navigation.</span></li>
+          <li><span><b>Second diff toolbar.</b> Totals, head and toggles fold into the 44px diff strip.</span></li>
+          <li><span><b>Semantic map rail.</b> A 40px column that asked for attention without answering anything.</span></li>
         </ul>
       </div>
     </div>
