@@ -166,10 +166,10 @@ export function PRListBody({
         />
       ) : (
         <>
-          {deck.hero ? (
+          {deck.hero && deck.heroKind ? (
             <DeckHero
               pr={deck.hero}
-              kind={deck.heroKind === "draft" ? "draft" : "ready"}
+              kind={deck.heroKind}
               optionId={optionID(prKey(deck.hero))}
               cursor={cursorKey === prKey(deck.hero)}
               selected={selectedPR === prKey(deck.hero)}

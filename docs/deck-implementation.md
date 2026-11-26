@@ -10,11 +10,11 @@ Status: visual layer ready; data layer incomplete. Decisions recorded
 
 ## Decisions recorded
 
-1. **Hero = "Up next", My PRs only.** The hero appears only in the user's own
-   PR list (viewer-authored PRs). The candidate is the **first ready
-   (non-draft) PR in the list's current order**; when there is no ready PR, the
-   **first draft** is the hero. The mock's danger "Needs you" hero variant is
-   not part of Deck v1. Other tabs render buckets without a hero.
+1. **One hero per list.** `mine` renders the "Up next" hero: the first
+   non-draft PR in the list's current order, with the first draft as fallback.
+   `review` and `all` render the mock's danger "Needs you" hero: the first
+   non-draft row that needs the viewer (`review` rows, and the `needs` bucket
+   on `all`). Other tabs never promote a draft.
 2. **Linear is out of scope.** The Context section shows the PR description
    only. No Linear tab, no Linear metadata, and no `Link issue` button — not
    even as a disabled placeholder.
@@ -25,8 +25,7 @@ Status: visual layer ready; data layer incomplete. Decisions recorded
 
 - Row geometry and the six-state matrix: rest, hover, cursor (`deck-cursor`),
   selected, selected + hover, dim (`:1863-1918`, `:2010-2023`).
-- Hero states and the two-bucket recipe (`:1919-1975`), minus "Needs you"
-  given decision 1.
+- Hero states and the two-bucket recipe (`:1919-1975`).
 - Bucket head, count chip, collapsed chevron/body (`:286-295`, `:2021-2022`).
 - Selection recipe shared with repo rows and the existing shipped utility
   (`:852-880`; `src/index.css:222`).

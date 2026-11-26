@@ -8,7 +8,7 @@ import { reasonFor } from "./deck";
 
 type DeckHeroProps = {
   pr: PR;
-  kind: "ready" | "draft";
+  kind: "ready" | "needs" | "draft";
   optionId: string;
   cursor: boolean;
   selected: boolean;
@@ -57,7 +57,9 @@ export function DeckHero({
   onSkip,
 }: DeckHeroProps) {
   const draft = kind === "draft";
+  const needs = kind === "needs";
   const summary = pr.reviewSummary;
+  const label = draft ? "Draft" : needs ? "Needs you" : "Up next";
 
   return (
     <article
@@ -68,7 +70,11 @@ export function DeckHero({
           ? "row-selected"
           : cx(
               "hover:bg-surface/70",
-              draft ? "before:bg-line-strong" : "before:bg-accent",
+              draft
+                ? "before:bg-line-strong"
+                : needs
+                  ? "before:bg-danger"
+                  : "before:bg-accent",
             ),
       )}
     >
@@ -88,10 +94,10 @@ export function DeckHero({
           <span
             className={cx(
               "text-micro font-medium tracking-[0.08em] uppercase",
-              draft ? "text-fg-muted" : "text-accent",
+              draft ? "text-fg-muted" : needs ? "text-danger" : "text-accent",
             )}
           >
-            {draft ? "Draft" : "Up next"}
+            {label}
           </span>
           <span className="ml-auto font-mono text-micro text-fg-faint tabular-nums">
             updated {formatRelative(pr.updatedAt)}
@@ -109,6 +115,14 @@ export function DeckHero({
         </h2>
 
         <p className="mt-1.5 flex min-w-0 items-baseline gap-1.5 text-meta text-fg-muted">
+          {needs ? (
+            <>
+              <span className="truncate">{pr.author}</span>
+              <span aria-hidden="true" className="text-fg-faint">
+                ·
+              </span>
+            </>
+          ) : null}
           <span className="truncate">{draft ? "draft" : reasonFor(pr)}</span>
           <span aria-hidden="true" className="text-fg-faint">
             ·

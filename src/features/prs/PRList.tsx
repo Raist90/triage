@@ -18,7 +18,7 @@ import {
   hasFacetFilters,
   type FilterChip,
 } from "./prFilters";
-import { buildDeck, prKey } from "./deck";
+import { buildDeck, canBeHero, prKey } from "./deck";
 
 type PRListProps = {
   tabID: string;
@@ -137,7 +137,13 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
   function skipPR(pr: PR) {
     setSkipState((current) => {
       const keys = current.scope === scopeKey ? current.keys : EMPTY_SKIPPED;
-      return { scope: scopeKey, keys: new Set(keys).add(prKey(pr)) };
+      const next = new Set(keys).add(prKey(pr));
+      // Skipping the last eligible row restarts the cycle instead of dropping
+      // the hero: the hero is elected from the set, not removed from the list.
+      const exhausted = visible
+        .filter((item) => canBeHero(item, tabID, viewer))
+        .every((item) => next.has(prKey(item)));
+      return { scope: scopeKey, keys: exhausted ? EMPTY_SKIPPED : next };
     });
   }
 

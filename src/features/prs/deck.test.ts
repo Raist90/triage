@@ -3,6 +3,7 @@ import { makePR } from "../../test/fixtures";
 import {
   bucketFor,
   buildDeck,
+  canBeHero,
   deckOrder,
   isDim,
   prKey,
@@ -196,14 +197,58 @@ describe("buildDeck", () => {
     expect(deck.buckets[0].rows).toEqual([draft]);
   });
 
-  test("only mine renders a hero; empty buckets are omitted", () => {
+  test("review and all lift the needs-you row into the hero", () => {
     const reviewPR = pr(1, { author: "someone", reviewRequested: true });
     const reviewDeck = buildDeck([reviewPR], "review", viewer);
-    expect(reviewDeck.hero).toBeNull();
-    expect(reviewDeck.buckets.map((bucket) => bucket.id)).toEqual(["review"]);
+    expect(reviewDeck.hero).toEqual(reviewPR);
+    expect(reviewDeck.heroKind).toBe("needs");
+    expect(reviewDeck.buckets).toEqual([]);
 
     const allDeck = buildDeck([reviewPR], "all", viewer);
+    expect(allDeck.hero).toEqual(reviewPR);
+    expect(allDeck.heroKind).toBe("needs");
+    expect(allDeck.buckets).toEqual([]);
+  });
+
+  test("all lifts only needs-you rows into the hero", () => {
+    const waiting = pr(1, {
+      author: "someone",
+      reviewState: "review_required",
+    });
+    const deck = buildDeck([waiting], "all", viewer);
+    expect(deck.hero).toBeNull();
+    expect(deck.buckets.map((bucket) => bucket.id)).toEqual(["waiting"]);
+  });
+
+  test("canBeHero mirrors each tab's hero eligibility", () => {
+    expect(canBeHero(pr(1), "mine", viewer)).toBe(true);
+    expect(canBeHero(pr(1, { isDraft: true }), "mine", viewer)).toBe(true);
+    expect(canBeHero(pr(1), "review", viewer)).toBe(true);
+    expect(canBeHero(pr(1, { isDraft: true }), "review", viewer)).toBe(false);
+    expect(
+      canBeHero(
+        pr(1, { author: "someone", reviewState: "approved" }),
+        "all",
+        viewer,
+      ),
+    ).toBe(false);
+    expect(
+      canBeHero(
+        pr(1, { author: "someone", reviewRequested: true }),
+        "all",
+        viewer,
+      ),
+    ).toBe(true);
+  });
+
+  test("review and all never promote a draft", () => {
+    const draft = pr(1, { author: "someone", isDraft: true });
+    const reviewDeck = buildDeck([draft], "review", viewer);
+    expect(reviewDeck.hero).toBeNull();
+    expect(reviewDeck.buckets.map((bucket) => bucket.id)).toEqual(["drafts"]);
+
+    const allDeck = buildDeck([draft], "all", viewer);
     expect(allDeck.hero).toBeNull();
-    expect(allDeck.buckets.map((bucket) => bucket.id)).toEqual(["needs"]);
+    expect(allDeck.buckets.map((bucket) => bucket.id)).toEqual(["drafts"]);
   });
 });

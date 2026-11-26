@@ -21,8 +21,8 @@ export type DeckRowRef = {
 
 export type Deck = {
   hero: PR | null;
-  /** Which hero shape applies: Up next, or the draft fallback. */
-  heroKind: "ready" | "draft" | null;
+  /** Which hero shape applies: Up next, Needs you, or the draft fallback. */
+  heroKind: "ready" | "needs" | "draft" | null;
   buckets: DeckBucket[];
   /** Hero first, then every row of every non-empty bucket. */
   rows: DeckRowRef[];
@@ -201,6 +201,18 @@ export function deckOrder(prs: PR[], tab: string, viewer: string): PR[] {
 }
 
 /**
+ * Whether a row can ever be the hero in this tab, ignoring the skipped set.
+ * Mine elects non-drafts then drafts; review elects non-drafts; all elects
+ * non-drafts that need the viewer. Skip cycling uses this to know when the
+ * candidate list is exhausted.
+ */
+export function canBeHero(pr: PR, tab: string, viewer: string): boolean {
+  if (isDraft(pr)) return tab === "mine";
+  if (tab === "mine" || tab === "review") return true;
+  return bucketFor(pr, tab, viewer) === "needs";
+}
+
+/**
  * Build the deck. `prs` must already be filtered and searched: bucket counts
  * and hero election describe the filtered set. `skipped` is session-only and
  * affects hero election only.
@@ -234,6 +246,12 @@ export function buildDeck(
           .sort(compareDrafts)[0] ?? null;
       if (hero) heroKind = "draft";
     }
+  } else {
+    hero =
+      ordered.find(
+        (pr) => canBeHero(pr, tab, viewer) && !skipped.has(prKey(pr)),
+      ) ?? null;
+    if (hero) heroKind = "needs";
   }
 
   if (hero) {

@@ -19,7 +19,7 @@ else in the mock is required by this contract.
 In:
 
 - My PRs / Review requested / All open tabs, grouped and ordered.
-- One hero, My PRs only.
+- One hero per list: **Up next** on My PRs, **Needs you** on the other tabs.
 - A preflight tab for open PRs, opened by default from the Deck.
 - The list, hero and preflight data additions listed under “Contract changes”.
 - Keyboard navigation, collapse, filters, skip, empty/loading/error reuse.
@@ -28,7 +28,6 @@ Out, explicitly:
 
 - Linear, issue links, Linear metadata, any disabled `Link issue` placeholder.
 - Review minutes/duration estimates.
-- The mock's danger “Needs you” hero variant.
 - Inline annotations in the preflight.
 - A “more” row, a footer count that differs from the header, or bucket
   truncation.
@@ -42,9 +41,9 @@ Bucket sets are tab-specific. Empty buckets are not rendered.
 
 | Tab | Buckets, in visual order | Hero |
 |---|---|---|
-| `mine` | **Blocked on you**, **Ready to merge**, **Waiting on reviewers**, **Your drafts** | yes |
-| `review` | **Needs your review**, **Drafts** | no |
-| `all` | **Needs you**, **Your PRs**, **Waiting on author**, **Drafts** | no |
+| `mine` | **Blocked on you**, **Ready to merge**, **Waiting on reviewers**, **Your drafts** | Up next, draft fallback |
+| `review` | **Needs your review**, **Drafts** | Needs you |
+| `all` | **Needs you**, **Your PRs**, **Waiting on author**, **Drafts** | Needs you |
 
 Predicates:
 
@@ -117,22 +116,26 @@ wait    = otherwise
 
 Draft rows have no severity. `Ready to merge` rows are `wait`.
 
-Hero, `mine` only:
+Hero election, every tab:
 
-- Eligible = row is not draft and its key is not in the session's skipped set.
-- Hero = first eligible row in `rowOrder`.
-- If no eligible non-draft row exists, hero = first non-skipped row in
-  `draftsOrder`.
+- Eligible = row can carry that tab's hero: in `mine` every row (non-drafts
+  first, drafts as the fallback); in `review` every non-draft; in `all` every
+  non-draft whose bucket is **Needs you**. Eligible rows never include a
+  skipped key.
+- Hero = first eligible row in `rowOrder`; drafts in `mine` use `draftsOrder`.
 - The hero is lifted out of its bucket: it is not repeated, and the bucket
   count excludes it.
 - If no row is eligible, there is no hero. Do not render a placeholder.
-- Other tabs never render a hero.
+- `mine` renders the **Up next** shape (accent rail); `review` and `all` render
+  the **Needs you** shape (danger rail). `mine` falls back to the **Draft**
+  shape; the other tabs never lift a draft.
 
 Skip decision: `Skip` is hero-only and session-only. It adds the PR key to a
-local skipped set, the next eligible row becomes hero, and the skipped row stays
-in its bucket. The set survives refetches in the same list mount, resets on tab
-or repo change, and is never persisted to disk or the server. No other “skip”
-semantics exist.
+local skipped set, and the next eligible row becomes hero; the skipped row stays
+in its bucket. When the skipped set covers every eligible row, it resets to
+empty, so the hero cycles from the start instead of disappearing. The set
+survives refetches in the same list mount, resets on tab or repo change, and is
+never persisted to disk or the server. No other “skip” semantics exist.
 
 ### D3. Severity, dim and draft treatment
 
@@ -216,12 +219,14 @@ otherwise               -> "no review yet"
 No thread counts in list rows. No “asked you a question”. No review-request
 timestamp.
 
-Hero content, `mine` only:
+Hero content:
 
-- Label: **Up next** with the accent rail and accent micro label.
+- `mine`: label **Up next** with the accent rail and accent micro label.
+- `review` / `all`: label **Needs you** with the danger rail and danger micro
+  label.
 - Title: 16px / 24px, weight 500, `--fg`.
-- Why line: `<reason> · <repo>#<number>`; no author, because the hero is the
-  viewer's own PR.
+- Why line: `<reason> · <repo>#<number>`; `Needs you` prepends `<author> · `,
+  because the hero is another person's PR. No author on `mine`.
 - Age: `updated <relative>` from `updatedAt`. Do not invent “waiting since”.
 - Facts, in order:
   - If a non-stale review summary exists: `N blocking` (danger tag) when N > 0,
@@ -231,11 +236,9 @@ Hero content, `mine` only:
   - `+A −D` in mono.
   - No minutes.
 - Actions: primary **Open PR** (opens preflight), outline **Open diff**, ghost
-  **Skip**. The mock's hero **Start review** is deliberately not used here: the
-  hero is always the viewer's own PR, and “Start review” on your own PR is
-  misleading. Review starts from the preflight footer, where it opens the Review
-  tab. It never submits a GitHub review and never auto-runs the automatic
-  review.
+  **Skip**. The mock's hero **Start review** is deliberately not used: review
+  starts from the preflight footer, where it opens the Review tab. It never
+  submits a GitHub review and never auto-runs the automatic review.
 
 Draft hero fallback:
 
