@@ -191,38 +191,41 @@ function PRDetailBody({ repo, number, tabID = "all" }: PRDetailProps) {
     if (confirming !== null) closeConfirm();
   }, [isOpen, reviewOpen, closeReview, confirming, closeConfirm]);
 
+  // Escape must act on the committed state even when this listener has not been
+  // rebound yet: after a merge the receipt is on screen while the old closure
+  // still carries an open review form or confirmation. A ref keeps the handler
+  // current instead of waiting for the effect to re-subscribe.
+  const escape = useRef<(event: KeyboardEvent) => void>(() => {});
+  escape.current = (event) => {
+    if (event.key !== "Escape") return;
+    // A line-comment composer closes itself and marks the event handled.
+    if (event.defaultPrevented) return;
+    event.preventDefault();
+    // The merge and close confirmation bars and the review form close first,
+    // then fullscreen, then the detail itself. A merged or closed PR renders
+    // none of them, so Escape goes straight to the detail.
+    if (isOpen && confirming !== null) {
+      closeConfirm();
+      return;
+    }
+    if (isOpen && reviewOpen) {
+      closeReview();
+      return;
+    }
+    if (fullscreen) {
+      toggleFullscreen();
+      return;
+    }
+    closeDetail();
+  };
+
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key !== "Escape") return;
-      // A line-comment composer closes itself and marks the event handled.
-      if (event.defaultPrevented) return;
-      event.preventDefault();
-      // The merge and close confirmation bars and the review form close first,
-      // then fullscreen, then the detail itself.
-      if (mutations.confirming !== null) {
-        mutations.closeConfirm();
-        return;
-      }
-      if (reviewOpen) {
-        closeReview();
-        return;
-      }
-      if (fullscreen) {
-        toggleFullscreen();
-        return;
-      }
-      closeDetail();
+      escape.current(event);
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [
-    closeDetail,
-    mutations,
-    reviewOpen,
-    closeReview,
-    fullscreen,
-    toggleFullscreen,
-  ]);
+  }, []);
 
   const refetchDetail = detailQuery.refetch;
 
