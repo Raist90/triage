@@ -30,7 +30,7 @@
      is-active   the current item in a single-selection list: rail tab, pick,
                  file/step row, rail mode. Ephemeral — follows the cursor.
      is-selected the committed pick that survives a refetch: repo row, deck
-                 row. Always paired with aria-selected="true".
+                 row, hero. Always paired with aria-selected="true".
      is-link     the anchor id currently linked across the three surfaces.
      is-done     a finding is decided: stays in the list, leaves the count.
      is-dim      de-emphasised but present (deck rows waiting on the author).
@@ -255,15 +255,17 @@ a{color:inherit}
 .toolbar-meta .search{color:var(--fg-faint);white-space:nowrap;transition:color .12s;display:flex;align-items:center;gap:6px}
 .toolbar-meta .search:hover{color:var(--fg)}
 
-/* The one loud row: reason, cost, and the action that ends it. */
+/* The one loud row: reason, cost, and the action that ends it. Row-shaped, not
+   a card — no frame or fill at rest, so the bucket rail and the 16px title carry
+   the emphasis. Selection is the deck row recipe, and it reads because the
+   canvas is what the gradient lands on. */
 .hero{
-  position:relative; margin:8px 8px 12px; padding:12px;
-  border:1px solid var(--line-strong); border-radius:6px;
-  background:linear-gradient(180deg,color-mix(in oklab,var(--raised) 70%,transparent),var(--surface));
-  box-shadow:inset 0 1px 0 color-mix(in oklab,var(--fg) 7%,transparent);
+  position:relative; margin:8px 8px 12px; padding:12px 8px 12px 11px;
+  border-radius:4px; transition:background-color .12s;
 }
+.hero:hover:not(.is-selected){background:color-mix(in oklab,var(--surface) 70%,transparent)}
 .hero::before{
-  content:"";position:absolute;inset-block:10px;left:-1px;width:2px;border-radius:999px;
+  content:"";position:absolute;inset-block:10px;left:0;width:2px;border-radius:999px;
   background:linear-gradient(180deg,var(--danger),color-mix(in oklab,var(--danger) 30%,transparent));
 }
 .hero-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
@@ -830,16 +832,9 @@ button:focus-visible{outline-offset:-2px}
   backdrop-filter:blur(14px) saturate(1.2);
 }
 
-/* The hero: the danger side leans into the row instead of merely marking it. */
-.hero{
-  background-image:
-    radial-gradient(140% 100% at 6% -30%,color-mix(in oklab,var(--danger) 12%,transparent),transparent 58%),
-    linear-gradient(180deg,color-mix(in oklab,var(--raised) 70%,transparent),var(--surface));
-  box-shadow:inset 0 1px 0 color-mix(in oklab,var(--fg) 7%,transparent),0 10px 30px -24px #000;
-}
-.hero-title{transition:color .12s}
 /* The hero's rail carries the bucket at rest: danger for "Needs you",
    accent for "Up next". Selection recolors it to the accent. */
+.hero-title{transition:color .12s}
 .hero[data-bucket="up-next"]::before{
   background:linear-gradient(180deg,var(--accent),color-mix(in oklab,var(--accent) 30%,transparent));
 }
@@ -1011,7 +1006,7 @@ button:focus-visible{outline-offset:-2px}
       </p>
     </div>
     <ul class="story-moves">
-      <li><b>One hero per screen.</b> The single row that needs an answer is taller, lit, and carries the action that ends it.</li>
+      <li><b>One hero per screen.</b> The single row that needs an answer is taller, carries the danger rail, and carries the action that ends it.</li>
       <li><b>Buckets, not filters.</b> <span class="k">Blocked on you / Waiting on author / Drafts</span> — state decides order, not recency.</li>
       <li><b>Cost before commitment.</b> Files, semantic steps, last verdict and estimated minutes sit next to the CTA.</li>
       <li><b>Context before code.</b> The Linear issue fills a fixed slot — state, owner, acceptance. Unlinked PRs fall back to the description, so the pane never blanks.</li>
@@ -1921,8 +1916,8 @@ button:focus-visible{outline-offset:-2px}
     </div>
 
     <div class="card">
-      <h3>Hero · Up next / Needs you <span class="micro">same card, two buckets, three states</span></h3>
-      <p class="note">The hero is a selectable option, not a banner. The bucket decides the rail and label hue. Selection takes the row recipe: the left-entering surface gradient plus a 2px accent rail. The cursor is a neutral ring and never the accent.</p>
+      <h3>Hero · Up next / Needs you <span class="micro">same row, two buckets, three states</span></h3>
+      <p class="note">The hero is a row, not a card: no frame and no fill at rest, so the bucket rail and the 16px title carry the emphasis. The bucket decides the rail and label hue. Selection takes the deck row recipe exactly: the left-entering surface gradient plus a 2px accent rail, landing on the canvas. The cursor is a neutral ring and never the accent.</p>
       <div class="state-grid">
         <div class="state-cell">
           <div class="state-head"><span class="state-label">rest · needs you</span><span class="state-sel">.hero</span></div>
@@ -1973,7 +1968,7 @@ button:focus-visible{outline-offset:-2px}
           </article>
         </div>
       </div>
-      <p class="state-note">Bucket rail: <span class="mono">--danger</span> for Needs you, <span class="mono">--accent</span> for Up next. Selected: <span class="mono">row-selected</span> gradient + 2px accent rail, halo <span class="mono">0 0 10px</span> @35%. Cursor ring: 1px <span class="mono">--line-strong</span> @80%, <span class="mono">outline-offset:-1px</span>.</p>
+      <p class="state-note">Rest: no border, no fill. Bucket rail: <span class="mono">--danger</span> for Needs you, <span class="mono">--accent</span> for Up next. Selected: <span class="mono">row-selected</span> gradient + 2px accent rail, halo <span class="mono">0 0 10px</span> @35% — identical to the deck row. Cursor ring: 1px <span class="mono">--line-strong</span> @80%, <span class="mono">outline-offset:-1px</span>.</p>
     </div>
 
     <div class="card">
@@ -2019,10 +2014,10 @@ button:focus-visible{outline-offset:-2px}
           <tr><td class="surface">Deck row</td><td class="state">selected + hover</td><td class="sel">.is-selected:hover</td><td>Selection gradient and accent rail win; title stays <code>--fg</code>. Hover only brightens the pointer, never demotes the pick.</td></tr>
           <tr><td class="surface">Deck row</td><td class="state">dim</td><td class="sel">.is-dim</td><td>Title <code>--fg-body</code> at 400; bar <code>--line</code>. Orthogonal: composes with rest/hover/cursor, never with selected.</td></tr>
           <tr><td class="surface">Deck row</td><td class="state">focus</td><td class="sel">:focus-visible</td><td>2px accent @55%, <code>outline-offset:-2px</code> — buttons draw the ring inside their own box, never outside a flush pane edge.</td></tr>
-          <tr><td class="surface">Hero</td><td class="state">rest</td><td class="sel">.hero</td><td>1px <code>--line-strong</code>; <code>--raised</code>/70% → <code>--surface</code> gradient + radial 12% at 6%/-30%; 2px rail, <code>inset-block:10px</code>: <code>--danger</code> for Needs you, <code>--accent</code> for Up next. Label hue follows the rail.</td></tr>
-          <tr><td class="surface">Hero</td><td class="state">hover</td><td class="sel">.hero-title:hover</td><td>Title <code>--fg</code> @88% + accent. The row itself does not lift.</td></tr>
+          <tr><td class="surface">Hero</td><td class="state">rest</td><td class="sel">.hero</td><td>No border, transparent fill — same ground as a deck row. 2px bucket rail, <code>inset-block:10px</code>: <code>--danger</code> for Needs you, <code>--accent</code> for Up next. Label hue follows the rail; the 16px title carries the emphasis.</td></tr>
+          <tr><td class="surface">Hero</td><td class="state">hover</td><td class="sel">:hover</td><td>Fill <code>--surface</code> @70%, same as a deck row; suppressed while selected. Title <code>--fg</code> @88% + accent.</td></tr>
           <tr><td class="surface">Hero</td><td class="state">cursor</td><td class="sel">.deck-cursor</td><td>1px neutral <code>--line-strong</code> @80% ring, <code>outline-offset:-1px</code>; the cursor never becomes the selection.</td></tr>
-          <tr><td class="surface">Hero</td><td class="state">selected</td><td class="sel">.is-selected + aria-selected</td><td>Same <code>row-selected</code> recipe as a deck row: 90° surface gradient + 2px accent rail, halo <code>0 0 10px</code> @35%. The accent rail replaces the bucket rail; the <code>lit</code> box-shadow stays. Title <code>--fg</code>.</td></tr>
+          <tr><td class="surface">Hero</td><td class="state">selected</td><td class="sel">.is-selected + aria-selected</td><td>Identical to a selected deck row: <code>row-selected</code> 90° surface gradient + 2px accent rail, halo <code>0 0 10px</code> @35%. The accent rail replaces the bucket rail; there is no box or fill to keep. Title <code>--fg</code>.</td></tr>
           <tr><td class="surface">Bucket head</td><td class="state">rest / hover</td><td class="sel">.bucket-head</td><td>1px top <code>--line</code>; count is a chip, <code>--fg</code> @4%. Hover: micro → <code>--fg</code>, chev → <code>--fg-muted</code>.</td></tr>
           <tr><td class="surface">Bucket head</td><td class="state">collapsed</td><td class="sel">.is-collapsed</td><td>Chevron <code>rotate(-90deg)</code>; body <code>display:none</code>; <code>aria-expanded="false"</code>.</td></tr>
           <tr><td class="surface">Repo row</td><td class="state">rest / hover</td><td class="sel">.repo-row</td><td><code>--fg-muted</code>; hover fill <code>--surface</code> @60% + <code>--fg</code>.</td></tr>
