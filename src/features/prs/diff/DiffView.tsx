@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cx } from "../../../lib/cx";
 import type { DiffFile, PR, Walkthrough } from "../../../lib/types";
 import { scrollEdgeClass, useScrollEdges } from "../../../lib/useScrollEdges";
@@ -20,6 +20,13 @@ import { pathEntries } from "./walkthrough";
 import type { PathFileEntry } from "./walkthrough";
 
 export type { DiffTarget } from "./diffSelection";
+
+/**
+ * Whether the environment can observe viewport proximity. When it cannot, the
+ * diff falls back to mounting every open body, which is what tests and any
+ * odd webview expect.
+ */
+const canLazyMount = typeof IntersectionObserver !== "undefined";
 
 type DiffViewProps = {
   pr: PR;
@@ -53,6 +60,16 @@ export function DiffView({
   revealToken,
 }: DiffViewProps) {
   const [draft, setDraft] = useState<string | null>(null);
+  // Bodies mounted once and kept: unmounting would lose an open comment
+  // composer and force a re-measure of every section below it.
+  const [mounted, setMounted] = useState<ReadonlySet<string>>(
+    () => new Set<string>(),
+  );
+  const bodyObserver = useRef<IntersectionObserver | null>(null);
+  // Sections currently inside the observer's margin. A mode change resets the
+  // mounted set to this, so re-expanding after a full read mounts what is on
+  // screen instead of every body the user ever scrolled past.
+  const nearSections = useRef<ReadonlySet<string>>(new Set<string>());
   // Null means "no explicit choice": cosmetic files stay hidden unless the
   // focused finding lives in one, in which case its file must be reachable.
   const [showCosmetic, setShowCosmetic] = useState<boolean | null>(null);
@@ -211,11 +228,89 @@ export function DiffView({
     [comments, headSHA, canComment, viewerLogin, showDiffComments],
   );
 
+  // Mount a body shortly before it reaches the viewport. Expanding every file
+  // at once then costs a few mounts, not the whole PR.
+  useEffect(() => {
+    const pane = paneRef.current;
+    if (!pane || !canLazyMount) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const near = new Set(nearSections.current);
+        const entered: string[] = [];
+        for (const entry of entries) {
+          const key = (entry.target as HTMLElement).dataset.diffFile;
+          if (key === undefined) continue;
+          if (entry.isIntersecting) {
+            near.add(key);
+            entered.push(key);
+          } else {
+            near.delete(key);
+          }
+        }
+        nearSections.current = near;
+        if (entered.length === 0) return;
+        setMounted((current) => {
+          let next: Set<string> | null = null;
+          for (const key of entered) {
+            if (current.has(key)) continue;
+            next ??= new Set(current);
+            next.add(key);
+          }
+          return next ?? current;
+        });
+      },
+      { root: pane, rootMargin: "800px 0px" },
+    );
+    bodyObserver.current = observer;
+    for (const element of sectionRefs.current.values()) {
+      observer.observe(element);
+    }
+    return () => {
+      observer.disconnect();
+      bodyObserver.current = null;
+    };
+  }, [paneRef, sectionRefs]);
+
   // Stable registration so a memoized section owns its own ref callback.
-  const onSectionRef = (key: string, element: HTMLElement | null) => {
-    if (element) sectionRefs.current.set(key, element);
-    else sectionRefs.current.delete(key);
-  };
+  // Must be referentially stable: a fresh closure here would invalidate every
+  // memoized section and re-render the whole diff on each selection change.
+  const onSectionRef = useCallback(
+    (key: string, element: HTMLElement | null) => {
+      const previous = sectionRefs.current.get(key);
+      if (previous !== undefined && previous !== element) {
+        bodyObserver.current?.unobserve(previous);
+      }
+      if (element) {
+        sectionRefs.current.set(key, element);
+        bodyObserver.current?.observe(element);
+      } else {
+        sectionRefs.current.delete(key);
+      }
+    },
+    [sectionRefs],
+  );
+
+  // Mounted bodies stay mounted while scrolling so their state survives, but a
+  // mode change must not remount a body the user scrolled past ten screens ago.
+  const resetMounts = useCallback(() => {
+    setMounted(new Set(nearSections.current));
+  }, []);
+
+  // A placeholder is a floor, not the exact height: comment threads, finding
+  // patches and open semantic rows add rows. When such a body mounts above the
+  // viewport, shift the scroll by the difference so the visible rows stay put.
+  const onBodySettled = useCallback(
+    (key: string, delta: number) => {
+      const pane = paneRef.current;
+      const section = sectionRefs.current.get(key);
+      if (!pane || !section) return;
+      const paneTop = pane.getBoundingClientRect().top;
+      if (section.getBoundingClientRect().top < paneTop) {
+        pane.scrollTop += delta;
+      }
+    },
+    [paneRef, sectionRefs],
+  );
 
   // Only the section that owns the open composer needs the draft key. The key
   // is `${path}\u0000${side}\u0000${line}`.
@@ -254,8 +349,12 @@ export function DiffView({
               onFilterChange={setFilter}
               onSelectFile={selectFile}
               onSelectStep={setActiveStepID}
-              onToggleFocusMode={() => setFocusMode((current) => !current)}
+              onToggleFocusMode={() => {
+                resetMounts();
+                setFocusMode((current) => !current);
+              }}
               onTogglePathMode={() => {
+                resetMounts();
                 if (pathMode) {
                   setDiffMode("files");
                   return;
@@ -329,6 +428,13 @@ export function DiffView({
                   onSectionRef={onSectionRef}
                   draft={draftPath === entry.file.path ? draft : null}
                   onDraftChange={setDraft}
+                  mount={
+                    !canLazyMount ||
+                    mounted.has(entry.key) ||
+                    entry.key === activeKey ||
+                    draftPath === entry.file.path
+                  }
+                  onBodySettled={onBodySettled}
                   flash={
                     flash !== null && flash.key === entry.key
                       ? flash.label

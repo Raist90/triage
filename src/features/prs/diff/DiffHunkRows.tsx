@@ -1,5 +1,5 @@
 import { ChevronDown } from "lucide-react";
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import type {
   DiffHunk,
   InlineComment,
@@ -30,7 +30,13 @@ type HunkRowsProps = {
   onDraftChange: (key: string | null) => void;
 };
 
-export function HunkRows({
+const EMPTY_COMMENTS: InlineComment[] = [];
+
+/**
+ * Memoized: the file patch above re-renders on draft and flash changes, and a
+ * hunk that owns neither should not rebuild every line row.
+ */
+export const HunkRows = memo(function HunkRows({
   hunk,
   hunkKey,
   changes,
@@ -104,9 +110,14 @@ export function HunkRows({
       ) : null}
       {hunk.lines.map((line, index) => {
         const anchor = lineAnchor(path, line);
-        const anchorComments = lineAnchors(path, line)
-          .flatMap((item) => byAnchor.get(anchorKey(item)) ?? [])
-          .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+        // Most files have no comments at all: skip two array allocations and a
+        // sort per rendered line when the file's anchor map is empty.
+        const anchorComments =
+          byAnchor.size === 0
+            ? EMPTY_COMMENTS
+            : lineAnchors(path, line)
+                .flatMap((item) => byAnchor.get(anchorKey(item)) ?? [])
+                .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
         const findings = findingsByLine.get(index) ?? [];
         return (
           <div key={index}>
@@ -125,4 +136,4 @@ export function HunkRows({
       })}
     </>
   );
-}
+});

@@ -94,7 +94,12 @@ stay side by side; reviewing is the only flow that matters.
   toggle; the map is off by default. Semantic diff via `sem` when available;
   fall back to a plain unified diff. Never fail a review flow because `sem` is
   absent. Semantic changes stay as a per-hunk chip that opens the entity rows
-  on demand; never as always-on rows above the code. Code is
+  on demand; never as always-on rows above the code. File bodies mount lazily
+  when their section nears the viewport (and always for the selected file), with
+  a height-estimated placeholder; expanding every file must never mount every
+  row. A body stays mounted while scrolling (so an open composer survives) but a
+  focus/steps mode change resets that memory, so re-expanding mounts only what
+  is on screen. Code is
   syntax-highlighted by the Go sidecar (Chroma): colored, but only desaturated
   `syn-*` tokens from `index.css`, never raw hues in components. Chrome stays
   hue-free.

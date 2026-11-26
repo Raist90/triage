@@ -1,7 +1,12 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { memo, useCallback } from "react";
+import { memo, useCallback, useLayoutEffect, useRef } from "react";
 import type { DiffFile } from "../../../lib/types";
-import { isCosmeticFile, reviewSignals, splitPath } from "./diffFile";
+import {
+  estimateDiffBodyHeight,
+  isCosmeticFile,
+  reviewSignals,
+  splitPath,
+} from "./diffFile";
 import { useDiffCommentsContext } from "./DiffCommentsContext";
 import { FilePatch } from "./DiffPatch";
 
@@ -27,6 +32,10 @@ type DiffFileSectionProps = {
   onDraftChange: (key: string | null) => void;
   /** Only the target section receives the flash label. */
   flash: string | null;
+  /** False until the pane's observer says this section is near the viewport. */
+  mount: boolean;
+  /** Reports how a lazily mounted body differs from its placeholder height. */
+  onBodySettled: (fileKey: string, delta: number) => void;
 };
 
 /**
@@ -45,8 +54,29 @@ export const DiffFileSection = memo(function DiffFileSection({
   draft,
   onDraftChange,
   flash,
+  mount,
+  onBodySettled,
 }: DiffFileSectionProps) {
   const { comments, headSHA } = useDiffCommentsContext();
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  // Height the placeholder occupied before the body mounted. Zero once the
+  // body owns the space, so later re-renders do not report twice.
+  const placeholderHeight = useRef(0);
+  const estimate = open && !mount ? estimateDiffBodyHeight(file, hunks) : 0;
+
+  useLayoutEffect(() => {
+    if (open && !mount) placeholderHeight.current = estimate;
+  }, [open, mount, estimate]);
+
+  // Keep the visible rows still when a body above the viewport mounts with a
+  // different height than its placeholder: the parent owns the pane's scroll.
+  useLayoutEffect(() => {
+    const previous = placeholderHeight.current;
+    if (!open || !mount || previous === 0 || !bodyRef.current) return;
+    placeholderHeight.current = 0;
+    const delta = bodyRef.current.offsetHeight - previous;
+    if (delta !== 0) onBodySettled(fileKey, delta);
+  }, [open, mount, fileKey, onBodySettled]);
   const { dir, name } = splitPath(file.path);
   const signals = reviewSignals(file);
   const fileCommentCount = comments.comments.filter(
@@ -113,14 +143,24 @@ export const DiffFileSection = memo(function DiffFileSection({
       </button>
 
       {open ? (
-        <FilePatch
-          file={file}
-          fileKey={fileKey}
-          hunks={hunks}
-          draft={draft}
-          onDraftChange={onDraftChange}
-          flash={flash}
-        />
+        <div ref={bodyRef}>
+          {mount ? (
+            <FilePatch
+              file={file}
+              fileKey={fileKey}
+              hunks={hunks}
+              draft={draft}
+              onDraftChange={onDraftChange}
+              flash={flash}
+            />
+          ) : (
+            <div
+              aria-hidden
+              className="border-t border-line bg-canvas"
+              style={{ height: estimate }}
+            />
+          )}
+        </div>
       ) : null}
     </section>
   );

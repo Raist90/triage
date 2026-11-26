@@ -1,12 +1,16 @@
 import { ChevronDown } from "lucide-react";
-import { useState } from "react";
-import type { DiffFile } from "../../../lib/types";
+import { useMemo, useState } from "react";
+import type { DiffFile, DiffHunk, SemanticChange } from "../../../lib/types";
 import { ChangeAnnotation } from "./DiffAnnotation";
 import { groupCommentsByAnchor } from "./diffAnchors";
-import { anchorSemanticChanges } from "./diffFile";
+import { anchorSemanticChanges, type SemanticAnchors } from "./diffFile";
 import { HunkRows } from "./DiffHunkRows";
 import { RawPatch } from "./DiffRawPatch";
 import { useDiffCommentsContext } from "./DiffCommentsContext";
+
+const EMPTY_CHANGES: SemanticChange[] = [];
+const EMPTY_HUNKS: DiffHunk[] = [];
+const EMPTY_ANCHORS: SemanticAnchors = { byHunk: [], unanchored: [] };
 
 type FilePatchProps = {
   file: DiffFile;
@@ -30,6 +34,33 @@ export function FilePatch({
   const { comments, headSHA } = useDiffCommentsContext();
   const [showUnanchored, setShowUnanchored] = useState(false);
 
+  const allHunks = file.hunks ?? EMPTY_HUNKS;
+  const visible = useMemo(
+    () =>
+      scopedHunks === undefined
+        ? allHunks.map((hunk, index) => ({ hunk, index }))
+        : scopedHunks
+            .filter((index) => index >= 0 && index < allHunks.length)
+            .map((index) => ({ hunk: allHunks[index], index })),
+    [allHunks, scopedHunks],
+  );
+
+  // Grouping is O(comments) and the semantic anchor pass is O(hunks × changes).
+  // Both are shared by every row below, so run them once per patch change, not
+  // on every draft, flash or selection render.
+  const byAnchor = useMemo(
+    () => groupCommentsByAnchor(comments.comments, file.path, headSHA),
+    [comments.comments, file.path, headSHA],
+  );
+  const changes = file.semantic ?? EMPTY_CHANGES;
+  const { byHunk, unanchored } = useMemo(
+    () =>
+      allHunks.length === 0
+        ? EMPTY_ANCHORS
+        : anchorSemanticChanges(file.path, allHunks, changes),
+    [file.path, allHunks, changes],
+  );
+
   if (file.binary) {
     return (
       <p className="border-t border-line bg-canvas px-3 py-2 text-meta text-fg-faint">
@@ -38,17 +69,10 @@ export function FilePatch({
     );
   }
 
-  const hunks = file.hunks ?? [];
-  if (hunks.length === 0) {
+  if (allHunks.length === 0) {
     return <RawPatch patch={file.patch} />;
   }
 
-  const visible =
-    scopedHunks === undefined
-      ? hunks.map((hunk, index) => ({ hunk, index }))
-      : scopedHunks
-          .filter((index) => index >= 0 && index < hunks.length)
-          .map((index) => ({ hunk: hunks[index], index }));
   if (visible.length === 0) {
     return (
       <p className="border-t border-line bg-canvas px-3 py-2 text-meta text-fg-faint">
@@ -56,14 +80,6 @@ export function FilePatch({
       </p>
     );
   }
-
-  const byAnchor = groupCommentsByAnchor(comments.comments, file.path, headSHA);
-  const changes = file.semantic ?? [];
-  const { byHunk, unanchored } = anchorSemanticChanges(
-    file.path,
-    hunks,
-    changes,
-  );
 
   return (
     <div className="overflow-x-auto border-t border-line bg-canvas">
@@ -107,7 +123,7 @@ export function FilePatch({
             <HunkRows
               hunk={hunk}
               hunkKey={`${fileKey}:${index}`}
-              changes={byHunk[index] ?? []}
+              changes={byHunk[index] ?? EMPTY_CHANGES}
               flash={flash === `${fileKey}:${index}`}
               path={file.path}
               byAnchor={byAnchor}
