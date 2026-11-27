@@ -97,7 +97,8 @@ export function FilePatch({
   }
 
   return (
-    <div className="overflow-x-auto border-t border-line bg-canvas">
+    // The @container makes this scrollport the `cqw` reference for DiffThread.
+    <div className="@container overflow-x-auto border-t border-line bg-canvas">
       <div className="min-w-max font-mono text-code">
         {scopedHunks === undefined && unanchored.length > 0 ? (
           <div className="border-b border-line">

@@ -73,9 +73,12 @@ stay side by side; reviewing is the only flow that matters.
   diff. Every finding renders as a thread under its diff line with the same
   2px rail. Once published, that line shows the GitHub comment instead — the
   author's avatar, the comment body, and a `Pending` tag while the review is
-  still a draft — and the finding thread is suppressed. Conversation review
-  entries jump to their thread; issue comments have no diff anchor. One control
-  under the index publishes the
+  still a draft — and the finding thread is suppressed. Comment threads and
+  findings share one frame (`DiffThread`): pinned to the patch scrollport
+  (`100cqw`, sticky left) so a long code line never forces a sideways scroll to
+  read them, with bodies at the same 12px measure and a 2px rail (accent while
+  pending). Conversation review entries jump to their thread; issue comments
+  have no diff anchor. One control under the index publishes the
   findings as a single draft review on GitHub (praise excluded, nothing public
   until the review is submitted); an existing draft is only replaced when the
   user asks, never silently.

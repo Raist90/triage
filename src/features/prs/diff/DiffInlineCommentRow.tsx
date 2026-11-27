@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Markdown } from "../../../components/Markdown";
 import { Button } from "../../../components/ui";
+import { cx } from "../../../lib/cx";
 import type { InlineComment } from "../../../lib/types";
 import { formatRelative } from "../../../lib/time";
 import { Avatar } from "../detail/Avatar";
@@ -11,6 +12,11 @@ type InlineCommentRowProps = {
   canDelete: boolean;
 };
 
+/**
+ * One GitHub comment under its diff line, shaped like a finding thread: author
+ * mark, name, state tag, time on the right, then the body at the same compact
+ * measure. The thread frame supplies the 2px rail.
+ */
 export function InlineCommentRow({
   comment,
   canDelete,
@@ -33,20 +39,25 @@ export function InlineCommentRow({
   return (
     <article
       data-comment-id={comment.id}
-      className={`group scroll-mt-11 border-line py-2 first:pt-0 last:pb-0 ${
-        reply ? "mt-2 border-l-2 pl-3" : "border-b last:border-b-0"
-      }`}
+      className={cx(
+        "group scroll-mt-11",
+        reply && "border-l-2 border-l-line-strong pl-3",
+      )}
     >
-      <div className="flex items-center gap-2 text-meta">
-        <Avatar name={comment.author} src={comment.avatarURL} />
-        <span className="font-medium text-fg">{comment.author}</span>
+      <div className="flex min-w-0 items-center gap-2">
+        <Avatar name={comment.author} src={comment.avatarURL} size="sm" />
+        <span className="min-w-0 truncate text-meta font-medium text-fg-body">
+          {comment.author}
+        </span>
         {comment.pending ? (
           <span className="inline-flex h-4.5 shrink-0 items-center rounded-sm border border-accent/28 px-1 font-mono text-micro text-accent">
             Pending
           </span>
         ) : null}
-        {reply ? <span className="text-micro text-fg-faint">reply</span> : null}
-        <span className="text-fg-faint tabular-nums">
+        {reply ? (
+          <span className="shrink-0 text-micro text-fg-faint">reply</span>
+        ) : null}
+        <span className="ml-auto shrink-0 font-mono text-micro text-fg-faint tabular-nums">
           {formatRelative(comment.createdAt)}
         </span>
         {canDelete && !confirming ? (
@@ -54,14 +65,14 @@ export function InlineCommentRow({
             type="button"
             onClick={() => setConfirming(true)}
             disabled={deleting}
-            className="ml-auto text-meta text-fg-faint opacity-0 transition-opacity group-hover:opacity-100 hover:text-danger focus-visible:opacity-100 disabled:opacity-50"
+            className="shrink-0 text-micro text-fg-faint opacity-0 transition-opacity group-hover:opacity-100 hover:text-danger focus-visible:opacity-100 disabled:opacity-50"
           >
             Delete
           </button>
         ) : null}
       </div>
-      <div className="mt-1 max-w-3xl">
-        <Markdown>{comment.body}</Markdown>
+      <div className="mt-1 max-w-[72ch]">
+        <Markdown dense>{comment.body}</Markdown>
       </div>
 
       {confirming ? (

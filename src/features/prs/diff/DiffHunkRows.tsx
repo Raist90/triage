@@ -6,6 +6,7 @@ import type {
   SemanticChange,
 } from "../../../lib/types";
 import { ChangeAnnotation } from "./DiffAnnotation";
+import { DiffThread } from "./DiffThread";
 import { FindingThread } from "./FindingThread";
 import { anchorFindings, findingsForFile } from "./findingAnchors";
 import { anchorKey, lineAnchor, lineAnchors } from "./diffAnchors";
@@ -134,7 +135,9 @@ export const HunkRows = memo(function HunkRows({
               onDraftChange={onDraftChange}
             />
             {findings.map((finding) => (
-              <FindingThread key={finding.id} finding={finding} />
+              <DiffThread key={finding.id}>
+                <FindingThread finding={finding} />
+              </DiffThread>
             ))}
           </div>
         );
