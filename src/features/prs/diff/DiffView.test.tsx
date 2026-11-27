@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -23,11 +24,11 @@ import { DiffView } from "./DiffView";
 const initialUIState = useUIStore.getState();
 
 beforeEach(() => {
-  useUIStore.setState(initialUIState, true);
+  act(() => useUIStore.setState(initialUIState, true));
 });
 
 afterEach(() => {
-  useUIStore.setState(initialUIState, true);
+  act(() => useUIStore.setState(initialUIState, true));
 });
 
 const headSHA = "abc1234def5678";
@@ -114,7 +115,7 @@ function renderDiff(
 ) {
   const files = overrides.files ?? [fileA(), fileB()];
   if (overrides.mode) {
-    useUIStore.setState({ diffMode: overrides.mode });
+    act(() => useUIStore.setState({ diffMode: overrides.mode }));
   }
   return render(
     <DiffView

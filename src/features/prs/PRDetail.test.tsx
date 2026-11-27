@@ -153,7 +153,7 @@ afterAll(() => {
 
 async function renderDetail() {
   const result = renderWithQuery(<PRDetail repo="acme/web" number={42} />);
-  await screen.findByRole("button", { name: /Context/ });
+  await screen.findByText("added line");
   return result;
 }
 
@@ -328,9 +328,7 @@ describe("PRDetail receipts and errors", () => {
     getPR.mockImplementation(async () => ({ pr }));
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
 
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: /Context/ })).toBeDefined(),
-    );
+    expect(await screen.findByText("added line")).toBeDefined();
   });
 
   test("never caches a diff under a head it does not describe", async () => {
@@ -349,7 +347,7 @@ describe("PRDetail receipts and errors", () => {
     const { client } = renderWithQuery(
       <PRDetail repo="acme/web" number={42} />,
     );
-    await screen.findByRole("button", { name: /Context/ });
+    expect(await screen.findByText(/moved\.ts/)).toBeDefined();
 
     await waitFor(() =>
       expect(
