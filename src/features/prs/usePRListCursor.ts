@@ -6,76 +6,88 @@ import {
 } from "react";
 
 type UsePRListCursorOptions = {
-  /** Number of rows currently rendered inside the scroll container. */
-  count: number;
-  /** Index of the row whose pull request is open, or -1. */
-  selectedIndex: number;
-  /** Scroll container whose direct children are the rows. */
+  /** Rendered row keys in cursor order: every expanded bucket's rows. */
+  keys: string[];
+  /** Key of the open PR, or null. */
+  selectedKey: string | null;
+  /** Scroll container that holds the listbox. */
   scrollRef: RefObject<HTMLElement | null>;
-  onPick: (index: number) => void;
+  /** Stable DOM id for one row key, used to scroll it into view. */
+  optionID: (key: string) => string;
+  onOpen: (key: string) => void;
   onSearch: () => void;
   onToggleFilters: () => void;
   onDismiss: () => void;
 };
 
 /**
- * Keyboard cursor for the PR list. The cursor is an index rather than a DOM
- * focus so rows stay simple; the owning element keeps focus and the row is
- * scrolled into view when the cursor moves.
- *
- * `onKeyDown` must be attached to the element that holds focus. Keys coming
- * from a control inside that element (the empty state's action) are left alone.
+ * Keyed keyboard cursor for the deck. The cursor is independent of selection:
+ * j/k only move it, Enter opens. Keys make the cursor survive a refetch even
+ * when rows are inserted or removed above it.
  */
 export function usePRListCursor({
-  count,
-  selectedIndex,
+  keys,
+  selectedKey,
   scrollRef,
-  onPick,
+  optionID,
+  onOpen,
   onSearch,
   onToggleFilters,
   onDismiss,
 }: UsePRListCursorOptions) {
-  const [cursorState, setCursorState] = useState(0);
-  // A shorter list after a refetch or filter change must not leave the cursor
-  // out of bounds.
-  const lastIndex = Math.max(count - 1, 0);
-  const cursor = Math.min(cursorState, lastIndex);
+  const [state, setState] = useState<{ key: string | null; index: number }>({
+    key: null,
+    index: 0,
+  });
+  // Resolve the cursor against the current rows. If its row disappeared, clamp
+  // to the row now at its old index, then the previous row, then the first.
+  let cursorKey: string | null = state.key;
+  if (keys.length === 0) {
+    cursorKey = null;
+  } else if (cursorKey === null) {
+    const selectedIndex = selectedKey ? keys.indexOf(selectedKey) : -1;
+    cursorKey = selectedIndex >= 0 ? keys[selectedIndex] : keys[0];
+  } else if (!keys.includes(cursorKey)) {
+    cursorKey = keys[state.index] ?? keys[state.index - 1] ?? keys[0] ?? null;
+  }
+  const cursorIndex = cursorKey ? keys.indexOf(cursorKey) : -1;
 
   const move = useCallback(
-    (index: number) => {
-      if (count === 0) return;
-      const next = Math.min(Math.max(index, 0), lastIndex);
-      if (next === cursor) {
-        // The cursor is already clamped here, so j/k must not scroll or re-open
-        // the same row; only a different open PR is replaced by this one.
-        if (next !== selectedIndex) onPick(next);
-        return;
-      }
-      setCursorState(next);
-      const row = scrollRef.current?.children[next];
-      if (row instanceof HTMLElement) {
-        row.scrollIntoView({ block: "nearest" });
-      }
-      onPick(next);
+    (delta: number) => {
+      if (keys.length === 0) return;
+      const next = Math.min(
+        Math.max((cursorIndex < 0 ? 0 : cursorIndex) + delta, 0),
+        keys.length - 1,
+      );
+      if (keys[next] === cursorKey) return;
+      const key = keys[next];
+      setState({ key, index: next });
+      const row = document.getElementById(optionID(key));
+      row?.scrollIntoView({ block: "nearest" });
     },
-    [count, cursor, lastIndex, onPick, scrollRef, selectedIndex],
+    [cursorIndex, cursorKey, keys, optionID],
   );
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
-      // The empty state's Clear button owns Enter and Space while focused.
+      // A control inside the listbox (bucket head) owns its keys.
       if (event.target !== event.currentTarget) return;
 
       switch (event.key) {
         case "j":
         case "ArrowDown":
           event.preventDefault();
-          move(cursor + 1);
+          move(1);
           break;
         case "k":
         case "ArrowUp":
           event.preventDefault();
-          move(cursor - 1);
+          move(-1);
+          break;
+        case "Enter":
+          if (!cursorKey) return;
+          event.preventDefault();
+          onOpen(cursorKey);
           break;
         case "Escape":
           event.preventDefault();
@@ -93,8 +105,12 @@ export function usePRListCursor({
           break;
       }
     },
-    [cursor, move, onDismiss, onSearch, onToggleFilters],
+    [cursorKey, move, onDismiss, onOpen, onSearch, onToggleFilters],
   );
 
-  return { cursor, handleKeyDown };
+  // `scrollRef` is part of the contract even though ids locate the row, so the
+  // caller can keep focus on the listbox.
+  void scrollRef;
+
+  return { cursorKey, handleKeyDown };
 }

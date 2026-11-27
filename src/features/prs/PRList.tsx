@@ -16,9 +16,9 @@ import {
   filterChips,
   filterPRs,
   hasFacetFilters,
-  sortPRs,
   type FilterChip,
 } from "./prFilters";
+import { buildDeck, prKey } from "./deck";
 
 type PRListProps = {
   tabID: string;
@@ -58,6 +58,7 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
   });
 
   const prs = useMemo(() => query.data?.prs ?? [], [query.data]);
+  const viewer = query.data?.viewer.login ?? "";
 
   const filters = useUIStore((state) => state.prFilters);
   const setFilterQuery = useUIStore((state) => state.setFilterQuery);
@@ -66,9 +67,13 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
   const toggleHideDrafts = useUIStore((state) => state.toggleHideDrafts);
   const clearPRFilters = useUIStore((state) => state.clearPRFilters);
 
-  const visible = useMemo(
-    () => sortPRs(filterPRs(prs, filters)),
-    [prs, filters],
+  const visible = useMemo(() => filterPRs(prs, filters), [prs, filters]);
+  // Keying the surface by tab/repo resets local state (cursor, collapse) on a
+  // scope change without an effect.
+  const scopeKey = `${tabID}:${repo ?? ""}`;
+  const deck = useMemo(
+    () => buildDeck(visible, tabID, viewer),
+    [visible, tabID, viewer],
   );
   const chips = useMemo(() => filterChips(prs, filters), [prs, filters]);
 
@@ -86,8 +91,8 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
   const selectedPR = useUIStore((state) => state.selectedPR);
   const detailOpen = useUIStore((state) => state.detailOpen);
   const selectPR = useUIStore((state) => state.selectPR);
+  const setDetailIntent = useUIStore((state) => state.setDetailIntent);
 
-  const scope = repo ?? "All repos";
   const isFiltered = hasFacetFilters(filters) || filters.query.trim() !== "";
 
   const openSearch = useCallback(() => setSearchOpen(true), []);
@@ -103,7 +108,10 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
       : null;
 
   function pickPR(pr: PR) {
-    selectPR(`${pr.repo}#${pr.number}`);
+    selectPR(prKey(pr));
+    // A row click opens the document with Context collapsed. Clearing any open
+    // Context from the same PR is the remount's job.
+    setDetailIntent({ prKey: prKey(pr), token: Date.now() });
     // The list row carries the fresh head; a cached detail from an older
     // commit is re-read instead of being shown as current.
     void syncPRHead(queryClient, pr).catch(() => {});
@@ -192,16 +200,17 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
       ) : null}
 
       <PRListBody
+        key={scopeKey}
         query={query}
         listRef={listRef}
-        visible={visible}
-        prs={prs}
+        deck={deck}
+        prsCount={prs.length}
+        visibleCount={visible.length}
         filters={filters}
         isLoading={isLoading}
         tabID={tabID}
         tabLabel={tabLabel}
         repo={repo}
-        scope={scope}
         selectedPR={selectedPR}
         onPick={pickPR}
         onRetry={() => void query.refetch()}
@@ -211,6 +220,17 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
         onCloseFilters={closeFilters}
         onClearSelection={() => selectPR(null)}
       />
+
+      <div className="flex h-11 shrink-0 items-center justify-between border-t border-line px-3 font-mono text-micro text-fg-faint">
+        <span className="tabular-nums">
+          {isLoading
+            ? "Loading…"
+            : isFiltered
+              ? `${visible.length} of ${prs.length} open`
+              : `${visible.length} open`}
+        </span>
+        <span>j k move · enter open · f filter</span>
+      </div>
     </div>
   );
 }

@@ -124,20 +124,24 @@ export function SemanticRail({
       const fileHunks = file.hunks ?? [];
       if (open && fileHunks.length > 0) {
         const { byHunk } = anchorSemanticChanges(file.path, fileHunks, changes);
+        let placed = false;
         byHunk.forEach((group, hunkIndex) => {
           if (group.length === 0) return;
           const element = hunks.get(`${key}:${hunkIndex}`);
           if (!element) return;
+          placed = true;
           const top =
             (element.getBoundingClientRect().top - contentTop) * scale;
           nextTicks.push(
             buildTick(key, hunkIndex, top, group, file.path, false),
           );
         });
-        continue;
+        // An open file whose body is still a lazy placeholder has no hunk
+        // elements yet. Keep one aggregate tick so the map still sees it.
+        if (placed) continue;
       }
 
-      // Collapsed or unstructured file: one tick, jumping expands the file.
+      // Collapsed, lazy or unstructured file: one tick, jumping opens it.
       const firstHunk = firstChangedHunk(file, changes);
       nextTicks.push(
         buildTick(key, firstHunk, sectionTop + 2, changes, file.path, true),
@@ -153,17 +157,26 @@ export function SemanticRail({
   }, [paneRef, singleFile, layoutKey, measureVersion]);
 
   // Section heights move when comments or composers open, without any state
-  // the rail knows about. Observe them instead of polling.
+  // the rail knows about. Observe them instead of polling. A batch of lazy
+  // bodies mounting at once coalesces into one re-measure per frame.
   useEffect(() => {
     const pane = paneRef.current;
     if (!pane) return;
+    let frame: number | null = null;
     const observer = new ResizeObserver(() => {
-      setMeasureVersion((version) => version + 1);
+      if (frame !== null) return;
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        setMeasureVersion((version) => version + 1);
+      });
     });
     for (const section of pane.querySelectorAll("[data-diff-file]")) {
       observer.observe(section);
     }
-    return () => observer.disconnect();
+    return () => {
+      if (frame !== null) cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
   }, [paneRef, layoutKey]);
 
   useEffect(() => {

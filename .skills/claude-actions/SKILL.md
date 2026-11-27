@@ -45,15 +45,21 @@ diff, and returns structured findings. Answers stream back over SSE.
   `safeToMerge: false`, and a hidden blocking finding keeps that verdict
   conservative. Every hidden finding is recorded in `dropped` with a stable
   reason and the submitted evidence.
+- **Published findings.** Publishing creates one pending review on GitHub whose
+  comment bodies start with a hidden `<!-- triage:finding:F1 -->` marker. The
+  comments route merges submitted comments with the pending review's own
+  comments (`GET /pulls/{n}/reviews/{id}/comments`), strips the marker into
+  `findingID`, and marks the draft comments `pending`. The diff renders the
+  published comment instead of the finding that produced it.
 - **Streamed, bounded.** `--output-format stream-json` → NDJSON parser → SSE
   events `status`, `delta`, `done`, `error`. One job per PR+action; Explain
   times out at 5 minutes, Review at 8 minutes; child process group killed on
   cancel and on app shutdown.
 - **Artifacts.** `~/.triage/artifacts/<owner>/<repo>/<number>/<sha>/<action>.json`,
   keyed by SHA + model + prompt version. One store, one shape: an Explain
-  artifact carries markdown and a nil `review`, a Review artifact carries
-  `review` plus the `worktree` its patches apply to. A SHA change makes the old
-  answer stale: served with `stale: true` and a Re-run button, never as current.
+  artifact carries markdown and a nil `review`, a Review artifact carries the
+  structured `review`. A SHA change makes the old answer stale: served with
+  `stale: true` and a Re-run button, never as current.
   `Settings → Clear artifacts` removes the tree.
 - **Gating.** One gate: `exec.LookPath("claude")` succeeded at startup.
   `/config.actions` is empty when the CLI is missing; `actionsReason` explains
@@ -62,7 +68,7 @@ diff, and returns structured findings. Answers stream back over SSE.
 - **HTTP.** `POST/GET /pr/{owner}/{repo}/{n}/actions/{id}`,
   `GET .../actions/{id}/stream` (SSE over `fetch`, bearer header — never a query
   token), `POST .../actions/{id}/cancel`, `POST /artifacts/clear`,
-  `POST .../actions/review/patches/{findingID}`, `POST /worktrees/clear`.
+  `POST /worktrees/clear`.
 - **Config.** Action model, budget, tools, timeout and prompt live in
   `internal/config` and never reach the webview. Adding an action is a config
   entry, not a new route or component.
@@ -78,9 +84,8 @@ development checkouts.
   after fetching `refs/pull/N/head` and the base branch into `refs/triage/*`.
 - A run reuses the directory when `HEAD` already equals the artifact SHA and
   recreates it otherwise. Jobs for the same PR are serialised by a per-PR lock.
-- The worktree is removed on failure and on cancel, and kept on success because
-  patches apply to it. `Settings → Clear worktrees` removes the whole tree and
-  prunes registrations; it never touches artifacts, the cache or source clones.
-- Patches are applied with `git apply --whitespace=nowarn` only, after a fresh
-  `--check` at apply time. The file set is the PR diff, and `..`, absolute paths
-  and binary patches are rejected. Nothing is ever staged, committed or pushed.
+- The worktree is removed when the run ends, on success, failure and cancel.
+  `Settings → Clear worktrees` removes the whole tree and prunes registrations;
+  it never touches artifacts, the cache or source clones.
+- Nothing is ever staged, committed or pushed in a worktree. The app never
+  writes the reviewed changes back anywhere; fixes happen outside Triage.

@@ -20,7 +20,6 @@ const (
 	maxGuidelineRunes      = 120
 	maxGuidelineQuoteRunes = 400
 	maxSummaryRunes        = 240
-	maxPatchBytes          = 8 << 10
 )
 
 // Reasons a finding is hidden. They are part of the artifact and stable on
@@ -80,7 +79,6 @@ func Sanitize(r Review, grounding Grounding) Review {
 		finding.Evidence = clampRunes(finding.Evidence, maxEvidenceRunes)
 		finding.Guideline = clampRunes(finding.Guideline, maxGuidelineRunes)
 		finding.GuidelineQuote = clampRunes(finding.GuidelineQuote, maxGuidelineQuoteRunes)
-		finding.Patch = clampBytes(finding.Patch, maxPatchBytes)
 		finding.File = normalizeFindingPath(finding.File)
 
 		if !finding.Severity.Valid() || !finding.Category.Valid() {
@@ -305,14 +303,4 @@ func clampRunes(value string, limit int) string {
 		return value
 	}
 	return strings.TrimSpace(string(runes[:limit]))
-}
-
-func clampBytes(value string, limit int) string {
-	if limit <= 0 {
-		return ""
-	}
-	if len(value) <= limit {
-		return value
-	}
-	return value[:limit]
 }

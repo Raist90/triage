@@ -2,8 +2,6 @@
 package api
 
 import (
-	"time"
-
 	"github.com/Raist90/triage/backend/internal/actions"
 	"github.com/Raist90/triage/backend/internal/config"
 	"github.com/Raist90/triage/backend/internal/github"
@@ -90,12 +88,4 @@ type actionResponse struct {
 	Job      *actions.Job      `json:"job,omitempty"`
 	Artifact *actions.Artifact `json:"artifact,omitempty"`
 	Stale    bool              `json:"stale,omitempty" doc:"The artifact was produced for an older commit"`
-}
-
-// patchApplyResponse is returned by the apply route. AppliedAt is stored in the
-// artifact, so a second call returns the same timestamp.
-type patchApplyResponse struct {
-	OK        bool      `json:"ok"`
-	AppliedAt time.Time `json:"appliedAt"`
-	Worktree  string    `json:"worktree" doc:"Worktree the patch was applied to"`
 }

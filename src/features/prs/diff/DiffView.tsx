@@ -1,35 +1,37 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties } from "react";
 import { cx } from "../../../lib/cx";
-import type {
-  DiffFile,
-  SemanticSummary,
-  Walkthrough,
-} from "../../../lib/types";
+import type { DiffFile, PR, Walkthrough } from "../../../lib/types";
 import { scrollEdgeClass, useScrollEdges } from "../../../lib/useScrollEdges";
 import { useUIStore } from "../../../stores/ui";
 import { DiffCommentsContext } from "./DiffCommentsContext";
+import { isCosmeticFile } from "./diffFile";
 import { DiffFileSection } from "./DiffFileSection";
-import { FileRail, PathRail } from "./DiffRail";
+import { DiffFilesPopover } from "./DiffFilesPopover";
 import {
   filterDiffEntries,
   selectDiffFiles,
   type DiffTarget,
 } from "./diffSelection";
-import { DiffToolbar } from "./DiffToolbar";
+import { DiffStrip } from "./DiffStrip";
 import { SemanticRail } from "./SemanticRail";
 import type { DiffCommentsController } from "./useDiffComments";
 import { useDiffNavigation } from "./useDiffNavigation";
-import { useResizableRail } from "./useResizableRail";
 import { pathEntries } from "./walkthrough";
 import type { PathFileEntry } from "./walkthrough";
 
 export type { DiffTarget } from "./diffSelection";
 
+/**
+ * Whether the environment can observe viewport proximity. When it cannot, the
+ * diff falls back to mounting every open body, which is what tests and any
+ * odd webview expect.
+ */
+const canLazyMount = typeof IntersectionObserver !== "undefined";
+
 type DiffViewProps = {
+  pr: PR;
   files: DiffFile[];
   semanticAvailable: boolean;
-  semanticSummary?: SemanticSummary;
   walkthrough?: Walkthrough;
   comments: DiffCommentsController;
   headSHA: string;
@@ -39,10 +41,14 @@ type DiffViewProps = {
   focusTarget?: DiffTarget;
 };
 
+/**
+ * One scroll: the strip, then every file as a 44px sticky header. The old file
+ * rail is gone; its search, filters and walkthrough live in the Files popover.
+ */
 export function DiffView({
+  pr,
   files,
   semanticAvailable,
-  semanticSummary,
   walkthrough,
   comments,
   headSHA,
@@ -51,8 +57,26 @@ export function DiffView({
   focusTarget,
 }: DiffViewProps) {
   const [draft, setDraft] = useState<string | null>(null);
-  const [hideCosmetic, setHideCosmetic] = useState(true);
+  // Bodies mounted once and kept: unmounting would lose an open comment
+  // composer and force a re-measure of every section below it.
+  const [mounted, setMounted] = useState<ReadonlySet<string>>(
+    () => new Set<string>(),
+  );
+  const bodyObserver = useRef<IntersectionObserver | null>(null);
+  // Sections currently inside the observer's margin. A mode change resets the
+  // mounted set to this, so re-expanding after a full read mounts what is on
+  // screen instead of every body the user ever scrolled past.
+  const nearSections = useRef<ReadonlySet<string>>(new Set<string>());
+  // Null means "no explicit choice": cosmetic files stay hidden unless the
+  // focused finding lives in one, in which case its file must be reachable.
+  const [showCosmetic, setShowCosmetic] = useState<boolean | null>(null);
   const [filter, setFilter] = useState("");
+  const [focusMode, setFocusMode] = useState(true);
+  const [openFilesRequest, setOpenFilesRequest] = useState(0);
+  const openFiles = useCallback(
+    () => setOpenFilesRequest((current) => current + 1),
+    [],
+  );
 
   const hiddenKinds = useUIStore((state) => state.hiddenFileKinds);
   const clearFileKinds = useUIStore((state) => state.clearFileKinds);
@@ -60,8 +84,25 @@ export function DiffView({
   const hideLowPriority = useUIStore((state) => state.hideLowPriority);
   const showSemanticRail = useUIStore((state) => state.showSemanticRail);
   const toggleSemanticRail = useUIStore((state) => state.toggleSemanticRail);
+  const showDiffComments = useUIStore((state) => state.showDiffComments);
+  const toggleDiffComments = useUIStore((state) => state.toggleDiffComments);
   const diffMode = useUIStore((state) => state.diffMode);
   const setDiffMode = useUIStore((state) => state.setDiffMode);
+
+  // A finding clicked in the review bar must land on its thread even when the
+  // default cosmetic filter hid the file. That default is not an explicit
+  // choice, so a focused cosmetic file reveals its kind; the EyeOff control
+  // still writes an explicit choice that wins.
+  const focusTargetFile = focusTarget
+    ? files.find(
+        (file) =>
+          file.path === focusTarget.path || file.oldPath === focusTarget.path,
+      )
+    : undefined;
+  const focusNeedsCosmetic =
+    focusTargetFile !== undefined && isCosmeticFile(focusTargetFile);
+  const hideCosmetic =
+    showCosmetic === null ? !focusNeedsCosmetic : !showCosmetic;
 
   // Filters and the priority sort are pure but O(files); a selection render
   // must not recompute them.
@@ -77,15 +118,18 @@ export function DiffView({
   );
   const { kindFiltered, visible } = selection;
 
-  // Search narrows the rail and the keyboard walk, never the pane: typing must
-  // not close the patch being reviewed. One list feeds both, so the rail and
-  // `j`/`k` cannot disagree about which files are reachable.
+  // Search narrows the popover list and the keyboard walk, never the pane:
+  // typing must not close the patch being reviewed.
   const matched = useMemo(
     () => filterDiffEntries(visible, filter),
     [visible, filter],
   );
 
   const [activeStepID, setActiveStepID] = useState<string | null>(null);
+  // Last finding click whose step switch was applied. The token re-arms it.
+  const [appliedFocusToken, setAppliedFocusToken] = useState<number | null>(
+    null,
+  );
   const activeStep =
     walkthrough?.steps.find((step) => step.id === activeStepID) ??
     walkthrough?.steps[0];
@@ -108,11 +152,17 @@ export function DiffView({
         onSelect: setActiveStepID,
       }
     : undefined;
+  const stepIndex = activeStep
+    ? (walkthrough?.steps.indexOf(activeStep) ?? -1)
+    : -1;
+  const selectStepAt = (index: number) => {
+    const step = walkthrough?.steps[index];
+    if (step) setActiveStepID(step.id);
+  };
 
   const {
     activeKey,
     expanded,
-    focusMode,
     flash,
     paneRef,
     filterInputRef,
@@ -120,7 +170,6 @@ export function DiffView({
     selectFile,
     selectHunk,
     toggleFile,
-    toggleFocusMode,
     expandFiles,
     handleScroll,
     releaseScrollLock,
@@ -129,9 +178,34 @@ export function DiffView({
     visibleSignature: navSignature,
     firstVisibleKey: navFirstKey,
     focusModeApplies: !pathMode,
+    focusMode,
+    openFilter: openFiles,
     stepNavigation,
     focusTarget,
   });
+
+  // A finding in the review bar can cite a file another step owns. The jump
+  // resolves against the active step's file list, so follow the finding's step
+  // once per click. Adjusting during render (not in an effect) commits the step
+  // switch and the jump together and is the pattern PRDetail uses for intents.
+  const focusToken = focusTarget?.token;
+  const focusPath = focusTarget?.path;
+  if (
+    focusToken !== undefined &&
+    focusPath !== undefined &&
+    focusToken !== appliedFocusToken
+  ) {
+    setAppliedFocusToken(focusToken);
+    const activeOwns =
+      activeStep?.files.some((reference) => reference.path === focusPath) ??
+      false;
+    if (pathMode && activeStep !== undefined && !activeOwns) {
+      const owner = walkthrough?.steps.find((step) =>
+        step.files.some((reference) => reference.path === focusPath),
+      );
+      if (owner) setActiveStepID(owner.id);
+    }
+  }
 
   // A step is a commit, so opening it always shows its files together. Focus
   // mode is a file-list policy and does not apply here; the user can still
@@ -144,11 +218,6 @@ export function DiffView({
   }, [pathMode, stepID, pathFiles, expandFiles, paneRef]);
 
   const scrollEdges = useScrollEdges(paneRef);
-  // The rail's scroller lives one component down, so it reports its node up.
-  const railRef = useRef<HTMLDivElement | null>(null);
-  const railEdges = useScrollEdges(railRef);
-  const railEdgeClassName = scrollEdgeClass(railEdges);
-  const { width: railWidth, rootRef, separatorProps } = useResizableRail();
 
   const railLayoutKey = useMemo(
     () =>
@@ -172,23 +241,100 @@ export function DiffView({
       paneEntries.some(({ file }) => (file.semantic?.length ?? 0) > 0),
     [hasSemantic, paneEntries],
   );
-  const showSummary = semanticAvailable && (semanticSummary?.total ?? 0) > 0;
+
+  const commentsValue = useMemo(
+    () => ({
+      comments,
+      headSHA,
+      canComment,
+      viewerLogin,
+      showComments: showDiffComments,
+    }),
+    [comments, headSHA, canComment, viewerLogin, showDiffComments],
+  );
+
+  // Mount a body shortly before it reaches the viewport. Expanding every file
+  // at once then costs a few mounts, not the whole PR.
+  useEffect(() => {
+    const pane = paneRef.current;
+    if (!pane || !canLazyMount) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const near = new Set(nearSections.current);
+        const entered: string[] = [];
+        for (const entry of entries) {
+          const key = (entry.target as HTMLElement).dataset.diffFile;
+          if (key === undefined) continue;
+          if (entry.isIntersecting) {
+            near.add(key);
+            entered.push(key);
+          } else {
+            near.delete(key);
+          }
+        }
+        nearSections.current = near;
+        if (entered.length === 0) return;
+        setMounted((current) => {
+          let next: Set<string> | null = null;
+          for (const key of entered) {
+            if (current.has(key)) continue;
+            next ??= new Set(current);
+            next.add(key);
+          }
+          return next ?? current;
+        });
+      },
+      { root: pane, rootMargin: "800px 0px" },
+    );
+    bodyObserver.current = observer;
+    for (const element of sectionRefs.current.values()) {
+      observer.observe(element);
+    }
+    return () => {
+      observer.disconnect();
+      bodyObserver.current = null;
+    };
+  }, [paneRef, sectionRefs]);
 
   // Stable registration so a memoized section owns its own ref callback.
+  // Must be referentially stable: a fresh closure here would invalidate every
+  // memoized section and re-render the whole diff on each selection change.
   const onSectionRef = useCallback(
     (key: string, element: HTMLElement | null) => {
-      if (element) sectionRefs.current.set(key, element);
-      else sectionRefs.current.delete(key);
+      const previous = sectionRefs.current.get(key);
+      if (previous !== undefined && previous !== element) {
+        bodyObserver.current?.unobserve(previous);
+      }
+      if (element) {
+        sectionRefs.current.set(key, element);
+        bodyObserver.current?.observe(element);
+      } else {
+        sectionRefs.current.delete(key);
+      }
     },
     [sectionRefs],
   );
 
-  // The review surface is fixed for this diff, so the sections below read it
-  // from context rather than through props. One stable identity keeps a
-  // selection or jump from waking every memoized section.
-  const commentsValue = useMemo(
-    () => ({ comments, headSHA, canComment, viewerLogin }),
-    [comments, headSHA, canComment, viewerLogin],
+  // Mounted bodies stay mounted while scrolling so their state survives, but a
+  // mode change must not remount a body the user scrolled past ten screens ago.
+  const resetMounts = useCallback(() => {
+    setMounted(new Set(nearSections.current));
+  }, []);
+
+  // A placeholder is a floor, not the exact height: comment threads, finding
+  // patches and open semantic rows add rows. When such a body mounts above the
+  // viewport, shift the scroll by the difference so the visible rows stay put.
+  const onBodySettled = useCallback(
+    (key: string, delta: number) => {
+      const pane = paneRef.current;
+      const section = sectionRefs.current.get(key);
+      if (!pane || !section) return;
+      const paneTop = pane.getBoundingClientRect().top;
+      if (section.getBoundingClientRect().top < paneTop) {
+        pane.scrollTop += delta;
+      }
+    },
+    [paneRef, sectionRefs],
   );
 
   // Only the section that owns the open composer needs the draft key. The key
@@ -201,63 +347,67 @@ export function DiffView({
 
   return (
     <DiffCommentsContext value={commentsValue}>
-      <div
-        ref={rootRef}
-        className="flex h-full min-h-0 flex-col"
-        style={{ "--diff-rail": `${railWidth}px` } as CSSProperties}
-      >
-        <DiffToolbar
-          summary={semanticSummary}
-          showSummary={showSummary}
+      <div className="flex h-full min-h-0 flex-col">
+        <DiffStrip
+          pr={pr}
           selection={selection}
-          hideLowPriority={hideLowPriority}
-          focusMode={focusMode}
+          showComments={showDiffComments}
+          onToggleComments={toggleDiffComments}
           hideCosmetic={hideCosmetic}
-          hasSemantic={hasSemantic}
-          showSemanticRail={showSemanticRail}
-          pathMode={pathMode}
-          hasPath={hasPath}
-          stepLabel={
-            activeStep && walkthrough
-              ? `Step ${walkthrough.steps.indexOf(activeStep) + 1} of ${walkthrough.steps.length} · ${activeStep.title}`
+          openRequest={openFilesRequest}
+          onToggleHideCosmetic={() => setShowCosmetic(hideCosmetic)}
+          stepPager={
+            pathMode && activeStep && stepIndex >= 0
+              ? {
+                  index: stepIndex,
+                  count: walkthrough?.steps.length ?? 0,
+                  title: activeStep.title,
+                  onPrevious: () => selectStepAt(stepIndex - 1),
+                  onNext: () => selectStepAt(stepIndex + 1),
+                }
               : undefined
           }
-          onTogglePathMode={() => setDiffMode(pathMode ? "files" : "path")}
-          onToggleFocusMode={toggleFocusMode}
-          onToggleHideCosmetic={() => setHideCosmetic((current) => !current)}
-          onToggleSemanticRail={toggleSemanticRail}
-          onClearFileKinds={clearFileKinds}
+          renderFilesPopover={(close) => (
+            <DiffFilesPopover
+              files={files}
+              matched={matched}
+              selection={selection}
+              filter={filter}
+              filterInputRef={filterInputRef}
+              activeKey={activeKey}
+              focusMode={focusMode}
+              hasSemantic={hasSemantic}
+              showSemanticRail={showSemanticRail}
+              hasPath={hasPath}
+              pathMode={pathMode}
+              steps={walkthrough?.steps ?? []}
+              activeStepID={activeStep?.id}
+              onFilterChange={setFilter}
+              onSelectFile={selectFile}
+              onSelectStep={setActiveStepID}
+              onToggleFocusMode={() => {
+                resetMounts();
+                setFocusMode((current) => !current);
+              }}
+              onTogglePathMode={() => {
+                resetMounts();
+                if (pathMode) {
+                  setDiffMode("files");
+                  return;
+                }
+                // Steps are reviewed one commit at a time, so selecting them
+                // also turns on the single-file mode and locks it.
+                setDiffMode("path");
+                setFocusMode(true);
+              }}
+              onToggleSemanticRail={toggleSemanticRail}
+              onClearFileKinds={clearFileKinds}
+              onClose={close}
+            />
+          )}
         />
 
         <div className="flex min-h-0 flex-1">
-          {pathMode && walkthrough ? (
-            <PathRail
-              steps={walkthrough.steps}
-              activeStepID={activeStep?.id}
-              railRef={railRef}
-              edgeClassName={railEdgeClassName}
-              onSelectStep={setActiveStepID}
-            />
-          ) : (
-            <FileRail
-              files={matched}
-              totalCount={files.length}
-              activeKey={activeKey}
-              filter={filter}
-              filterInputRef={filterInputRef}
-              railRef={railRef}
-              edgeClassName={railEdgeClassName}
-              selection={selection}
-              onFilterChange={setFilter}
-              onSelect={selectFile}
-            />
-          )}
-
-          <div
-            {...separatorProps}
-            className="-ml-1 w-2 shrink-0 cursor-col-resize touch-none"
-          />
-
           <div
             ref={paneRef}
             onScroll={handleScroll}
@@ -290,7 +440,7 @@ export function DiffView({
                   All files are cosmetic-only.{" "}
                   <button
                     type="button"
-                    onClick={() => setHideCosmetic(false)}
+                    onClick={() => setShowCosmetic(true)}
                     className="text-fg-muted underline decoration-line-strong underline-offset-2 transition-colors hover:text-fg"
                   >
                     Show them
@@ -314,6 +464,13 @@ export function DiffView({
                   onSectionRef={onSectionRef}
                   draft={draftPath === entry.file.path ? draft : null}
                   onDraftChange={setDraft}
+                  mount={
+                    !canLazyMount ||
+                    mounted.has(entry.key) ||
+                    entry.key === activeKey ||
+                    draftPath === entry.file.path
+                  }
+                  onBodySettled={onBodySettled}
                   flash={
                     flash !== null && flash.key === entry.key
                       ? flash.label

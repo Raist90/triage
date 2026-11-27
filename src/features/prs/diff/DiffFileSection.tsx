@@ -1,7 +1,12 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { memo, useCallback } from "react";
+import { memo, useCallback, useLayoutEffect, useRef } from "react";
 import type { DiffFile } from "../../../lib/types";
-import { isCosmeticFile, reviewSignals, splitPath } from "./diffFile";
+import {
+  estimateDiffBodyHeight,
+  isCosmeticFile,
+  reviewSignals,
+  splitPath,
+} from "./diffFile";
 import { useDiffCommentsContext } from "./DiffCommentsContext";
 import { FilePatch } from "./DiffPatch";
 
@@ -27,6 +32,10 @@ type DiffFileSectionProps = {
   onDraftChange: (key: string | null) => void;
   /** Only the target section receives the flash label. */
   flash: string | null;
+  /** False until the pane's observer says this section is near the viewport. */
+  mount: boolean;
+  /** Reports how a lazily mounted body differs from its placeholder height. */
+  onBodySettled: (fileKey: string, delta: number) => void;
 };
 
 /**
@@ -45,16 +54,46 @@ export const DiffFileSection = memo(function DiffFileSection({
   draft,
   onDraftChange,
   flash,
+  mount,
+  onBodySettled,
 }: DiffFileSectionProps) {
-  const { comments, headSHA } = useDiffCommentsContext();
+  const { comments } = useDiffCommentsContext();
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  // Height the placeholder occupied before the body mounted. Zero once the
+  // body owns the space, so later re-renders do not report twice.
+  const placeholderHeight = useRef(0);
+  const estimate = open && !mount ? estimateDiffBodyHeight(file, hunks) : 0;
+
+  useLayoutEffect(() => {
+    if (open && !mount) placeholderHeight.current = estimate;
+  }, [open, mount, estimate]);
+
+  // Keep the visible rows still when a body above the viewport mounts with a
+  // different height than its placeholder: the parent owns the pane's scroll.
+  useLayoutEffect(() => {
+    const previous = placeholderHeight.current;
+    if (!open || !mount || previous === 0 || !bodyRef.current) return;
+    placeholderHeight.current = 0;
+    const delta = bodyRef.current.offsetHeight - previous;
+    if (delta !== 0) onBodySettled(fileKey, delta);
+  }, [open, mount, fileKey, onBodySettled]);
   const { dir, name } = splitPath(file.path);
   const signals = reviewSignals(file);
   const fileCommentCount = comments.comments.filter(
     (comment) =>
       comment.path === file.path &&
-      comment.commitID === headSHA &&
+      !comment.outdated &&
       comment.line !== undefined,
   ).length;
+  const meta = [
+    STATUS_LABEL[file.status],
+    file.oldPath ? `from ${file.oldPath}` : "",
+    isCosmeticFile(file) ? "cosmetic" : "",
+    ...signals,
+    fileCommentCount > 0
+      ? `${fileCommentCount} ${fileCommentCount === 1 ? "comment" : "comments"}`
+      : "",
+  ].filter(Boolean);
   const sectionRef = useCallback(
     (element: HTMLElement | null) => onSectionRef(fileKey, element),
     [fileKey, onSectionRef],
@@ -71,7 +110,7 @@ export const DiffFileSection = memo(function DiffFileSection({
         type="button"
         onClick={toggle}
         aria-expanded={open}
-        className="sticky top-0 z-10 flex h-9 w-full items-center gap-2 border-b border-line bg-canvas px-2 text-left transition-colors hover:bg-surface"
+        className="sticky top-0 z-10 flex h-11 w-full items-center gap-2 border-b border-line bg-surface px-6 text-left transition-colors hover:bg-raised"
       >
         {open ? (
           <ChevronDown
@@ -84,39 +123,19 @@ export const DiffFileSection = memo(function DiffFileSection({
             aria-hidden
           />
         )}
-        <span className="flex min-w-0 flex-1 items-center font-mono text-meta">
-          <span className="inline-block max-w-[55%] truncate align-bottom text-fg-faint">
-            {dir}
-          </span>
+        <span className="flex min-w-0 flex-1 items-baseline truncate font-mono text-meta">
+          <span className="truncate text-fg-faint">{dir}</span>
           <span className="shrink-0 text-fg-body">{name}</span>
         </span>
-        <span className="shrink-0 text-micro tracking-[0.06em] text-fg-faint uppercase">
-          {STATUS_LABEL[file.status]}
-        </span>
-        {file.oldPath ? (
-          <span className="max-w-40 shrink-0 truncate font-mono text-micro text-fg-faint">
-            from {file.oldPath}
-          </span>
-        ) : null}
-        {isCosmeticFile(file) ? (
-          <span className="shrink-0 text-micro tracking-[0.06em] text-fg-faint uppercase">
-            cosmetic
-          </span>
-        ) : null}
-        {signals.length > 0 ? (
+        {meta.length > 0 ? (
           <span
-            title={signals.join(" · ")}
-            className="max-w-64 shrink-0 truncate text-micro text-fg-faint"
+            title={meta.join(" · ")}
+            className="hidden max-w-[46%] min-w-0 shrink truncate text-micro text-fg-faint min-[560px]:inline"
           >
-            {signals.join(" · ")}
+            {meta.join(" · ")}
           </span>
         ) : null}
-        {fileCommentCount > 0 ? (
-          <span className="shrink-0 text-micro text-fg-faint">
-            {fileCommentCount} {fileCommentCount === 1 ? "comment" : "comments"}
-          </span>
-        ) : null}
-        <span className="ml-auto shrink-0 pl-2 font-mono text-meta text-fg-faint tabular-nums">
+        <span className="shrink-0 pl-2 font-mono text-meta text-fg-faint tabular-nums">
           <span className="text-accent">+{file.additions}</span>
           <span className="px-1 text-line-strong">/</span>
           <span className="text-danger">−{file.deletions}</span>
@@ -124,14 +143,24 @@ export const DiffFileSection = memo(function DiffFileSection({
       </button>
 
       {open ? (
-        <FilePatch
-          file={file}
-          fileKey={fileKey}
-          hunks={hunks}
-          draft={draft}
-          onDraftChange={onDraftChange}
-          flash={flash}
-        />
+        <div ref={bodyRef}>
+          {mount ? (
+            <FilePatch
+              file={file}
+              fileKey={fileKey}
+              hunks={hunks}
+              draft={draft}
+              onDraftChange={onDraftChange}
+              flash={flash}
+            />
+          ) : (
+            <div
+              aria-hidden
+              className="border-t border-line bg-canvas"
+              style={{ height: estimate }}
+            />
+          )}
+        </div>
       ) : null}
     </section>
   );

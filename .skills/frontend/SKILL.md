@@ -15,8 +15,9 @@ stay side by side; reviewing is the only flow that matters.
 
 - **Type: Geist Sans + Geist Mono** (`src/index.css`, bundled woff2, OFL). Use the
   six-size scale only: `text-micro` 10, `text-meta` 12, `text-ui` 13,
-  `text-prose` 14, `text-lead` 16, `text-title` 20, plus `text-code` 12/20.
-  Weights are 400 and 500 only. `text-sm`/`text-xs`/`text-2xs` are gone.
+  `text-prose` 14, `text-lead` 16, `text-title` 20, plus `text-code` 12/20 and
+  the briefing-only `text-display` 23/31. Weights are 400 and 500 only.
+  `text-sm`/`text-xs`/`text-2xs` are gone.
   `text-micro` is for labels and state tags only: 0.08em tracking for labels,
   0.06em for tags. Actions and values use `text-meta`, except dense metadata
   inside the diff rail.
@@ -42,7 +43,7 @@ stay side by side; reviewing is the only flow that matters.
 - **Spacing: 4 / 8 / 12 / 16 / 24 / 32 only.** No `py-1.5`, `py-2.5`, `gap-3.5`,
   `px-5`. Chrome heights: one 44 top band (rail, repo panel, list toolbar,
   detail bar), 52 list row. Widths: 48 rail,
-  208 repo panel, 340 PR list, 272 context rail.
+  208 repo panel, 340 PR list, 300 review bar (at `wide`).
 - **Radii:** `rounded-sm` controls (4px), `rounded-md` dialog (6px). Both are
   declared in px in `@theme` so ESLint maps a `rounded-[4px]` back to the token.
   One focus ring (`accent` at 45%) from
@@ -67,24 +68,55 @@ stay side by side; reviewing is the only flow that matters.
   icon, 16px title, 13px description, optional mono footnote, action and key
   hints. Panes never hand-roll their own empty markup.
 - **Review:** the verdict is the headline (`text-lead`, accent or danger),
-  followed by a proportional severity strip; every finding card carries a 2px
-  severity rail.
-- **PR detail:** compact header with title, state, author, branches and change
-  stats; 44px bar; tabs for Conversation (default), Diff, Review (when
-  available), Explain (when available). Conversation is one chronological
-  timeline: the PR
-  body first, then comments, review verdicts and inline review comments. The
-  272px context rail shows checks, review, complexity and commit; it is hidden
-  below 1400px and while the Diff tab is active (the diff needs the width).
-- **Diffs:** per file, collapsible, full width, 208px file rail, draggable
-  between 168 and 440px (double-click resets). Semantic diff
-  via `sem` when available; fall back to a plain unified diff. Never fail a
-  review flow because `sem` is absent. Semantic changes live in a 40px map on
-  the right edge of the diff pane (toolbar toggle) plus a per-hunk chip that
-  opens the entity rows on demand; never as always-on rows above the code.
-  Code is syntax-highlighted by the Go sidecar (Chroma): colored, but only
-  desaturated `syn-*` tokens from `index.css`, never raw hues in components.
-  Chrome stays hue-free.
+  followed by a proportional severity strip. The bar lists one index row per
+  finding (`path:line`, 2px severity rail, title); clicking it jumps to the
+  diff. Every finding renders as a thread under its diff line with the same
+  2px rail. Once published, that line shows the GitHub comment instead — the
+  author's avatar, the comment body, and a `Pending` tag while the review is
+  still a draft — and the finding thread is suppressed. Comment threads and
+  findings share one frame (`DiffThread`): pinned to the patch scrollport
+  (`100cqw`, sticky left) so a long code line never forces a sideways scroll to
+  read them, with bodies at the same 12px measure and a 2px rail (accent while
+  pending). Conversation review entries jump to their thread; issue comments
+  have no diff anchor. A review comment anchors by `path`/`side`/`line`, never
+  by the commit it was written at: after a rebase or push the head SHA moves but
+  GitHub still resolves the line, and only a null line (`outdated`) takes a
+  comment out of the diff while it stays in the conversation. One control under
+  the index publishes the
+  findings as a single draft review on GitHub (praise excluded, nothing public
+  until the review is submitted); an existing draft is only replaced when the
+  user asks, never silently.
+- **PR detail:** open PRs are one screen, not places or tabs. 44px detail bar
+  (`repo#number`, branch, fullscreen, Manage, GitHub; a review-bar toggle below
+  `wide`) → a collapsed 40px Context row (PR body, expands in place) → the 44px
+  diff strip → one scrolling diff. A fixed 300px review bar holds the review
+  state badge, verdict, counts and finding index, then conversation and
+  explanation, with one primary action in its footer (`Start review` /
+  `Re-run review`, `Cancel` while running). The bar is 300px at `wide`
+  (1400px) and hidden below it unless toggled (`reviewBarOpen`). No PR title,
+  author, branch, review state twice, briefing or footer links. The review form
+  mounts at the top of the bar when open. Escape precedence: confirmation →
+  review form → Context → fullscreen → close. Conversation is chronological
+  ascending and does not repeat the PR body. Merged/closed PRs keep the
+  `PRSummary` receipt.
+- **Diffs:** one scroll, no file rail. Every file is a sticky 44px header (path,
+  +/−), collapsible, with `j`/`k` moving between headers and opening the landed
+  file. The 44px strip owns the PR-level facts (files, +/−, commits, checks,
+  head SHA) and three controls: inline-comment toggle, cosmetic-only toggle,
+  and the `Files` popover. The popover holds search, file-kind filters, sort,
+  low-focus, one-at-a-time focus, walkthrough steps and the semantic map
+  toggle; the map is off by default. Semantic diff via `sem` when available;
+  fall back to a plain unified diff. Never fail a review flow because `sem` is
+  absent. Semantic changes stay as a per-hunk chip that opens the entity rows
+  on demand; never as always-on rows above the code. File bodies mount lazily
+  when their section nears the viewport (and always for the selected file), with
+  a height-estimated placeholder; expanding every file must never mount every
+  row. A body stays mounted while scrolling (so an open composer survives) but a
+  focus/steps mode change resets that memory, so re-expanding mounts only what
+  is on screen. Code is
+  syntax-highlighted by the Go sidecar (Chroma): colored, but only desaturated
+  `syn-*` tokens from `index.css`, never raw hues in components. Chrome stays
+  hue-free.
 - **Icons:** `lucide-react`, 14–16px. Reuse `Button`, `IconButton`, `MicroLabel`,
   `Kbd` from `src/components/ui.tsx`; do not paste new button class strings.
 - **Components:** no styling frameworks, no shadcn/Radix, no CSS-in-JS, no CSS

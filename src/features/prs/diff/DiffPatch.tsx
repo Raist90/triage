@@ -1,12 +1,16 @@
 import { ChevronDown } from "lucide-react";
-import { useState } from "react";
-import type { DiffFile } from "../../../lib/types";
+import { useMemo, useState } from "react";
+import type { DiffFile, DiffHunk, SemanticChange } from "../../../lib/types";
 import { ChangeAnnotation } from "./DiffAnnotation";
 import { groupCommentsByAnchor } from "./diffAnchors";
-import { anchorSemanticChanges } from "./diffFile";
+import { anchorSemanticChanges, type SemanticAnchors } from "./diffFile";
 import { HunkRows } from "./DiffHunkRows";
 import { RawPatch } from "./DiffRawPatch";
 import { useDiffCommentsContext } from "./DiffCommentsContext";
+
+const EMPTY_CHANGES: SemanticChange[] = [];
+const EMPTY_HUNKS: DiffHunk[] = [];
+const EMPTY_ANCHORS: SemanticAnchors = { byHunk: [], unanchored: [] };
 
 type FilePatchProps = {
   file: DiffFile;
@@ -27,8 +31,48 @@ export function FilePatch({
   onDraftChange,
   flash,
 }: FilePatchProps) {
-  const { comments, headSHA } = useDiffCommentsContext();
+  const { comments } = useDiffCommentsContext();
   const [showUnanchored, setShowUnanchored] = useState(false);
+
+  const allHunks = file.hunks ?? EMPTY_HUNKS;
+  const visible = useMemo(
+    () =>
+      scopedHunks === undefined
+        ? allHunks.map((hunk, index) => ({ hunk, index }))
+        : scopedHunks
+            .filter((index) => index >= 0 && index < allHunks.length)
+            .map((index) => ({ hunk: allHunks[index], index })),
+    [allHunks, scopedHunks],
+  );
+
+  // Grouping is O(comments) and the semantic anchor pass is O(hunks × changes).
+  // Both are shared by every row below, so run them once per patch change, not
+  // on every draft, flash or selection render.
+  const byAnchor = useMemo(
+    () => groupCommentsByAnchor(comments.comments, file.path),
+    [comments.comments, file.path],
+  );
+  // A finding whose comment Triage published is now the comment's job to
+  // render: hide the finding thread on the line instead of stacking two copies.
+  // The comment's commit is irrelevant; only an outdated anchor (GitHub no
+  // longer places it on the diff) hands the line back to the finding.
+  const publishedFindingIDs = useMemo(() => {
+    const ids = new Set<string>();
+    for (const comment of comments.comments) {
+      if (comment.findingID && !comment.outdated) {
+        ids.add(comment.findingID);
+      }
+    }
+    return ids;
+  }, [comments.comments]);
+  const changes = file.semantic ?? EMPTY_CHANGES;
+  const { byHunk, unanchored } = useMemo(
+    () =>
+      allHunks.length === 0
+        ? EMPTY_ANCHORS
+        : anchorSemanticChanges(file.path, allHunks, changes),
+    [file.path, allHunks, changes],
+  );
 
   if (file.binary) {
     return (
@@ -38,17 +82,10 @@ export function FilePatch({
     );
   }
 
-  const hunks = file.hunks ?? [];
-  if (hunks.length === 0) {
+  if (allHunks.length === 0) {
     return <RawPatch patch={file.patch} />;
   }
 
-  const visible =
-    scopedHunks === undefined
-      ? hunks.map((hunk, index) => ({ hunk, index }))
-      : scopedHunks
-          .filter((index) => index >= 0 && index < hunks.length)
-          .map((index) => ({ hunk: hunks[index], index }));
   if (visible.length === 0) {
     return (
       <p className="border-t border-line bg-canvas px-3 py-2 text-meta text-fg-faint">
@@ -57,16 +94,9 @@ export function FilePatch({
     );
   }
 
-  const byAnchor = groupCommentsByAnchor(comments.comments, file.path, headSHA);
-  const changes = file.semantic ?? [];
-  const { byHunk, unanchored } = anchorSemanticChanges(
-    file.path,
-    hunks,
-    changes,
-  );
-
   return (
-    <div className="overflow-x-auto border-t border-line bg-canvas">
+    // The @container makes this scrollport the `cqw` reference for DiffThread.
+    <div className="@container overflow-x-auto border-t border-line bg-canvas">
       <div className="min-w-max font-mono text-code">
         {scopedHunks === undefined && unanchored.length > 0 ? (
           <div className="border-b border-line">
@@ -107,10 +137,11 @@ export function FilePatch({
             <HunkRows
               hunk={hunk}
               hunkKey={`${fileKey}:${index}`}
-              changes={byHunk[index] ?? []}
+              changes={byHunk[index] ?? EMPTY_CHANGES}
               flash={flash === `${fileKey}:${index}`}
               path={file.path}
               byAnchor={byAnchor}
+              publishedFindingIDs={publishedFindingIDs}
               draft={draft}
               onDraftChange={onDraftChange}
             />

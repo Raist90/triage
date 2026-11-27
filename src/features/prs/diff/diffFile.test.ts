@@ -4,6 +4,7 @@ import type { SemanticChange } from "../../../lib/types";
 import {
   anchorSemanticChanges,
   compareByFocus,
+  estimateDiffBodyHeight,
   fileKinds,
   fileKey,
   findHunkIndex,
@@ -150,6 +151,22 @@ describe("file classification", () => {
     expect(focusBand(high)).toBe("high");
     expect(focusBand(low)).toBe("low");
     expect(reviewSignals(high)).toEqual(["deletes 2", "no tests changed"]);
+  });
+
+  test("estimates a body from fixed row metrics so placeholders match", () => {
+    const file = makeFile({ hunks: twoHunks });
+    // 1px border + two hunks of one 28px header and two 20px lines each.
+    expect(estimateDiffBodyHeight(file)).toBe(137);
+    // A path step renders only the hunks it owns.
+    expect(estimateDiffBodyHeight(file, [1])).toBe(69);
+    expect(estimateDiffBodyHeight(makeFile({ binary: true }))).toBe(33);
+    // An unanchored semantic change adds its single toggle row, as in FilePatch.
+    const semantic = makeFile({
+      hunks: twoHunks,
+      semantic: [change({ startLine: 900, endLine: 910 })],
+    });
+    expect(estimateDiffBodyHeight(semantic)).toBe(165);
+    expect(estimateDiffBodyHeight(semantic, [0])).toBe(69);
   });
 
   test("splits a path into directory and basename", () => {

@@ -10,6 +10,10 @@ import {
 type Jump = {
   key: string;
   hunkIndex?: number;
+  /** Land on this finding's thread instead of the hunk header. */
+  findingID?: string;
+  /** Land on this published comment's thread instead. */
+  commentID?: number;
   token: number;
 };
 
@@ -28,6 +32,10 @@ type UseDiffNavigationOptions = {
   firstVisibleKey: string | null;
   /** False in the grouped path view: there a step opens as a unit. */
   focusModeApplies: boolean;
+  /** The strip/popover owns this; the hook only honours it. */
+  focusMode: boolean;
+  /** Open the Files popover so `/` can focus its search input. */
+  openFilter: () => void;
   /** Present in the grouped path view: `j`/`k` move between steps, not files. */
   stepNavigation?: {
     ids: string[];
@@ -50,11 +58,12 @@ export function useDiffNavigation({
   visibleSignature,
   firstVisibleKey,
   focusModeApplies,
+  focusMode,
+  openFilter,
   stepNavigation,
   focusTarget,
 }: UseDiffNavigationOptions) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [focusMode, setFocusMode] = useState(true);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [jump, setJump] = useState<Jump | null>(null);
   const [flash, setFlash] = useState<Flash | null>(null);
@@ -89,6 +98,21 @@ export function useDiffNavigation({
     expandedRef.current = expanded;
   });
 
+  // Focus mode is a policy, not a per-file choice: turning it on keeps one
+  // file open, turning it off opens every visible file. Guarded by a ref so a
+  // visible-list change does not re-apply the mode.
+  const previousFocusMode = useRef(focusMode);
+  useEffect(() => {
+    if (previousFocusMode.current === focusMode) return;
+    previousFocusMode.current = focusMode;
+    if (focusMode) {
+      const keep = activeKeyRef.current ?? firstVisibleKey;
+      setExpanded(keep ? new Set([keep]) : new Set());
+    } else {
+      setExpanded(new Set(visibleRef.current.map(({ key }) => key)));
+    }
+  }, [focusMode, firstVisibleKey]);
+
   // Open the first file so the diff is visible without a click, but leave the
   // rest collapsed for large pull requests.
   useEffect(() => {
@@ -115,6 +139,8 @@ export function useDiffNavigation({
   // hidden by a user filter is left alone rather than silently un-filtered.
   const focusPath = focusTarget?.path;
   const focusLine = focusTarget?.line;
+  const focusFindingID = focusTarget?.findingID;
+  const focusCommentID = focusTarget?.commentID;
   const focusToken = focusTarget?.token;
   useEffect(() => {
     if (focusToken === undefined || focusPath === undefined) return;
@@ -142,9 +168,18 @@ export function useDiffNavigation({
     setJump((current) => ({
       key,
       hunkIndex,
+      findingID: focusFindingID,
+      commentID: focusCommentID,
       token: (current?.token ?? 0) + 1,
     }));
-  }, [focusToken, focusPath, focusLine, visibleSignature]);
+  }, [
+    focusToken,
+    focusPath,
+    focusLine,
+    focusFindingID,
+    focusCommentID,
+    visibleSignature,
+  ]);
 
   // Run the jump after the expanded-state commit, never before it: collapsing
   // the previously open file changes the height of every section above, so a
@@ -152,6 +187,30 @@ export function useDiffNavigation({
   useEffect(() => {
     if (!jump) return;
     const pane = paneRef.current;
+    // A comment clicked in the conversation targets the rendered thread
+    // itself, so the row the user clicked is centred.
+    if (pane && jump.commentID !== undefined) {
+      const thread = Array.from(
+        pane.querySelectorAll<HTMLElement>("[data-comment-id]"),
+      ).find(
+        (candidate) => candidate.dataset.commentId === String(jump.commentID),
+      );
+      if (thread) {
+        thread.scrollIntoView({ block: "center" });
+        return;
+      }
+    }
+    // A finding jump targets the rendered thread itself, so the comment the
+    // user clicked is centred instead of the head of its hunk.
+    if (jump.findingID && pane) {
+      const thread = Array.from(
+        pane.querySelectorAll<HTMLElement>("[data-finding-id]"),
+      ).find((candidate) => candidate.dataset.findingId === jump.findingID);
+      if (thread) {
+        thread.scrollIntoView({ block: "center" });
+        return;
+      }
+    }
     const section = sectionRefs.current.get(jump.key);
     let element: HTMLElement | undefined = section;
     let id: string | null = null;
@@ -199,6 +258,7 @@ export function useDiffNavigation({
 
       if (event.key === "/") {
         event.preventDefault();
+        openFilter();
         filterInputRef.current?.focus();
         filterInputRef.current?.select();
         return;
@@ -236,7 +296,7 @@ export function useDiffNavigation({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [openFilter]);
 
   // Stable so a memoized file section never re-renders because the parent
   // render handed it a fresh closure. They read mutable state through refs.
@@ -297,19 +357,6 @@ export function useDiffNavigation({
     // instead of letting the scroll handler reassign it.
     programmaticScroll.current = true;
   }, []);
-
-  const toggleFocusMode = useCallback(() => {
-    const next = !focusMode;
-    setFocusMode(next);
-    if (next) {
-      const keep = activeKey ?? firstVisibleKey;
-      setExpanded(keep ? new Set([keep]) : new Set());
-    } else {
-      // Leaving focus mode opens every visible file. The user collapses the
-      // ones they do not want to read.
-      setExpanded(new Set(visible.map(({ key }) => key)));
-    }
-  }, [focusMode, activeKey, firstVisibleKey, visible]);
 
   /** Path steps open as a unit; collapse remains available per file. */
   const expandFiles = useCallback((keys: string[]) => {
@@ -386,7 +433,6 @@ export function useDiffNavigation({
   return {
     activeKey,
     expanded,
-    focusMode,
     flash,
     paneRef,
     filterInputRef,
@@ -394,7 +440,6 @@ export function useDiffNavigation({
     selectFile,
     selectHunk,
     toggleFile,
-    toggleFocusMode,
     expandFiles,
     handleScroll,
     releaseScrollLock,

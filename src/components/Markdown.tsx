@@ -4,11 +4,14 @@ import type { Components } from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
+import { cx } from "../lib/cx";
 import { openExternal } from "../lib/open";
 import { Kbd } from "./ui";
 
 type MarkdownProps = {
   children: string;
+  /** Compact body for annotations: the 12px measure findings already use. */
+  dense?: boolean;
 };
 
 function MarkdownLink({ href, children }: ComponentProps<"a">) {
@@ -135,9 +138,14 @@ const components: Components = {
   kbd: ({ children }) => <Kbd>{children}</Kbd>,
 };
 
-export function Markdown({ children }: MarkdownProps) {
+export function Markdown({ children, dense = false }: MarkdownProps) {
   return (
-    <div className="text-prose wrap-break-word text-fg-body">
+    <div
+      className={cx(
+        "wrap-break-word text-fg-body",
+        dense ? "text-meta leading-4.5" : "text-prose",
+      )}
+    >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeRaw, rehypeSanitize]}

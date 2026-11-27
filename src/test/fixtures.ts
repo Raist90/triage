@@ -64,6 +64,7 @@ export function makePR(pr: Partial<PR> = {}): PR {
     additions: 12,
     deletions: 4,
     changedFiles: 2,
+    commitCount: 3,
     checkStatus: "success",
     reviewState: "review_required",
     headSHA: "abc1234def5678",

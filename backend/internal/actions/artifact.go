@@ -32,7 +32,7 @@ type Usage struct {
 
 // Artifact is one finished answer for a specific SHA, model and prompt version.
 // An explain artifact carries Markdown and a nil Review; a review artifact
-// carries Review and the worktree its patches apply to.
+// carries the structured Review.
 type Artifact struct {
 	ActionID      string         `json:"action"`
 	Model         string         `json:"model"`
@@ -42,7 +42,6 @@ type Artifact struct {
 	Markdown      string         `json:"markdown"`
 	Usage         Usage          `json:"usage"`
 	Review        *review.Review `json:"review,omitempty"`
-	Worktree      string         `json:"worktree,omitempty"`
 }
 
 // Store is a directory of artifact files.

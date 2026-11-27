@@ -205,6 +205,37 @@ export function deletePRComment({
   );
 }
 
+export type ReviewDraftResponse = {
+  ok: boolean;
+  reviewID: number;
+  comments: number;
+};
+
+/**
+ * Turn a review's findings into one pending review on GitHub. GitHub keeps the
+ * draft private until the review is submitted.
+ */
+export function publishReviewDraft({
+  repo,
+  number,
+  actionID,
+}: PROptions & { actionID: string }): Promise<ReviewDraftResponse> {
+  return request<ReviewDraftResponse>(`${prPath(repo, number)}/review/draft`, {
+    method: "POST",
+    body: { actionID },
+  });
+}
+
+/** Delete the viewer's pending review on GitHub. */
+export function discardReviewDraft({
+  repo,
+  number,
+}: PROptions): Promise<{ cleared: number }> {
+  return request<{ cleared: number }>(`${prPath(repo, number)}/review/draft`, {
+    method: "DELETE",
+  });
+}
+
 type ActionOptions = PROptions & {
   actionID: string;
 };
@@ -380,31 +411,6 @@ function parseStreamFrame(frame: string): ActionStreamEvent | null {
 
 function actionPath(repo: string, number: number, actionID: string): string {
   return `${prPath(repo, number)}/actions/${encodeURIComponent(actionID)}`;
-}
-
-type ApplyFindingOptions = ActionOptions & {
-  findingID: string;
-};
-
-/**
- * Apply one finding's patch to the review worktree. The client sends a finding
- * id only; the server owns the patch text. A second call returns the stored
- * timestamp.
- */
-export function applyFindingPatch({
-  repo,
-  number,
-  actionID,
-  findingID,
-}: ApplyFindingOptions): Promise<{
-  ok: boolean;
-  appliedAt: string;
-  worktree: string;
-}> {
-  return request(
-    `${actionPath(repo, number, actionID)}/patches/${encodeURIComponent(findingID)}`,
-    { method: "POST" },
-  );
 }
 
 function prPath(repo: string, number: number): string {

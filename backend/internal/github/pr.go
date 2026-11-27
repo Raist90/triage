@@ -43,7 +43,6 @@ func (c *Client) GetPR(ctx context.Context, owner, repo string, number int) (PR,
 		return PR{}, &gql.APIError{Status: 404, Message: "pull request not found"}
 	}
 	pr := data.Repository.PullRequest.toPR()
-	pr.ViewerReview = normalizeReviewState(data.Repository.PullRequest.ViewerLatestReview.State)
 	pr.ViewerLogin = data.Viewer.Login
 	pr.ViewerCanApprove = !strings.EqualFold(pr.Author, data.Viewer.Login)
 	return pr, nil
@@ -67,10 +66,10 @@ type prNode struct {
 	ViewerLatestReview struct {
 		State string `json:"state"`
 	} `json:"viewerLatestReview"`
-	CreatedAt    string `json:"createdAt"`
-	UpdatedAt    string `json:"updatedAt"`
-	MergedAt     string `json:"mergedAt"`
-	MergedBy     struct {
+	CreatedAt string `json:"createdAt"`
+	UpdatedAt string `json:"updatedAt"`
+	MergedAt  string `json:"mergedAt"`
+	MergedBy  struct {
 		Login string `json:"login"`
 	} `json:"mergedBy"`
 	MergeCommit struct {
@@ -87,7 +86,8 @@ type prNode struct {
 		SquashMergeAllowed bool   `json:"squashMergeAllowed"`
 	} `json:"repository"`
 	Commits struct {
-		Nodes []struct {
+		TotalCount int `json:"totalCount"`
+		Nodes      []struct {
 			Commit struct {
 				StatusCheckRollup *struct {
 					State string `json:"state"`
@@ -95,6 +95,13 @@ type prNode struct {
 			} `json:"commit"`
 		} `json:"nodes"`
 	} `json:"commits"`
+	ReviewRequests struct {
+		Nodes []struct {
+			RequestedReviewer struct {
+				Login string `json:"login"`
+			} `json:"requestedReviewer"`
+		} `json:"nodes"`
+	} `json:"reviewRequests"`
 	Comments struct {
 		Nodes []commentNode `json:"nodes"`
 	} `json:"comments"`
@@ -103,9 +110,10 @@ type prNode struct {
 	} `json:"reviews"`
 	ReviewThreads struct {
 		Nodes []struct {
-			Path     string `json:"path"`
-			Line     int    `json:"line"`
-			Comments struct {
+			Path       string `json:"path"`
+			Line       int    `json:"line"`
+			IsResolved bool   `json:"isResolved"`
+			Comments   struct {
 				Nodes []commentNode `json:"nodes"`
 			} `json:"comments"`
 		} `json:"nodes"`
@@ -147,11 +155,16 @@ func (n prNode) toPR() PR {
 	for _, comment := range n.Comments.Nodes {
 		comments = append(comments, comment.toComment("comment"))
 	}
+	pending := false
 	for _, review := range n.Reviews.Nodes {
 		state := strings.ToLower(review.State)
 		// Pending reviews are private drafts; empty COMMENTED reviews are just
 		// the batch that carries inline comments, which arrive on their own.
-		if review.State == "PENDING" || (review.State == "COMMENTED" && review.Body == "") {
+		if review.State == "PENDING" {
+			pending = true
+			continue
+		}
+		if review.State == "COMMENTED" && review.Body == "" {
 			continue
 		}
 		comments = append(comments, Comment{
@@ -162,14 +175,8 @@ func (n prNode) toPR() PR {
 			State:     state,
 		})
 	}
-	for _, thread := range n.ReviewThreads.Nodes {
-		for _, comment := range thread.Comments.Nodes {
-			item := comment.toComment("review")
-			item.Path = thread.Path
-			item.Line = thread.Line
-			comments = append(comments, item)
-		}
-	}
+	// Inline review comments (including a pending draft's) come from the REST
+	// comment list, which carries their ids. They are not duplicated here.
 
 	return PR{
 		Number:             n.Number,
@@ -182,11 +189,14 @@ func (n prNode) toPR() PR {
 		BaseBranch:         n.BaseRefName,
 		CheckStatus:        check,
 		ReviewState:        review,
+		ViewerReview:       normalizeReviewState(n.ViewerLatestReview.State),
+		PendingReview:      pending,
 		State:              strings.ToLower(n.State),
 		Description:        n.Body,
 		Additions:          n.Additions,
 		Deletions:          n.Deletions,
 		ChangedFiles:       n.ChangedFiles,
+		CommitCount:        n.Commits.TotalCount,
 		CreatedAt:          n.CreatedAt,
 		UpdatedAt:          n.UpdatedAt,
 		MergedAt:           n.MergedAt,
@@ -197,7 +207,32 @@ func (n prNode) toPR() PR {
 		MergeStateStatus:   strings.ToLower(n.MergeStateStatus),
 		SquashMergeAllowed: n.Repository.SquashMergeAllowed,
 		Comments:           comments,
+		UnresolvedThreads:  n.unresolvedThreads(),
 	}
+}
+
+// requestedViewer reports whether the viewer is one of the requested user
+// reviewers. Team requests are invisible here by design.
+func (n prNode) requestedViewer(login string) bool {
+	if login == "" {
+		return false
+	}
+	for _, request := range n.ReviewRequests.Nodes {
+		if strings.EqualFold(request.RequestedReviewer.Login, login) {
+			return true
+		}
+	}
+	return false
+}
+
+func (n prNode) unresolvedThreads() int {
+	count := 0
+	for _, thread := range n.ReviewThreads.Nodes {
+		if !thread.IsResolved {
+			count++
+		}
+	}
+	return count
 }
 
 // normalizeReviewState maps GitHub's uppercase review enum to the lowercase

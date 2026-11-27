@@ -21,7 +21,7 @@ import (
 // version when the response shapes change; the spec is committed and diffed.
 const (
 	apiTitle   = "Triage"
-	apiVersion = "0.1.0"
+	apiVersion = "0.3.0"
 )
 
 // allowedOrigins are the only origins the webview can use: the Vite dev server

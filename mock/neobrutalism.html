@@ -1,0 +1,3339 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Triage — Neobrutalist concept</title>
+    <style>
+      @font-face {
+        font-family: "Geist";
+        font-style: normal;
+        font-weight: 100 900;
+        font-display: swap;
+        src: url("../src/assets/fonts/geist-latin-wght-normal.woff2")
+          format("woff2");
+      }
+      @font-face {
+        font-family: "Geist Mono";
+        font-style: normal;
+        font-weight: 100 900;
+        font-display: swap;
+        src: url("../src/assets/fonts/geist-mono-latin-wght-normal.woff2")
+          format("woff2");
+      }
+
+      :root {
+        --canvas: #09090b;
+        --surface: #111113;
+        --raised: #18181b;
+        --line: #27272a;
+        --line-strong: #3f3f46;
+        --fg: #fafafa;
+        --muted: #a1a1aa;
+        --body: #d4d4d8;
+        --faint: #71717a;
+        --accent: #4ade80;
+        --danger: #f87171;
+
+        --shadow-hard: 4px 4px 0 var(--line-strong);
+        --shadow-big: 6px 6px 0 var(--line-strong);
+        --shadow-accent: 5px 5px 0 var(--accent);
+
+        --sans: "Geist", ui-sans-serif, -apple-system, sans-serif;
+        --mono: "Geist Mono", ui-monospace, "SF Mono", monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        padding: 16px;
+        overflow: auto;
+        background-color: var(--canvas);
+        background-image:
+          radial-gradient(
+            circle at 1px 1px,
+            color-mix(in srgb, var(--fg) 8%, transparent) 1px,
+            transparent 0
+          ),
+          radial-gradient(
+            42% 55% at 6% 0%,
+            color-mix(in srgb, var(--accent) 10%, transparent),
+            transparent 70%
+          );
+        background-size:
+          16px 16px,
+          100% 100%;
+        color: var(--fg);
+        font-family: var(--sans);
+        font-size: 13px;
+        -webkit-font-smoothing: antialiased;
+        overscroll-behavior: none;
+      }
+
+      button {
+        font: inherit;
+        color: inherit;
+      }
+      ::selection {
+        background: var(--accent);
+        color: var(--canvas);
+      }
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: var(--line-strong) var(--canvas);
+      }
+      ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--line-strong);
+        border: 2px solid var(--canvas);
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--canvas);
+      }
+
+      .ico {
+        width: 18px;
+        height: 18px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2.2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        flex: none;
+      }
+      .ico-sm {
+        width: 14px;
+        height: 14px;
+      }
+      .ico-xs {
+        width: 12px;
+        height: 12px;
+      }
+
+      .app {
+        width: 100%;
+        min-width: 1180px;
+        height: calc(100dvh - 32px);
+        min-height: 720px;
+        display: grid;
+        grid-template-rows: 60px minmax(0, 1fr) 32px;
+        border: 3px solid var(--line-strong);
+        background: var(--canvas);
+        box-shadow:
+          5px 5px 0 var(--accent),
+          10px 10px 0 var(--line-strong);
+      }
+
+      /* ---------------------------------------------------------------- top bar */
+      .topbar {
+        display: flex;
+        align-items: stretch;
+        border-bottom: 3px solid var(--line-strong);
+        background: var(--surface);
+        min-width: 0;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 14px;
+        border-right: 2px solid var(--line-strong);
+        flex: none;
+      }
+      .brand-mark {
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        background: var(--accent);
+        color: var(--canvas);
+        border: 2px solid var(--fg);
+        box-shadow: 3px 3px 0 var(--line-strong);
+        font: 900 20px/1 var(--sans);
+        letter-spacing: -0.06em;
+      }
+      .brand-type {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .brand-name {
+        font: 900 15px/1 var(--sans);
+        letter-spacing: 0.02em;
+      }
+      .brand-sub {
+        font: 600 8px/1 var(--mono);
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--faint);
+      }
+
+      .crumb {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+        padding: 0 16px;
+        font: 500 11px/1 var(--mono);
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .crumb b {
+        color: var(--fg);
+        font-weight: 600;
+      }
+      .crumb .slash {
+        color: var(--faint);
+      }
+      .crumb .hash {
+        color: var(--accent);
+        font-weight: 700;
+      }
+      .crumb-divider {
+        width: 2px;
+        height: 18px;
+        background: var(--line-strong);
+        margin: 0 2px;
+      }
+      .mini-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        border: 2px solid var(--line-strong);
+        padding: 3px 6px;
+        font: 700 9px/1 var(--mono);
+        letter-spacing: 0.08em;
+        color: var(--body);
+        text-transform: uppercase;
+      }
+      .mini-tag.accent {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+
+      .top-actions {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 12px 0 16px;
+        flex: none;
+      }
+      .cmd {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 32px;
+        min-width: 230px;
+        padding: 0 8px;
+        border: 2px solid var(--line-strong);
+        background: var(--canvas);
+        box-shadow: 3px 3px 0 var(--line);
+        color: var(--faint);
+        font: 500 11px/1 var(--sans);
+        cursor: pointer;
+      }
+      .cmd:hover {
+        border-color: var(--fg);
+        color: var(--fg);
+      }
+      .cmd kbd {
+        margin-left: auto;
+        border: 1.5px solid var(--line-strong);
+        background: var(--raised);
+        padding: 3px 5px;
+        color: var(--muted);
+        font: 600 9px/1 var(--mono);
+        box-shadow: 1px 1px 0 var(--line-strong);
+      }
+      .conn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font: 700 9px/1 var(--mono);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        border: 2px solid var(--line);
+        padding: 7px 8px;
+      }
+      .dot {
+        width: 7px;
+        height: 7px;
+        background: var(--accent);
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent);
+      }
+      .avatar {
+        width: 32px;
+        height: 32px;
+        display: grid;
+        place-items: center;
+        background: var(--fg);
+        color: var(--canvas);
+        border: 2px solid var(--accent);
+        box-shadow: 2px 2px 0 var(--accent);
+        font: 900 10px/1 var(--mono);
+        letter-spacing: 0.04em;
+      }
+
+      /* ----------------------------------------------------------------- layout */
+      .shell {
+        display: grid;
+        grid-template-columns: 76px 218px 392px minmax(0, 1fr);
+        min-height: 0;
+        min-width: 0;
+      }
+
+      /* ------------------------------------------------------------------- rail */
+      .rail {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 8px;
+        border-right: 3px solid var(--line-strong);
+        background: var(--surface);
+        min-height: 0;
+      }
+      .rail-tab {
+        width: 56px;
+        height: 54px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        border: 2px solid transparent;
+        background: transparent;
+        color: var(--faint);
+        cursor: pointer;
+        transition:
+          transform 0.08s ease,
+          box-shadow 0.08s ease;
+      }
+      .rail-tab span {
+        font: 700 8px/1 var(--mono);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .rail-tab:hover {
+        border-color: var(--line-strong);
+        background: var(--raised);
+        color: var(--fg);
+        box-shadow: 3px 3px 0 var(--line);
+      }
+      .rail-tab.active {
+        background: var(--accent);
+        border-color: var(--fg);
+        color: var(--canvas);
+        box-shadow: 4px 4px 0 var(--line-strong);
+      }
+      .rail-tab.active:hover {
+        box-shadow: 4px 4px 0 var(--line-strong);
+        transform: none;
+      }
+      .rail-rule {
+        width: 36px;
+        height: 2px;
+        background: var(--line-strong);
+        margin: 3px 0;
+      }
+      .rail-spacer {
+        flex: 1;
+      }
+
+      /* ---------------------------------------------------------------- sidebar */
+      .sidebar {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        border-right: 3px solid var(--line-strong);
+        background: var(--canvas);
+      }
+      .pane-head {
+        height: 46px;
+        flex: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 0 10px 0 14px;
+        border-bottom: 2px solid var(--line-strong);
+      }
+      .eyebrow {
+        font: 800 9px/1 var(--mono);
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--faint);
+      }
+      .icon-btn {
+        width: 28px;
+        height: 28px;
+        display: grid;
+        place-items: center;
+        border: 2px solid var(--line-strong);
+        background: var(--raised);
+        color: var(--muted);
+        box-shadow: 2px 2px 0 var(--line);
+        cursor: pointer;
+      }
+      .icon-btn:hover {
+        color: var(--fg);
+        border-color: var(--fg);
+        transform: translate(-1px, -1px);
+        box-shadow: 3px 3px 0 var(--line-strong);
+      }
+      .icon-btn:active {
+        transform: translate(1px, 1px);
+        box-shadow: 1px 1px 0 var(--line-strong);
+      }
+
+      .repo-filter {
+        margin: 10px;
+        height: 31px;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        border: 2px solid var(--line-strong);
+        background: var(--canvas);
+        box-shadow: 3px 3px 0 var(--line);
+        padding: 0 8px;
+        color: var(--faint);
+        font: 500 10px/1 var(--sans);
+      }
+      .repo-filter input {
+        flex: 1;
+        min-width: 0;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        color: var(--fg);
+        font: 500 10px/1 var(--sans);
+      }
+      .repo-filter input::placeholder {
+        color: var(--faint);
+      }
+
+      .repo-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 2px 10px 10px;
+        overflow-y: auto;
+        min-height: 0;
+      }
+      .repo {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 36px;
+        padding: 7px 7px 7px 8px;
+        border: 2px solid var(--line);
+        background: var(--surface);
+        color: var(--body);
+        text-align: left;
+        cursor: pointer;
+      }
+      .repo:hover {
+        border-color: var(--line-strong);
+        transform: translate(-1px, -1px);
+        box-shadow: 3px 3px 0 var(--line);
+      }
+      .repo .repo-name {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font: 500 10px/1.2 var(--mono);
+      }
+      .repo .repo-count {
+        flex: none;
+        min-width: 22px;
+        padding: 3px 4px;
+        border: 1.5px solid var(--line-strong);
+        text-align: center;
+        font: 700 9px/1 var(--mono);
+        color: var(--muted);
+      }
+      .repo.selected {
+        background: var(--accent);
+        border-color: var(--fg);
+        color: var(--canvas);
+        box-shadow: 4px 4px 0 var(--accent);
+        transform: translate(-2px, -2px);
+      }
+      .repo.selected .repo-count {
+        border-color: var(--canvas);
+        color: var(--canvas);
+        background: color-mix(in srgb, var(--canvas) 10%, transparent);
+      }
+      .repo.selected:hover {
+        transform: translate(-2px, -2px);
+        box-shadow: 4px 4px 0 var(--accent);
+      }
+      .repo-swatch {
+        width: 7px;
+        height: 7px;
+        flex: none;
+        background: var(--accent);
+        border: 1px solid var(--canvas);
+      }
+      .repo-swatch.warn {
+        background: var(--danger);
+      }
+
+      .side-section {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 13px 12px 7px;
+      }
+      .side-section::after {
+        content: "";
+        height: 2px;
+        flex: 1;
+        background: var(--line);
+      }
+      .path-card {
+        margin: 0 10px 10px;
+        padding: 8px;
+        border: 2px dashed var(--line-strong);
+        color: var(--faint);
+        font: 500 9px/1.45 var(--mono);
+        word-break: break-all;
+      }
+      .path-card b {
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .side-foot {
+        margin-top: auto;
+        border-top: 2px solid var(--line-strong);
+        padding: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--surface);
+      }
+      .side-foot .avatar {
+        width: 28px;
+        height: 28px;
+        box-shadow: 2px 2px 0 var(--line-strong);
+      }
+      .side-user {
+        min-width: 0;
+        flex: 1;
+      }
+      .side-user strong {
+        display: block;
+        font: 700 10px/1.3 var(--mono);
+        color: var(--fg);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .side-user span {
+        display: block;
+        font: 700 8px/1.3 var(--mono);
+        letter-spacing: 0.08em;
+        color: var(--accent);
+        text-transform: uppercase;
+      }
+
+      /* ------------------------------------------------------------------- list */
+      .list-pane {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        min-height: 0;
+        border-right: 3px solid var(--line-strong);
+        background: var(--canvas);
+      }
+      .list-head {
+        flex: none;
+        padding: 13px 13px 0;
+      }
+      .list-kicker {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .live-stamp {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 6px;
+        border: 2px solid var(--accent);
+        color: var(--accent);
+        font: 800 8px/1 var(--mono);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        transform: rotate(-1.5deg);
+      }
+      .live-stamp .dot {
+        width: 5px;
+        height: 5px;
+      }
+      .list-title-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 7px 0 10px;
+      }
+      .list-title {
+        margin: 0;
+        font: 900 30px/0.95 var(--sans);
+        letter-spacing: -0.055em;
+      }
+      .count-block {
+        min-width: 37px;
+        height: 30px;
+        display: grid;
+        place-items: center;
+        padding: 0 5px;
+        background: var(--fg);
+        color: var(--canvas);
+        border: 2px solid var(--fg);
+        box-shadow: 3px 3px 0 var(--line-strong);
+        font: 900 15px/1 var(--mono);
+        transform: rotate(1.5deg);
+      }
+      .list-head-actions {
+        margin-left: auto;
+        display: flex;
+        gap: 7px;
+      }
+      .list-head-actions .icon-btn {
+        width: 30px;
+        height: 30px;
+      }
+      .list-search {
+        height: 34px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border: 2px solid var(--line-strong);
+        background: var(--surface);
+        box-shadow: 3px 3px 0 var(--line);
+        padding: 0 9px;
+        color: var(--faint);
+      }
+      .list-search input {
+        flex: 1;
+        min-width: 0;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        color: var(--fg);
+        font: 500 11px/1 var(--sans);
+      }
+      .list-search input::placeholder {
+        color: var(--faint);
+      }
+      .list-search kbd {
+        border: 1.5px solid var(--line-strong);
+        padding: 3px 5px;
+        color: var(--muted);
+        font: 700 8px/1 var(--mono);
+        background: var(--raised);
+      }
+
+      .chip-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 9px 13px 10px;
+        overflow: hidden;
+        flex: none;
+        border-bottom: 2px solid var(--line);
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 7px;
+        border: 2px solid var(--line-strong);
+        background: var(--surface);
+        color: var(--muted);
+        font: 700 8.5px/1 var(--mono);
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        cursor: pointer;
+      }
+      .chip:hover {
+        color: var(--fg);
+        border-color: var(--fg);
+      }
+      .chip.active {
+        background: var(--accent);
+        border-color: var(--fg);
+        color: var(--canvas);
+        box-shadow: 2px 2px 0 var(--fg);
+      }
+      .chip .x {
+        font-size: 10px;
+        line-height: 0.7;
+        opacity: 0.65;
+      }
+      .sort {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        color: var(--faint);
+        font: 700 8.5px/1 var(--mono);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        background: none;
+        border: 0;
+        padding: 4px 0;
+        cursor: pointer;
+      }
+      .sort:hover {
+        color: var(--fg);
+      }
+
+      .rows {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+        padding: 10px;
+      }
+      .row {
+        position: relative;
+        flex: none;
+        min-height: 88px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 82px;
+        gap: 10px;
+        padding: 10px 10px 9px 13px;
+        border: 2px solid var(--line);
+        background: var(--surface);
+        text-align: left;
+        cursor: pointer;
+        transition:
+          transform 0.08s ease,
+          box-shadow 0.08s ease,
+          border-color 0.08s ease;
+      }
+      .row:hover {
+        transform: translate(-1px, -1px);
+        border-color: var(--line-strong);
+        box-shadow: 3px 3px 0 var(--line-strong);
+      }
+      .row.selected {
+        border-color: var(--accent);
+        background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+        box-shadow: 5px 5px 0 var(--accent);
+        transform: translate(-2px, -2px);
+      }
+      .row.selected::before {
+        content: "";
+        position: absolute;
+        top: -2px;
+        bottom: -2px;
+        left: -2px;
+        width: 5px;
+        background: var(--accent);
+      }
+      .row-top {
+        display: flex;
+        align-items: flex-start;
+        gap: 7px;
+        min-width: 0;
+      }
+      .row-num {
+        flex: none;
+        margin-top: 1px;
+        padding: 3px 5px;
+        border: 1.5px solid var(--line-strong);
+        color: var(--muted);
+        font: 700 9px/1 var(--mono);
+        font-variant-numeric: tabular-nums;
+      }
+      .row.selected .row-num {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .row-title {
+        margin: 0;
+        min-width: 0;
+        font: 650 12.5px/1.3 var(--sans);
+        color: var(--fg);
+        letter-spacing: -0.01em;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+      }
+      .row-new {
+        flex: none;
+        padding: 3px 5px;
+        border: 1.5px solid var(--canvas);
+        background: var(--accent);
+        color: var(--canvas);
+        font: 800 7.5px/1 var(--mono);
+        letter-spacing: 0.08em;
+        transform: rotate(2deg);
+      }
+      .row-meta {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 6px;
+        min-width: 0;
+        color: var(--faint);
+        font: 500 9.5px/1 var(--mono);
+      }
+      .row-meta .repo-name {
+        flex: none;
+        max-width: 110px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: var(--muted);
+      }
+      .row-meta .branch {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: var(--faint);
+      }
+      .row-meta .author {
+        flex: none;
+        color: var(--faint);
+      }
+      .row-meta .sep {
+        color: var(--line-strong);
+      }
+      .row-side {
+        border-left: 2px solid var(--line);
+        padding-left: 9px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 4px;
+        min-width: 0;
+      }
+      .row.selected .row-side {
+        border-left-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+      }
+      .check-line {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        color: var(--accent);
+        font: 700 8.5px/1 var(--mono);
+        white-space: nowrap;
+      }
+      .check-line.fail {
+        color: var(--danger);
+      }
+      .check-line.pending {
+        color: var(--faint);
+      }
+      .review-line {
+        color: var(--faint);
+        font: 700 7.5px/1 var(--mono);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        text-align: right;
+        white-space: nowrap;
+      }
+      .review-line.needs {
+        color: var(--muted);
+      }
+      .review-line.approved {
+        color: var(--accent);
+      }
+      .row-time {
+        color: var(--faint);
+        font: 500 9px/1 var(--mono);
+        font-variant-numeric: tabular-nums;
+      }
+      .list-foot {
+        flex: none;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        border-top: 2px solid var(--line-strong);
+        padding: 0 11px;
+        color: var(--faint);
+        font: 600 8px/1 var(--mono);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .list-foot b {
+        color: var(--muted);
+      }
+
+      /* ----------------------------------------------------------------- detail */
+      .detail {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        min-height: 0;
+        background: var(--canvas);
+      }
+      .detail-bar {
+        height: 46px;
+        flex: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 9px 0 14px;
+        border-bottom: 3px solid var(--line-strong);
+        background: var(--surface);
+        min-width: 0;
+      }
+      .detail-path {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        font: 500 10px/1 var(--mono);
+        color: var(--muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .detail-path b {
+        color: var(--fg);
+        font-weight: 600;
+      }
+      .detail-path .num {
+        color: var(--accent);
+        font-weight: 700;
+      }
+      .detail-state {
+        flex: none;
+        padding: 4px 6px;
+        background: var(--accent);
+        color: var(--canvas);
+        border: 2px solid var(--canvas);
+        font: 800 8px/1 var(--mono);
+        letter-spacing: 0.1em;
+      }
+      .detail-tools {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex: none;
+      }
+      .detail-tools .icon-btn {
+        width: 28px;
+        height: 28px;
+      }
+      .tool-divider {
+        width: 2px;
+        height: 18px;
+        background: var(--line-strong);
+        margin: 0 1px;
+      }
+
+      .detail-scroll {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        display: flex;
+      }
+      .detail-main {
+        min-width: 0;
+        flex: 1;
+        padding: 0 0 18px;
+      }
+      .context {
+        width: 246px;
+        flex: none;
+        border-left: 3px solid var(--line-strong);
+        background: var(--surface);
+        padding: 12px;
+      }
+
+      .pr-head {
+        padding: 16px 18px 15px;
+        border-bottom: 2px solid var(--line);
+      }
+      .tag-row {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 9px;
+      }
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 6px;
+        border: 2px solid var(--line-strong);
+        color: var(--muted);
+        font: 800 8px/1 var(--mono);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .tag.solid {
+        background: var(--accent);
+        border-color: var(--fg);
+        color: var(--canvas);
+        box-shadow: 2px 2px 0 var(--fg);
+      }
+      .tag.danger {
+        color: var(--danger);
+        border-color: color-mix(in srgb, var(--danger) 60%, var(--line));
+      }
+      .tag.plain {
+        border-color: var(--line);
+      }
+      .pr-title {
+        margin: 0;
+        max-width: 520px;
+        font: 850 28px/1.05 var(--sans);
+        letter-spacing: -0.045em;
+        color: var(--fg);
+      }
+      .pr-title .mark {
+        display: inline-block;
+        padding: 0 6px 1px;
+        background: var(--accent);
+        color: var(--canvas);
+        transform: rotate(-1deg);
+        box-shadow: 2px 2px 0 var(--line-strong);
+      }
+      .byline {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 10px 0 0;
+        color: var(--faint);
+        font: 500 10px/1.3 var(--mono);
+      }
+      .byline .mini-avatar {
+        width: 20px;
+        height: 20px;
+        display: grid;
+        place-items: center;
+        border: 1.5px solid var(--line-strong);
+        background: var(--raised);
+        color: var(--body);
+        font: 800 8px/1 var(--mono);
+      }
+      .byline b {
+        color: var(--body);
+        font-weight: 600;
+      }
+      .byline .sep {
+        color: var(--line-strong);
+      }
+      .pr-actions {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 14px;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        height: 33px;
+        padding: 0 11px;
+        border: 2px solid var(--line-strong);
+        background: var(--raised);
+        color: var(--body);
+        box-shadow: 3px 3px 0 var(--line-strong);
+        font: 800 9px/1 var(--mono);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        cursor: pointer;
+        transition:
+          transform 0.08s ease,
+          box-shadow 0.08s ease;
+      }
+      .btn:hover {
+        transform: translate(-1px, -1px);
+        box-shadow: 4px 4px 0 var(--line-strong);
+        color: var(--fg);
+      }
+      .btn:active {
+        transform: translate(2px, 2px);
+        box-shadow: 1px 1px 0 var(--line-strong);
+      }
+      .btn.primary {
+        background: var(--accent);
+        border-color: var(--fg);
+        color: var(--canvas);
+        box-shadow: 3px 3px 0 var(--fw, var(--line-strong));
+      }
+      .btn.primary:hover {
+        color: var(--canvas);
+      }
+      .btn.danger {
+        color: var(--danger);
+        border-color: color-mix(in srgb, var(--danger) 55%, var(--line));
+      }
+      .btn.square {
+        width: 33px;
+        padding: 0;
+      }
+      .btn.small {
+        height: 27px;
+        padding: 0 8px;
+        font-size: 8px;
+        box-shadow: 2px 2px 0 var(--line-strong);
+      }
+
+      .tabs {
+        display: flex;
+        gap: 6px;
+        padding: 12px 18px 0;
+        border-bottom: 2px solid var(--line);
+      }
+      .tab {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 10px;
+        border: 2px solid var(--line-strong);
+        border-bottom: 0;
+        background: var(--surface);
+        color: var(--muted);
+        font: 800 9px/1 var(--mono);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transform: translateY(2px);
+      }
+      .tab:hover {
+        color: var(--fg);
+        background: var(--raised);
+      }
+      .tab .n {
+        min-width: 16px;
+        padding: 2px 3px;
+        border: 1.5px solid var(--line-strong);
+        color: var(--faint);
+        font-size: 8px;
+        text-align: center;
+      }
+      .tab.active {
+        background: var(--accent);
+        border-color: var(--fg);
+        color: var(--canvas);
+        box-shadow: 3px -3px 0 var(--line-strong);
+        transform: translateY(2px);
+      }
+      .tab.active .n {
+        border-color: var(--canvas);
+        color: var(--canvas);
+      }
+
+      .conversation {
+        padding: 14px 18px 0;
+      }
+      .comment {
+        position: relative;
+        border: 2px solid var(--line-strong);
+        background: var(--surface);
+        box-shadow: 4px 4px 0 var(--line);
+        padding: 11px 12px 10px;
+        margin-bottom: 10px;
+      }
+      .comment.own {
+        border-left: 5px solid var(--accent);
+      }
+      .comment.changes {
+        border-left: 5px solid var(--danger);
+      }
+      .comment-head {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin-bottom: 8px;
+      }
+      .comment-avatar {
+        width: 23px;
+        height: 23px;
+        display: grid;
+        place-items: center;
+        background: var(--raised);
+        border: 2px solid var(--line-strong);
+        color: var(--body);
+        font: 800 9px/1 var(--mono);
+      }
+      .comment.own .comment-avatar {
+        background: var(--accent);
+        color: var(--canvas);
+        border-color: var(--fg);
+      }
+      .comment-head b {
+        font: 700 11px/1 var(--sans);
+        color: var(--fg);
+      }
+      .comment-head .time {
+        font: 500 9px/1 var(--mono);
+        color: var(--faint);
+      }
+      .comment-head .author-tag {
+        margin-left: 2px;
+        padding: 2px 4px;
+        border: 1.5px solid var(--line-strong);
+        color: var(--faint);
+        font: 800 7px/1 var(--mono);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .comment-head .review-tag {
+        margin-left: auto;
+        padding: 3px 5px;
+        border: 2px solid var(--danger);
+        color: var(--danger);
+        font: 800 7px/1 var(--mono);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .comment p {
+        margin: 0 0 8px;
+        color: var(--body);
+        font: 400 11.5px/1.55 var(--sans);
+      }
+      .comment p code {
+        padding: 1px 4px;
+        border: 1px solid var(--line-strong);
+        background: var(--canvas);
+        color: var(--syn-string, #8fb8d3);
+        font: 500 10px/1.2 var(--mono);
+      }
+      .comment p strong {
+        color: var(--fg);
+        font-weight: 650;
+      }
+      .comment p:last-child {
+        margin-bottom: 0;
+      }
+      .comment-foot {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin-top: 9px;
+        padding-top: 7px;
+        border-top: 1px dashed var(--line-strong);
+        color: var(--faint);
+        font: 700 8px/1 var(--mono);
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+      .comment-foot span:hover {
+        color: var(--fg);
+        cursor: pointer;
+      }
+
+      .code-card {
+        margin: 8px 0 9px;
+        border: 2px solid var(--line-strong);
+        background: var(--canvas);
+        box-shadow: 2px 2px 0 var(--line);
+      }
+      .code-head {
+        height: 24px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 8px;
+        border-bottom: 2px solid var(--line);
+        color: var(--faint);
+        font: 600 8.5px/1 var(--mono);
+      }
+      .code-head .path {
+        color: var(--muted);
+      }
+      .code-head .plus {
+        margin-left: auto;
+        color: var(--accent);
+      }
+      .code {
+        margin: 0;
+        padding: 7px 0;
+        overflow: hidden;
+        font: 500 9.5px/1.55 var(--mono);
+        font-variant-ligatures: none;
+      }
+      .code .ln {
+        display: flex;
+        gap: 8px;
+        padding: 0 8px;
+        white-space: pre;
+      }
+      .code .ln .no {
+        width: 16px;
+        flex: none;
+        color: var(--line-strong);
+        text-align: right;
+        user-select: none;
+      }
+      .code .ln.add {
+        background: #0e1a14;
+        color: var(--body);
+      }
+      .code .ln.add .no {
+        color: #3d7a55;
+      }
+      .code .kw {
+        color: #d99a93;
+      }
+      .code .str {
+        color: #8fb8d3;
+      }
+      .code .fn {
+        color: #bda9d6;
+      }
+      .code .cm {
+        color: #94949c;
+      }
+
+      .event {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 2px 0 10px;
+        padding: 8px 10px;
+        border: 2px dashed var(--line-strong);
+        color: var(--faint);
+        font: 600 9px/1.3 var(--mono);
+      }
+      .event .event-mark {
+        width: 18px;
+        height: 18px;
+        display: grid;
+        place-items: center;
+        border: 2px solid var(--danger);
+        color: var(--danger);
+        flex: none;
+      }
+      .event b {
+        color: var(--body);
+        font-weight: 600;
+      }
+      .event .time {
+        margin-left: auto;
+        color: var(--faint);
+      }
+
+      .composer {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border: 2px solid var(--line-strong);
+        background: var(--surface);
+        box-shadow: 3px 3px 0 var(--line);
+        padding: 6px;
+        margin: 3px 0 8px;
+      }
+      .composer .comment-avatar {
+        width: 25px;
+        height: 25px;
+        background: var(--accent);
+        color: var(--canvas);
+        border-color: var(--fg);
+      }
+      .composer-input {
+        flex: 1;
+        min-width: 0;
+        color: var(--faint);
+        font: 400 10.5px/1 var(--sans);
+        padding: 0 4px;
+      }
+      .composer .btn {
+        height: 27px;
+      }
+
+      /* ------------------------------------------------------------ diff & review */
+      [hidden] {
+        display: none !important;
+      }
+
+      .view-panel {
+        padding: 14px 18px 0;
+      }
+      .view-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .view-title {
+        margin: 0;
+        font: 850 20px/1 var(--sans);
+        letter-spacing: -0.035em;
+      }
+      .view-count {
+        padding: 3px 6px;
+        border: 2px solid var(--line-strong);
+        color: var(--muted);
+        font: 800 8px/1 var(--mono);
+        letter-spacing: 0.05em;
+      }
+      .view-sub {
+        margin: -4px 0 11px;
+        color: var(--muted);
+        font: 400 10.5px/1.55 var(--sans);
+      }
+      .view-head .btn {
+        margin-left: auto;
+      }
+      .scope-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .seg {
+        display: flex;
+        border: 2px solid var(--line-strong);
+        background: var(--surface);
+        box-shadow: 2px 2px 0 var(--line);
+      }
+      .seg button {
+        padding: 6px 8px;
+        border: 0;
+        border-right: 2px solid var(--line-strong);
+        background: transparent;
+        color: var(--faint);
+        font: 800 8px/1 var(--mono);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .seg button:last-child {
+        border-right: 0;
+      }
+      .seg button.active {
+        background: var(--accent);
+        color: var(--canvas);
+      }
+      .scope-row .stat {
+        margin-left: auto;
+        color: var(--faint);
+        font: 700 8.5px/1 var(--mono);
+        white-space: nowrap;
+      }
+      .scope-row .stat .add {
+        color: var(--accent);
+      }
+      .scope-row .stat .del {
+        color: var(--danger);
+      }
+
+      .file-card {
+        border: 2px solid var(--line-strong);
+        background: var(--surface);
+        box-shadow: 4px 4px 0 var(--line);
+        margin-bottom: 11px;
+      }
+      .file-card.target {
+        border-color: var(--accent);
+        box-shadow: 4px 4px 0 var(--accent);
+      }
+      .file-head {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 31px;
+        padding: 0 8px;
+        border-bottom: 2px solid var(--line);
+        background: var(--raised);
+        color: var(--faint);
+        font: 600 8.5px/1.2 var(--mono);
+      }
+      .file-card.collapsed .file-head {
+        border-bottom: 0;
+      }
+      .file-head .path {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: var(--body);
+      }
+      .file-head .stat-add {
+        color: var(--accent);
+      }
+      .file-head .stat-del {
+        color: var(--danger);
+      }
+      .file-head .chev {
+        color: var(--faint);
+      }
+      .diff {
+        overflow-x: auto;
+        background: var(--canvas);
+      }
+      .hunk {
+        min-width: max-content;
+        padding: 4px 8px;
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        background: var(--raised);
+        color: var(--syn-type, #8fc4cf);
+        font: 500 8.5px/1.4 var(--mono);
+      }
+      .dl {
+        display: flex;
+        min-width: max-content;
+        font: 500 9.5px/1.6 var(--mono);
+        font-variant-ligatures: none;
+      }
+      .dl .no {
+        width: 31px;
+        flex: none;
+        padding-right: 6px;
+        border-right: 1px solid var(--line);
+        color: var(--line-strong);
+        text-align: right;
+        user-select: none;
+      }
+      .dl .sign {
+        width: 15px;
+        flex: none;
+        text-align: center;
+        color: var(--faint);
+        user-select: none;
+      }
+      .dl .src {
+        padding: 0 6px;
+        white-space: pre;
+        color: var(--body);
+      }
+      .dl.ctx {
+        background: var(--canvas);
+      }
+      .dl.add {
+        background: #0e1a14;
+      }
+      .dl.add .sign {
+        color: var(--accent);
+      }
+      .dl.del {
+        background: #241315;
+      }
+      .dl.del .sign {
+        color: var(--danger);
+      }
+      .dl.del .src {
+        color: color-mix(in srgb, var(--body) 70%, var(--danger));
+      }
+      .dl .kw {
+        color: #d99a93;
+      }
+      .dl .str {
+        color: #8fb8d3;
+      }
+      .dl .fn {
+        color: #bda9d6;
+      }
+      .dl .cm {
+        color: #94949c;
+      }
+
+      .inline-note {
+        margin: 7px 8px 8px 48px;
+        border: 2px solid var(--line-strong);
+        border-left: 4px solid var(--accent);
+        background: var(--raised);
+        box-shadow: 2px 2px 0 var(--line);
+        padding: 7px 8px;
+      }
+      .inline-note .comment-head {
+        margin-bottom: 5px;
+      }
+      .inline-note .comment-head b {
+        font-size: 10px;
+      }
+      .inline-note p {
+        margin: 0;
+        color: var(--body);
+        font: 400 10px/1.5 var(--sans);
+      }
+      .inline-note .note-actions {
+        margin-top: 6px;
+        display: flex;
+        gap: 8px;
+        color: var(--faint);
+        font: 700 7.5px/1 var(--mono);
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+      .inline-note .note-actions span:hover {
+        color: var(--fg);
+        cursor: pointer;
+      }
+      .diff-foot {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 8px;
+        border-top: 2px dashed var(--line);
+        color: var(--faint);
+        font: 600 8px/1.4 var(--mono);
+      }
+
+      .review-banner {
+        display: flex;
+        align-items: stretch;
+        border: 2px solid var(--accent);
+        background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+        box-shadow: 4px 4px 0 var(--accent);
+        margin-bottom: 12px;
+      }
+      .review-banner .score {
+        padding: 9px 12px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        border-right: 2px solid var(--accent);
+      }
+      .review-banner .score b {
+        font: 900 26px/0.9 var(--sans);
+        letter-spacing: -0.06em;
+        color: var(--fg);
+      }
+      .review-banner .score span {
+        margin-top: 5px;
+        color: var(--accent);
+        font: 800 7px/1 var(--mono);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .review-banner .banner-copy {
+        padding: 9px 10px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 4px;
+      }
+      .review-banner .banner-copy b {
+        color: var(--fg);
+        font: 650 10.5px/1.3 var(--sans);
+      }
+      .review-banner .banner-copy span {
+        color: var(--muted);
+        font: 500 8.5px/1.4 var(--mono);
+      }
+      .review-banner .banner-copy .head {
+        color: var(--accent);
+      }
+      .review-sev {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 11px;
+      }
+      .sev-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 6px;
+        border: 2px solid var(--line-strong);
+        color: var(--muted);
+        font: 800 7.5px/1 var(--mono);
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+      .sev-chip.blocker {
+        color: var(--danger);
+        border-color: var(--danger);
+      }
+      .sev-chip.suggestion {
+        color: var(--accent);
+        border-color: var(--accent);
+      }
+      .sev-chip.nit {
+        color: var(--faint);
+      }
+      .finding {
+        border: 2px solid var(--line-strong);
+        background: var(--surface);
+        box-shadow: 4px 4px 0 var(--line);
+        margin-bottom: 10px;
+      }
+      .finding.blocker {
+        border-left: 5px solid var(--danger);
+      }
+      .finding.suggestion {
+        border-left: 5px solid var(--accent);
+      }
+      .finding.nit {
+        border-left: 5px solid var(--faint);
+      }
+      .finding-head {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 9px;
+        border-bottom: 2px dashed var(--line);
+      }
+      .finding-title {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: var(--fg);
+        font: 700 10px/1.3 var(--sans);
+      }
+      .finding-file {
+        margin-left: auto;
+        max-width: 48%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: var(--faint);
+        font: 500 8px/1 var(--mono);
+      }
+      .finding-body {
+        padding: 9px;
+        color: var(--body);
+        font: 400 10.5px/1.55 var(--sans);
+      }
+      .finding-body strong {
+        color: var(--fg);
+        font-weight: 650;
+      }
+      .finding-body p {
+        margin: 0 0 7px;
+      }
+      .finding-body p:last-child {
+        margin-bottom: 0;
+      }
+      .finding-snip {
+        border: 1.5px solid var(--line);
+        background: var(--canvas);
+        padding: 5px 7px;
+        color: var(--muted);
+        font: 500 8.5px/1.5 var(--mono);
+        overflow: hidden;
+        white-space: pre;
+        text-overflow: ellipsis;
+      }
+      .finding-actions {
+        display: flex;
+        gap: 6px;
+        padding: 0 9px 9px;
+      }
+      .finding-actions .btn {
+        height: 25px;
+        padding: 0 7px;
+        font-size: 7.5px;
+      }
+      .review-note {
+        border: 2px dashed var(--line-strong);
+        padding: 8px;
+        color: var(--faint);
+        font: 500 8.5px/1.5 var(--mono);
+      }
+
+      .explain-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .explain-step {
+        display: flex;
+        gap: 9px;
+        border: 2px solid var(--line-strong);
+        background: var(--surface);
+        box-shadow: 3px 3px 0 var(--line);
+        padding: 9px;
+      }
+      .explain-step .step-no {
+        flex: none;
+        width: 27px;
+        height: 27px;
+        display: grid;
+        place-items: center;
+        background: var(--accent);
+        color: var(--canvas);
+        border: 2px solid var(--fg);
+        font: 900 10px/1 var(--mono);
+      }
+      .explain-step h4 {
+        margin: 0 0 3px;
+        color: var(--fg);
+        font: 700 10.5px/1.3 var(--sans);
+      }
+      .explain-step p {
+        margin: 0;
+        color: var(--muted);
+        font: 400 9.5px/1.5 var(--sans);
+      }
+      .explain-step code {
+        padding: 1px 3px;
+        border: 1px solid var(--line-strong);
+        background: var(--canvas);
+        color: var(--syn-string, #8fb8d3);
+        font: 500 8.5px/1.2 var(--mono);
+      }
+
+      /* ---------------------------------------------------------------- context */
+      .context-head {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin-bottom: 10px;
+      }
+      .context-head::after {
+        content: "";
+        flex: 1;
+        height: 2px;
+        background: var(--line-strong);
+      }
+      .ctx-card {
+        border: 2px solid var(--line-strong);
+        background: var(--raised);
+        box-shadow: 3px 3px 0 var(--line);
+        padding: 9px;
+        margin-bottom: 10px;
+      }
+      .linear-card {
+        position: relative;
+        padding-top: 12px;
+        overflow: hidden;
+      }
+      .linear-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--accent);
+      }
+      .linear-top {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 7px;
+      }
+      .linear-mark {
+        width: 20px;
+        height: 20px;
+        display: grid;
+        place-items: center;
+        background: var(--accent);
+        color: var(--canvas);
+        border: 1.5px solid var(--canvas);
+        font: 900 11px/1 var(--mono);
+      }
+      .linear-id {
+        color: var(--muted);
+        font: 700 9px/1 var(--mono);
+        letter-spacing: 0.04em;
+      }
+      .linear-open {
+        margin-left: auto;
+        color: var(--faint);
+      }
+      .linear-title {
+        margin: 0 0 7px;
+        font: 650 11.5px/1.35 var(--sans);
+        color: var(--fg);
+      }
+      .linear-meta {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .status-pill {
+        padding: 3px 5px;
+        border: 1.5px solid var(--accent);
+        color: var(--accent);
+        font: 800 7px/1 var(--mono);
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+      .linear-meta .assignee {
+        color: var(--faint);
+        font: 500 8.5px/1 var(--mono);
+      }
+
+      .ctx-label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        margin-bottom: 8px;
+      }
+      .ctx-label .eyebrow {
+        color: var(--muted);
+      }
+      .ctx-count {
+        color: var(--faint);
+        font: 700 8px/1 var(--mono);
+      }
+      .bar {
+        height: 12px;
+        border: 2px solid var(--line-strong);
+        background: var(--canvas);
+        padding: 2px;
+        margin-bottom: 7px;
+      }
+      .bar > span {
+        display: block;
+        height: 100%;
+        background: var(--accent);
+      }
+      .check-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 0;
+        border-top: 1px dashed var(--line);
+        color: var(--muted);
+        font: 500 8.5px/1.2 var(--mono);
+      }
+      .check-row:first-of-type {
+        border-top: 0;
+      }
+      .check-row .ico {
+        color: var(--accent);
+      }
+      .check-row .right {
+        margin-left: auto;
+        color: var(--faint);
+        font-size: 8px;
+      }
+      .check-row.fail .ico,
+      .check-row.fail .right {
+        color: var(--danger);
+      }
+
+      .reviewer {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 5px 0;
+        border-top: 1px dashed var(--line);
+      }
+      .reviewer:first-of-type {
+        border-top: 0;
+      }
+      .reviewer .mini-avatar {
+        width: 21px;
+        height: 21px;
+        display: grid;
+        place-items: center;
+        border: 1.5px solid var(--line-strong);
+        background: var(--surface);
+        color: var(--body);
+        font: 800 8px/1 var(--mono);
+        flex: none;
+      }
+      .reviewer .who {
+        min-width: 0;
+        flex: 1;
+        color: var(--body);
+        font: 600 9px/1.2 var(--sans);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .reviewer .state {
+        flex: none;
+        color: var(--faint);
+        font: 700 7px/1 var(--mono);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .reviewer .state.ok {
+        color: var(--accent);
+      }
+      .reviewer .state.you {
+        color: var(--fg);
+      }
+
+      .meta-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        border: 2px solid var(--line-strong);
+        background: var(--canvas);
+      }
+      .meta-cell {
+        padding: 7px 8px;
+        border-right: 2px solid var(--line);
+        border-bottom: 2px solid var(--line);
+      }
+      .meta-cell:nth-child(2n) {
+        border-right: 0;
+      }
+      .meta-cell:nth-child(n + 3) {
+        border-bottom: 0;
+      }
+      .meta-cell b {
+        display: block;
+        color: var(--fg);
+        font: 800 15px/1 var(--mono);
+        font-variant-numeric: tabular-nums;
+      }
+      .meta-cell span {
+        display: block;
+        margin-top: 4px;
+        color: var(--faint);
+        font: 700 7px/1 var(--mono);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .meta-cell .add {
+        color: var(--accent);
+      }
+      .meta-cell .del {
+        color: var(--danger);
+      }
+
+      .merge-sticker {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 8px;
+        background: var(--accent);
+        border: 2px solid var(--fg);
+        color: var(--canvas);
+        box-shadow: 4px 4px 0 var(--line-strong);
+        font: 900 9px/1 var(--mono);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        transform: rotate(-1deg);
+        margin-top: 13px;
+      }
+
+      /* -------------------------------------------------------------- status bar */
+      .statusbar {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 0 12px;
+        border-top: 3px solid var(--line-strong);
+        background: var(--accent);
+        color: var(--canvas);
+        font: 800 8px/1 var(--mono);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        overflow: hidden;
+      }
+      .statusbar .block {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .statusbar .sq {
+        width: 6px;
+        height: 6px;
+        background: var(--canvas);
+      }
+      .statusbar .rule {
+        width: 2px;
+        height: 12px;
+        background: color-mix(in srgb, var(--canvas) 35%, transparent);
+      }
+      .statusbar .right {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .statusbar kbd {
+        border: 1.5px solid var(--canvas);
+        padding: 2px 4px;
+        font: 800 7.5px/1 var(--mono);
+        background: color-mix(in srgb, var(--canvas) 10%, transparent);
+      }
+
+      @media (max-width: 1320px) {
+        .shell {
+          grid-template-columns: 68px 200px 360px minmax(0, 1fr);
+        }
+        .context {
+          width: 218px;
+        }
+        .top-actions .cmd {
+          min-width: 180px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <symbol id="i-eye" viewBox="0 0 24 24">
+        <path
+          d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0"
+        />
+        <circle cx="12" cy="12" r="3" />
+      </symbol>
+      <symbol id="i-user" viewBox="0 0 24 24">
+        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+      </symbol>
+      <symbol id="i-layers" viewBox="0 0 24 24">
+        <path
+          d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"
+        />
+        <path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" />
+        <path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" />
+      </symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24">
+        <path
+          d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"
+        />
+        <circle cx="12" cy="12" r="3" />
+      </symbol>
+      <symbol id="i-search" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="8" />
+        <path d="m21 21-4.3-4.3" />
+      </symbol>
+      <symbol id="i-filter" viewBox="0 0 24 24">
+        <path d="M3 6h18M7 12h10M10 18h4" />
+      </symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24">
+        <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.85 1.03 6.56 2.72L21 8" />
+        <path d="M21 3v5h-5" />
+      </symbol>
+      <symbol id="i-max" viewBox="0 0 24 24">
+        <path
+          d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"
+        />
+      </symbol>
+      <symbol id="i-x" viewBox="0 0 24 24">
+        <path d="M18 6 6 18M6 6l12 12" />
+      </symbol>
+      <symbol id="i-check" viewBox="0 0 24 24">
+        <path d="M20 6 9 17l-5-5" />
+      </symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24">
+        <path
+          d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"
+        />
+        <path d="M12 9v4M12 17h.01" />
+      </symbol>
+      <symbol id="i-comment" viewBox="0 0 24 24">
+        <path
+          d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+        />
+      </symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24">
+        <path d="M7 17 17 7M7 7h10v10" />
+      </symbol>
+      <symbol id="i-inbox" viewBox="0 0 24 24">
+        <path d="M22 12h-6l-2 3h-4l-2-3H2" />
+        <path
+          d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"
+        />
+      </symbol>
+      <symbol id="i-chevron-left" viewBox="0 0 24 24">
+        <path d="m15 18-6-6 6-6" />
+      </symbol>
+      <symbol id="i-chevron-down" viewBox="0 0 24 24">
+        <path d="m6 9 6 6 6-6" />
+      </symbol>
+      <symbol id="i-git-branch" viewBox="0 0 24 24">
+        <line x1="6" x2="6" y1="3" y2="15" />
+        <circle cx="18" cy="6" r="3" />
+        <circle cx="6" cy="18" r="3" />
+        <path d="M18 9a9 9 0 0 1-9 9" />
+      </symbol>
+      <symbol id="i-pr" viewBox="0 0 24 24">
+        <circle cx="6" cy="6" r="3" />
+        <circle cx="6" cy="18" r="3" />
+        <path d="M6 9v6" />
+        <circle cx="18" cy="18" r="3" />
+        <path d="M18 15V9a3 3 0 0 0-3-3h-2" />
+      </symbol>
+      <symbol id="i-file" viewBox="0 0 24 24">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <path d="M14 2v6h6" />
+      </symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24">
+        <path d="M12 5v14M5 12h14" />
+      </symbol>
+      <symbol id="i-more" viewBox="0 0 24 24">
+        <circle cx="5" cy="12" r="1" />
+        <circle cx="12" cy="12" r="1" />
+        <circle cx="19" cy="12" r="1" />
+      </symbol>
+      <symbol id="i-dot" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="4" />
+      </symbol>
+    </svg>
+
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark">T</span>
+          <span class="brand-type">
+            <span class="brand-name">TRIAGE</span>
+            <span class="brand-sub">Review cockpit</span>
+          </span>
+        </div>
+
+        <div class="crumb">
+          <span class="slash">/</span><b>vercel</b><span class="slash">/</span
+          ><b>next.js</b>
+          <span class="crumb-divider"></span>
+          <span class="hash">#4821</span>
+          <span class="mini-tag accent">Open</span>
+          <span class="mini-tag">main</span>
+        </div>
+
+        <div class="top-actions">
+          <button class="cmd" type="button">
+            <svg class="ico ico-sm"><use href="#i-search" /></svg>
+            <span>Jump to anything</span>
+            <kbd>⌘ K</kbd>
+          </button>
+          <span class="conn"><span class="dot"></span> Synced</span>
+          <span class="avatar">MD</span>
+        </div>
+      </header>
+
+      <div class="shell">
+        <nav class="rail" aria-label="Primary">
+          <button class="rail-tab" type="button">
+            <svg class="ico"><use href="#i-user" /></svg>
+            <span>Mine</span>
+          </button>
+          <button class="rail-tab active" type="button" aria-current="page">
+            <svg class="ico"><use href="#i-eye" /></svg>
+            <span>Review</span>
+          </button>
+          <button class="rail-tab" type="button">
+            <svg class="ico"><use href="#i-layers" /></svg>
+            <span>All</span>
+          </button>
+          <div class="rail-rule"></div>
+          <button class="rail-tab" type="button">
+            <svg class="ico"><use href="#i-inbox" /></svg>
+            <span>Saved</span>
+          </button>
+          <div class="rail-spacer"></div>
+          <button class="rail-tab" type="button" aria-label="Settings">
+            <svg class="ico"><use href="#i-settings" /></svg>
+            <span>Setup</span>
+          </button>
+        </nav>
+
+        <aside class="sidebar">
+          <div class="pane-head">
+            <span class="eyebrow">Repositories</span>
+            <button
+              class="icon-btn"
+              type="button"
+              aria-label="Hide repositories"
+            >
+              <svg class="ico ico-sm"><use href="#i-chevron-left" /></svg>
+            </button>
+          </div>
+
+          <div class="repo-filter">
+            <svg class="ico ico-xs"><use href="#i-search" /></svg>
+            <input
+              type="text"
+              placeholder="Filter repos"
+              aria-label="Filter repositories"
+            />
+            <svg class="ico ico-xs"><use href="#i-filter" /></svg>
+          </div>
+
+          <div class="repo-list">
+            <button class="repo selected" type="button">
+              <span class="repo-swatch"></span>
+              <span class="repo-name">All repos</span>
+              <span class="repo-count">42</span>
+            </button>
+            <button class="repo" type="button">
+              <span class="repo-swatch warn"></span>
+              <span class="repo-name">tauri-apps/tauri</span>
+              <span class="repo-count">4</span>
+            </button>
+            <button class="repo" type="button">
+              <span class="repo-swatch"></span>
+              <span class="repo-name">vercel/next.js</span>
+              <span class="repo-count">7</span>
+            </button>
+            <button class="repo" type="button">
+              <span class="repo-swatch"></span>
+              <span class="repo-name">linear/linear</span>
+              <span class="repo-count">3</span>
+            </button>
+            <button class="repo" type="button">
+              <span class="repo-swatch"></span>
+              <span class="repo-name">oven-sh/bun</span>
+              <span class="repo-count">6</span>
+            </button>
+            <button class="repo" type="button">
+              <span class="repo-swatch"></span>
+              <span class="repo-name">withastro/astro</span>
+              <span class="repo-count">2</span>
+            </button>
+          </div>
+
+          <div class="side-section"><span class="eyebrow">Workspace</span></div>
+          <div class="path-card">
+            <b>repoPaths</b><br />
+            ~/code/next.js<br />
+            ~/code/tauri
+          </div>
+
+          <div class="side-foot">
+            <span class="avatar">MD</span>
+            <span class="side-user">
+              <strong>@manuel</strong>
+              <span>● Connected</span>
+            </span>
+            <button class="icon-btn" type="button" aria-label="Settings">
+              <svg class="ico ico-sm"><use href="#i-settings" /></svg>
+            </button>
+          </div>
+        </aside>
+
+        <section class="list-pane" aria-label="Pull requests">
+          <div class="list-head">
+            <div class="list-kicker">
+              <span class="eyebrow">Review requested</span>
+              <span class="live-stamp"><span class="dot"></span> Live</span>
+            </div>
+            <div class="list-title-row">
+              <h1 class="list-title">Inbox</h1>
+              <span class="count-block">12</span>
+              <div class="list-head-actions">
+                <button
+                  class="icon-btn"
+                  type="button"
+                  aria-label="Refresh pull requests"
+                >
+                  <svg class="ico ico-sm"><use href="#i-refresh" /></svg>
+                </button>
+                <button
+                  class="icon-btn"
+                  type="button"
+                  aria-label="Filter pull requests"
+                >
+                  <svg class="ico ico-sm"><use href="#i-filter" /></svg>
+                </button>
+              </div>
+            </div>
+            <label class="list-search">
+              <svg class="ico ico-sm"><use href="#i-search" /></svg>
+              <input
+                type="text"
+                placeholder="Search title, repo, branch…"
+                aria-label="Search pull requests"
+              />
+              <kbd>/</kbd>
+            </label>
+          </div>
+
+          <div class="chip-row">
+            <button class="chip active" type="button">
+              Needs review <span class="x">×</span>
+            </button>
+            <button class="chip" type="button">Checks failing</button>
+            <button class="chip" type="button">Drafts</button>
+            <button class="sort" type="button">
+              Newest
+              <svg class="ico ico-xs"><use href="#i-chevron-down" /></svg>
+            </button>
+          </div>
+
+          <div class="rows">
+            <button class="row selected" type="button" aria-current="true">
+              <span class="row-main">
+                <span class="row-top">
+                  <span class="row-num">#4821</span>
+                  <span class="row-title"
+                    >feat: stream review findings over SSE</span
+                  >
+                  <span class="row-new">New</span>
+                </span>
+                <span class="row-meta">
+                  <span class="repo-name">vercel/next.js</span>
+                  <span class="branch">review/sse-findings</span>
+                  <span class="author">@rauno</span>
+                </span>
+              </span>
+              <span class="row-side">
+                <span class="check-line"
+                  ><svg class="ico ico-xs"><use href="#i-check" /></svg>
+                  12/12</span
+                >
+                <span class="review-line needs">Needs review</span>
+                <span class="row-time">12m</span>
+              </span>
+            </button>
+
+            <button class="row" type="button">
+              <span class="row-main">
+                <span class="row-top">
+                  <span class="row-num">#9412</span>
+                  <span class="row-title"
+                    >fix: clean up worktree after a cancelled review</span
+                  >
+                </span>
+                <span class="row-meta">
+                  <span class="repo-name">tauri-apps/tauri</span>
+                  <span class="branch">fix/worktree-cancel</span>
+                  <span class="author">@fabian</span>
+                </span>
+              </span>
+              <span class="row-side">
+                <span class="check-line fail"
+                  ><svg class="ico ico-xs"><use href="#i-alert" /></svg>
+                  9/12</span
+                >
+                <span class="review-line needs">2 comments</span>
+                <span class="row-time">28m</span>
+              </span>
+            </button>
+
+            <button class="row" type="button">
+              <span class="row-main">
+                <span class="row-top">
+                  <span class="row-num">#1302</span>
+                  <span class="row-title">retry Linear issue link on 429</span>
+                </span>
+                <span class="row-meta">
+                  <span class="repo-name">linear/linear</span>
+                  <span class="branch">fix/linear-429</span>
+                  <span class="author">@eric</span>
+                </span>
+              </span>
+              <span class="row-side">
+                <span class="check-line"
+                  ><svg class="ico ico-xs"><use href="#i-check" /></svg>
+                  12/12</span
+                >
+                <span class="review-line approved">Approved</span>
+                <span class="row-time">1h</span>
+              </span>
+            </button>
+
+            <button class="row" type="button">
+              <span class="row-main">
+                <span class="row-top">
+                  <span class="row-num">#17640</span>
+                  <span class="row-title"
+                    >diff: collapse unchanged regions by default</span
+                  >
+                </span>
+                <span class="row-meta">
+                  <span class="repo-name">oven-sh/bun</span>
+                  <span class="branch">diff/collapse</span>
+                  <span class="author">@jarred</span>
+                </span>
+              </span>
+              <span class="row-side">
+                <span class="check-line pending"
+                  ><svg class="ico ico-xs"><use href="#i-dot" /></svg>
+                  Draft</span
+                >
+                <span class="review-line">No review</span>
+                <span class="row-time">2h</span>
+              </span>
+            </button>
+
+            <button class="row" type="button">
+              <span class="row-main">
+                <span class="row-top">
+                  <span class="row-num">#8891</span>
+                  <span class="row-title">cache repo list across restarts</span>
+                </span>
+                <span class="row-meta">
+                  <span class="repo-name">withastro/astro</span>
+                  <span class="branch">perf/repo-cache</span>
+                  <span class="author">@sarah</span>
+                </span>
+              </span>
+              <span class="row-side">
+                <span class="check-line"
+                  ><svg class="ico ico-xs"><use href="#i-check" /></svg>
+                  12/12</span
+                >
+                <span class="review-line needs">1 comment</span>
+                <span class="row-time">3h</span>
+              </span>
+            </button>
+
+            <button class="row" type="button">
+              <span class="row-main">
+                <span class="row-top">
+                  <span class="row-num">#4814</span>
+                  <span class="row-title"
+                    >pass auth token through sidecar handshake</span
+                  >
+                </span>
+                <span class="row-meta">
+                  <span class="repo-name">vercel/next.js</span>
+                  <span class="branch">fix/handshake</span>
+                  <span class="author">@tim</span>
+                </span>
+              </span>
+              <span class="row-side">
+                <span class="check-line"
+                  ><svg class="ico ico-xs"><use href="#i-check" /></svg>
+                  12/12</span
+                >
+                <span class="review-line">Pending</span>
+                <span class="row-time">4h</span>
+              </span>
+            </button>
+          </div>
+
+          <div class="list-foot">
+            <span><b>12 open</b> · updated 2m ago</span>
+            <span>J / K move · ↵ open</span>
+          </div>
+        </section>
+
+        <section class="detail" aria-label="Pull request detail">
+          <div class="detail-bar">
+            <div class="detail-path">
+              <svg class="ico ico-xs"><use href="#i-pr" /></svg>
+              <span>vercel/next.js</span><span class="num">#4821</span>
+            </div>
+            <span class="detail-state">Open</span>
+            <div class="detail-tools">
+              <button
+                class="icon-btn"
+                type="button"
+                aria-label="Refresh pull request"
+              >
+                <svg class="ico ico-sm"><use href="#i-refresh" /></svg>
+              </button>
+              <span class="tool-divider"></span>
+              <button class="icon-btn" type="button" aria-label="Fullscreen">
+                <svg class="ico ico-sm"><use href="#i-max" /></svg>
+              </button>
+              <button class="icon-btn" type="button" aria-label="Close detail">
+                <svg class="ico ico-sm"><use href="#i-x" /></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="detail-scroll">
+            <div class="detail-main">
+              <div class="pr-head">
+                <div class="tag-row">
+                  <span class="tag solid">● Open</span>
+                  <span class="tag">Needs review</span>
+                  <span class="tag plain">+184 −22</span>
+                  <span class="tag plain">9 files</span>
+                </div>
+                <h2 class="pr-title">
+                  Stream review findings over <span class="mark">SSE</span>
+                </h2>
+                <p class="byline">
+                  <span class="mini-avatar">R</span>
+                  <b>@rauno</b>
+                  <span>opened 12m ago</span>
+                  <span class="sep">/</span>
+                  <span>4 commits</span>
+                  <span class="sep">/</span>
+                  <span>main ← review/sse-findings</span>
+                </p>
+                <div class="pr-actions">
+                  <button class="btn primary" type="button">
+                    <svg class="ico ico-sm"><use href="#i-check" /></svg>
+                    Approve
+                  </button>
+                  <button class="btn" type="button">Request changes</button>
+                  <button
+                    class="btn danger square"
+                    type="button"
+                    aria-label="Close pull request"
+                  >
+                    <svg class="ico ico-sm"><use href="#i-x" /></svg>
+                  </button>
+                  <button
+                    class="btn square"
+                    type="button"
+                    aria-label="More actions"
+                  >
+                    <svg class="ico ico-sm"><use href="#i-more" /></svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="tabs" role="tablist" aria-label="Pull request views">
+                <button
+                  class="tab active"
+                  role="tab"
+                  aria-selected="true"
+                  aria-controls="panel-conversation"
+                  data-tab="conversation"
+                  type="button"
+                >
+                  Conversation <span class="n">6</span>
+                </button>
+                <button
+                  class="tab"
+                  role="tab"
+                  aria-selected="false"
+                  aria-controls="panel-diff"
+                  data-tab="diff"
+                  type="button"
+                >
+                  Diff <span class="n">9</span>
+                </button>
+                <button
+                  class="tab"
+                  role="tab"
+                  aria-selected="false"
+                  aria-controls="panel-review"
+                  data-tab="review"
+                  type="button"
+                >
+                  Review <span class="n">3</span>
+                </button>
+                <button
+                  class="tab"
+                  role="tab"
+                  aria-selected="false"
+                  aria-controls="panel-explain"
+                  data-tab="explain"
+                  type="button"
+                >
+                  Explain
+                </button>
+              </div>
+
+              <div
+                class="view-panel"
+                id="panel-conversation"
+                role="tabpanel"
+                data-panel="conversation"
+              >
+                <div class="conversation">
+                  <article class="comment">
+                    <div class="comment-head">
+                      <span class="comment-avatar">R</span>
+                      <b>rauno</b>
+                      <span class="time">12m ago</span>
+                      <span class="author-tag">Author</span>
+                    </div>
+                    <p>
+                      Adds an SSE endpoint so the Review tab can render findings
+                      as the model emits them instead of waiting for the final
+                      artifact. The stream closes on <code>done</code> and falls
+                      back to the cached artifact if the connection drops.
+                    </p>
+                    <div class="code-card">
+                      <div class="code-head">
+                        <svg class="ico ico-xs"><use href="#i-file" /></svg>
+                        <span class="path"
+                          >backend/internal/api/review_stream.go</span
+                        >
+                        <span class="plus">+38 −4</span>
+                      </div>
+                      <pre
+                        class="code"
+                      ><span class="ln"><span class="no">21</span><span><span class="kw">func</span> <span class="fn">ReviewStream</span>(w http.ResponseWriter) {</span></span>
+<span class="ln add"><span class="no">22</span><span>  flusher, _ := w.(http.Flusher)</span></span>
+<span class="ln add"><span class="no">23</span><span>  fmt.Fprintf(w, <span class="str">"event: finding\n"</span>)</span></span>
+<span class="ln add"><span class="no">24</span><span>  <span class="cm">// flush per finding, not per batch</span></span></span>
+<span class="ln"><span class="no">25</span><span>}</span></span></pre>
+                    </div>
+                    <p>
+                      <strong>Why one connection per review:</strong> the run is
+                      already scoped to a worktree, and the client reconnects
+                      with the same run id.
+                    </p>
+                    <div class="comment-foot">
+                      <span>Reply</span><span>Quote</span><span>Copy link</span>
+                    </div>
+                  </article>
+
+                  <div class="event">
+                    <span class="event-mark"
+                      ><svg class="ico ico-xs"><use href="#i-alert" /></svg
+                    ></span>
+                    <span><b>@manuel</b> requested changes</span>
+                    <span class="time">6m ago</span>
+                  </div>
+
+                  <article class="comment own changes">
+                    <div class="comment-head">
+                      <span class="comment-avatar">M</span>
+                      <b>manuel</b>
+                      <span class="time">6m ago</span>
+                      <span class="author-tag">You</span>
+                      <span class="review-tag">Changes requested</span>
+                    </div>
+                    <p>
+                      Looks good overall. One blocker: the handler writes the
+                      headers before checking whether the run exists, so a
+                      deleted artifact returns a half-open stream. Move the
+                      lookup above <code>WriteHeader</code> and add a regression
+                      test for the cancelled path.
+                    </p>
+                    <div class="comment-foot">
+                      <span>Reply</span><span>Resolve</span>
+                    </div>
+                  </article>
+
+                  <article class="comment">
+                    <div class="comment-head">
+                      <span class="comment-avatar">R</span>
+                      <b>rauno</b>
+                      <span class="time">2m ago</span>
+                      <span class="author-tag">Author</span>
+                    </div>
+                    <p>
+                      Fixed in <code>8f2c1a4</code>. The stream now resolves the
+                      run before the first write, and returns
+                      <code>404</code> with the normal error envelope when it is
+                      gone.
+                    </p>
+                  </article>
+
+                  <div class="composer">
+                    <span class="comment-avatar">M</span>
+                    <span class="composer-input">Leave a comment…</span>
+                    <button class="btn small primary" type="button">
+                      Comment
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                class="view-panel"
+                id="panel-diff"
+                role="tabpanel"
+                data-panel="diff"
+                hidden
+              >
+                <div class="view-head">
+                  <h3 class="view-title">Diff</h3>
+                  <span class="view-count">9 files</span>
+                  <button class="btn small" type="button">
+                    <svg class="ico ico-xs"><use href="#i-eye" /></svg> Review
+                    changes
+                  </button>
+                </div>
+                <div class="scope-row">
+                  <div class="seg" aria-label="Diff mode">
+                    <button class="active" type="button">Files</button>
+                    <button type="button">Guided</button>
+                  </div>
+                  <span class="stat"
+                    ><span class="add">+184</span>
+                    <span class="del">−22</span> · vs main</span
+                  >
+                </div>
+
+                <article class="file-card" id="file-stream">
+                  <div class="file-head">
+                    <svg class="ico ico-xs chev">
+                      <use href="#i-chevron-down" />
+                    </svg>
+                    <svg class="ico ico-xs"><use href="#i-file" /></svg>
+                    <span class="path"
+                      >backend/internal/api/review_stream.go</span
+                    >
+                    <span
+                      ><span class="stat-add">+38</span>
+                      <span class="stat-del">−4</span></span
+                    >
+                  </div>
+                  <div class="hunk">@@ -21,7 +21,10 @@ func ReviewStream</div>
+                  <div class="diff">
+                    <span class="dl ctx"
+                      ><span class="no">21</span><span class="sign"></span
+                      ><span class="src"
+                        ><span class="kw">func</span>
+                        <span class="fn">ReviewStream</span>(w
+                        http.ResponseWriter) {</span
+                      ></span
+                    >
+                    <span class="dl ctx"
+                      ><span class="no">22</span><span class="sign"></span
+                      ><span class="src">
+                        run, err := lookupRun(runID)</span
+                      ></span
+                    >
+                    <span class="dl del"
+                      ><span class="no">23</span><span class="sign">−</span
+                      ><span class="src">
+                        w.Header().Set(<span class="str">"Content-Type"</span>,
+                        <span class="str">"text/event-stream"</span>)</span
+                      ></span
+                    >
+                    <span class="dl del"
+                      ><span class="no">24</span><span class="sign">−</span
+                      ><span class="src">
+                        w.WriteHeader(http.StatusOK)</span
+                      ></span
+                    >
+                    <span class="dl add"
+                      ><span class="no">23</span><span class="sign">+</span
+                      ><span class="src">
+                        <span class="kw">if</span> run == nil {</span
+                      ></span
+                    >
+                    <span class="dl add"
+                      ><span class="no">24</span><span class="sign">+</span
+                      ><span class="src">
+                        writeError(w, <span class="str">404</span>,
+                        <span class="str">"run_not_found"</span>)</span
+                      ></span
+                    >
+                    <span class="dl add"
+                      ><span class="no">25</span><span class="sign">+</span
+                      ><span class="src">
+                        <span class="kw">return</span></span
+                      ></span
+                    >
+                    <span class="dl add"
+                      ><span class="no">26</span><span class="sign">+</span
+                      ><span class="src"> }</span></span
+                    >
+                    <span class="dl add"
+                      ><span class="no">27</span><span class="sign">+</span
+                      ><span class="src">
+                        w.Header().Set(<span class="str">"Content-Type"</span>,
+                        <span class="str">"text/event-stream"</span>)</span
+                      ></span
+                    >
+                    <span class="dl add"
+                      ><span class="no">28</span><span class="sign">+</span
+                      ><span class="src">
+                        w.WriteHeader(http.StatusOK)</span
+                      ></span
+                    >
+                    <span class="dl ctx"
+                      ><span class="no">29</span><span class="sign"></span
+                      ><span class="src">
+                        flusher, _ := w.(http.Flusher)</span
+                      ></span
+                    >
+                    <span class="dl ctx"
+                      ><span class="no">30</span><span class="sign"></span
+                      ><span class="src">
+                        <span class="kw">for</span> finding :=
+                        <span class="kw">range</span> run.Findings {</span
+                      ></span
+                    >
+                    <span class="dl ctx"
+                      ><span class="no">31</span><span class="sign"></span
+                      ><span class="src">
+                        writeEvent(w, <span class="str">"finding"</span>,
+                        finding)</span
+                      ></span
+                    >
+                    <span class="dl add"
+                      ><span class="no">32</span><span class="sign">+</span
+                      ><span class="src"> flusher.Flush()</span></span
+                    >
+                    <span class="dl ctx"
+                      ><span class="no">33</span><span class="sign"></span
+                      ><span class="src"> }</span></span
+                    >
+                    <span class="dl ctx"
+                      ><span class="no">34</span><span class="sign"></span
+                      ><span class="src">}</span></span
+                    >
+                  </div>
+                  <div class="inline-note">
+                    <div class="comment-head">
+                      <span class="comment-avatar">M</span>
+                      <b>manuel</b>
+                      <span class="time">6m ago</span>
+                    </div>
+                    <p>
+                      The run lookup now happens before any header is written,
+                      so a cancelled run gets the normal 404 envelope instead of
+                      a half-open stream.
+                    </p>
+                    <div class="note-actions">
+                      <span>Reply</span><span>Resolve</span>
+                    </div>
+                  </div>
+                  <div class="diff-foot">
+                    <svg class="ico ico-xs"><use href="#i-comment" /></svg>
+                    1 inline comment · 4 commits in this file
+                  </div>
+                </article>
+
+                <article class="file-card" id="file-hook">
+                  <div class="file-head">
+                    <svg class="ico ico-xs chev">
+                      <use href="#i-chevron-down" />
+                    </svg>
+                    <svg class="ico ico-xs"><use href="#i-file" /></svg>
+                    <span class="path"
+                      >src/features/prs/review/useReviewStream.ts</span
+                    >
+                    <span
+                      ><span class="stat-add">+64</span>
+                      <span class="stat-del">−7</span></span
+                    >
+                  </div>
+                  <div class="hunk">
+                    @@ -8,6 +8,12 @@ export function useReviewStream
+                  </div>
+                  <div class="diff">
+                    <span class="dl ctx"
+                      ><span class="no">8</span><span class="sign"></span
+                      ><span class="src"
+                        ><span class="kw">export</span>
+                        <span class="kw">function</span>
+                        <span class="fn">useReviewStream</span>(runID: string)
+                        {</span
+                      ></span
+                    >
+                    <span class="dl ctx"
+                      ><span class="no">9</span><span class="sign"></span
+                      ><span class="src">
+                        <span class="kw">const</span> [findings, setFindings] =
+                        useState&lt;Finding[]&gt;([])</span
+                      ></span
+                    >
+                    <span class="dl add"
+                      ><span class="no">10</span><span class="sign">+</span
+                      ><span class="src">
+                        <span class="kw">const</span> source =
+                        useRef&lt;EventSource | null&gt;(null)</span
+                      ></span
+                    >
+                    <span class="dl add"
+                      ><span class="no">11</span><span class="sign">+</span
+                      ><span class="src"></span
+                    ></span>
+                    <span class="dl add"
+                      ><span class="no">12</span><span class="sign">+</span
+                      ><span class="src"> useEffect(() =&gt; {</span></span
+                    >
+                    <span class="dl add"
+                      ><span class="no">13</span><span class="sign">+</span
+                      ><span class="src">
+                        <span class="kw">const</span> es =
+                        <span class="kw">new</span>
+                        EventSource(streamURL(runID))</span
+                      ></span
+                    >
+                    <span class="dl add"
+                      ><span class="no">14</span><span class="sign">+</span
+                      ><span class="src"> source.current = es</span></span
+                    >
+                    <span class="dl add"
+                      ><span class="no">15</span><span class="sign">+</span
+                      ><span class="src">
+                        es.addEventListener(<span class="str">"finding"</span>,
+                        onFinding)</span
+                      ></span
+                    >
+                    <span class="dl ctx"
+                      ><span class="no">16</span><span class="sign"></span
+                      ><span class="src">
+                        <span class="kw">return</span> () =&gt; es.close()</span
+                      ></span
+                    >
+                    <span class="dl ctx"
+                      ><span class="no">17</span><span class="sign"></span
+                      ><span class="src"> }, [runID])</span></span
+                    >
+                    <span class="dl ctx"
+                      ><span class="no">18</span><span class="sign"></span
+                      ><span class="src">}</span></span
+                    >
+                  </div>
+                </article>
+
+                <article class="file-card collapsed">
+                  <div class="file-head">
+                    <svg class="ico ico-xs chev">
+                      <use href="#i-chevron-down" />
+                    </svg>
+                    <svg class="ico ico-xs"><use href="#i-file" /></svg>
+                    <span class="path">backend/internal/api/routes.go</span>
+                    <span
+                      ><span class="stat-add">+2</span>
+                      <span class="stat-del">−1</span></span
+                    >
+                  </div>
+                </article>
+
+                <div class="review-note">
+                  6 more files · config, tests and the Review tab · collapsed to
+                  keep the diff scannable.
+                </div>
+              </div>
+
+              <div
+                class="view-panel"
+                id="panel-review"
+                role="tabpanel"
+                data-panel="review"
+                hidden
+              >
+                <div class="view-head">
+                  <h3 class="view-title">Automatic review</h3>
+                  <span class="view-count">HEAD 8f2c1a4</span>
+                  <button class="btn small" type="button">
+                    <svg class="ico ico-xs"><use href="#i-refresh" /></svg>
+                    Re-run
+                  </button>
+                </div>
+
+                <div class="review-banner">
+                  <div class="score"><b>3</b><span>Findings</span></div>
+                  <div class="banner-copy">
+                    <b>Not ready to approve</b>
+                    <span
+                      ><span class="head">1 blocker</span> · 2 suggestions ·
+                      reviewed 6m ago</span
+                    >
+                  </div>
+                </div>
+
+                <div class="review-sev">
+                  <span class="sev-chip blocker">1 Blocker</span>
+                  <span class="sev-chip suggestion">2 Suggestions</span>
+                  <span class="sev-chip nit">0 Nit</span>
+                </div>
+
+                <article class="finding blocker">
+                  <div class="finding-head">
+                    <span class="sev-chip blocker">Blocker</span>
+                    <span class="finding-title"
+                      >Resolve the run before writing headers</span
+                    >
+                    <span class="finding-file">review_stream.go:24</span>
+                  </div>
+                  <div class="finding-body">
+                    <p>
+                      A missing or cancelled run still receives a
+                      <strong>200</strong> and a half-open SSE stream. The
+                      lookup must happen before <strong>WriteHeader</strong>, or
+                      the client waits forever for an event that will never
+                      arrive.
+                    </p>
+                    <div class="finding-snip">
+                      w.Header().Set("Content-Type", "text/event-stream")
+                      w.WriteHeader(http.StatusOK) run, err := lookupRun(runID)
+                      ← too late
+                    </div>
+                  </div>
+                  <div class="finding-actions">
+                    <button
+                      class="btn small"
+                      type="button"
+                      data-goto-diff="file-stream"
+                    >
+                      <svg class="ico ico-xs"><use href="#i-arrow" /></svg> Jump
+                      to diff
+                    </button>
+                    <button class="btn small" type="button">Apply patch</button>
+                  </div>
+                </article>
+
+                <article class="finding suggestion">
+                  <div class="finding-head">
+                    <span class="sev-chip suggestion">Suggestion</span>
+                    <span class="finding-title"
+                      >Flush once per finding, not per batch</span
+                    >
+                    <span class="finding-file">review_stream.go:32</span>
+                  </div>
+                  <div class="finding-body">
+                    <p>
+                      Findings currently appear in bursts because the writer
+                      only flushes after the run finishes. Call
+                      <strong>flusher.Flush()</strong> after each event so the
+                      Review tab can render progressively.
+                    </p>
+                    <div class="finding-snip">+ flusher.Flush() }</div>
+                  </div>
+                  <div class="finding-actions">
+                    <button
+                      class="btn small"
+                      type="button"
+                      data-goto-diff="file-stream"
+                    >
+                      <svg class="ico ico-xs"><use href="#i-arrow" /></svg> Jump
+                      to diff
+                    </button>
+                    <button class="btn small" type="button">Apply patch</button>
+                  </div>
+                </article>
+
+                <article class="finding nit">
+                  <div class="finding-head">
+                    <span class="sev-chip nit">Nit</span>
+                    <span class="finding-title"
+                      >Name the reconnect event explicitly</span
+                    >
+                    <span class="finding-file">useReviewStream.ts:15</span>
+                  </div>
+                  <div class="finding-body">
+                    <p>
+                      <strong>review.resume</strong> reads better than reusing
+                      <strong>finding</strong> for replayed events, and keeps
+                      the client switch exhaustive.
+                    </p>
+                  </div>
+                  <div class="finding-actions">
+                    <button
+                      class="btn small"
+                      type="button"
+                      data-goto-diff="file-hook"
+                    >
+                      <svg class="ico ico-xs"><use href="#i-arrow" /></svg> Jump
+                      to diff
+                    </button>
+                    <button class="btn small" type="button">Dismiss</button>
+                  </div>
+                </article>
+
+                <div class="review-note">
+                  Review runs against the PR head in a disposable worktree.
+                  Patches apply to that worktree only and are never pushed.
+                </div>
+              </div>
+
+              <div
+                class="view-panel"
+                id="panel-explain"
+                role="tabpanel"
+                data-panel="explain"
+                hidden
+              >
+                <div class="view-head">
+                  <h3 class="view-title">What this PR does</h3>
+                  <span class="view-count">Explain · 2.1s</span>
+                </div>
+                <p class="view-sub">
+                  A structured read of the change, generated against
+                  <strong>8f2c1a4</strong>. Read-only; nothing is posted to
+                  GitHub.
+                </p>
+
+                <div class="explain-list">
+                  <div class="explain-step">
+                    <span class="step-no">01</span>
+                    <div>
+                      <h4>Streams review findings over SSE</h4>
+                      <p>
+                        Adds
+                        <code>GET /api/prs/:repo/:number/review/stream</code>,
+                        which emits one <code>finding</code> event per result
+                        and closes on <code>done</code>.
+                      </p>
+                    </div>
+                  </div>
+                  <div class="explain-step">
+                    <span class="step-no">02</span>
+                    <div>
+                      <h4>Makes the Review tab progressive</h4>
+                      <p>
+                        A new <code>useReviewStream</code> hook replaces the
+                        single artifact fetch. The cached artifact remains the
+                        fallback when the stream drops mid-run.
+                      </p>
+                    </div>
+                  </div>
+                  <div class="explain-step">
+                    <span class="step-no">03</span>
+                    <div>
+                      <h4>Keeps review side effects local</h4>
+                      <p>
+                        Patches apply to the disposable worktree only. No
+                        review, finding or comment is published back to GitHub.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="review-banner" style="margin-top: 12px">
+                  <div class="score"><b>M</b><span>Risk</span></div>
+                  <div class="banner-copy">
+                    <b>Mostly contained, one lifecycle edge case</b>
+                    <span
+                      >Network-facing handler · no schema changes · 1 cached
+                      fallback path</span
+                    >
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <aside class="context" aria-label="Pull request context">
+              <div class="context-head">
+                <span class="eyebrow">Context</span>
+              </div>
+
+              <div class="ctx-card linear-card">
+                <div class="linear-top">
+                  <span class="linear-mark">L</span>
+                  <span class="linear-id">ENG-421</span>
+                  <svg class="ico ico-xs linear-open">
+                    <use href="#i-arrow" />
+                  </svg>
+                </div>
+                <p class="linear-title">
+                  Stream review findings to the detail pane
+                </p>
+                <div class="linear-meta">
+                  <span class="status-pill">In progress</span>
+                  <span class="assignee">→ @manuel</span>
+                </div>
+              </div>
+
+              <div class="ctx-card">
+                <div class="ctx-label">
+                  <span class="eyebrow">Checks</span
+                  ><span class="ctx-count">12 / 12</span>
+                </div>
+                <div class="bar"><span style="width: 100%"></span></div>
+                <div class="check-row">
+                  <svg class="ico ico-xs"><use href="#i-check" /></svg> build
+                  <span class="right">1m 12s</span>
+                </div>
+                <div class="check-row">
+                  <svg class="ico ico-xs"><use href="#i-check" /></svg> lint
+                  <span class="right">42s</span>
+                </div>
+                <div class="check-row">
+                  <svg class="ico ico-xs"><use href="#i-check" /></svg> test
+                  <span class="right">2m 08s</span>
+                </div>
+                <div class="check-row">
+                  <svg class="ico ico-xs"><use href="#i-check" /></svg> e2e
+                  <span class="right">4m 31s</span>
+                </div>
+              </div>
+
+              <div class="ctx-card">
+                <div class="ctx-label">
+                  <span class="eyebrow">Reviewers</span
+                  ><span class="ctx-count">3</span>
+                </div>
+                <div class="reviewer">
+                  <span class="mini-avatar">M</span>
+                  <span class="who">@manuel</span>
+                  <span class="state you">You</span>
+                </div>
+                <div class="reviewer">
+                  <span class="mini-avatar">S</span>
+                  <span class="who">@sarah</span>
+                  <span class="state ok">Approved</span>
+                </div>
+                <div class="reviewer">
+                  <span class="mini-avatar">F</span>
+                  <span class="who">@fabian</span>
+                  <span class="state">Pending</span>
+                </div>
+              </div>
+
+              <div class="ctx-label">
+                <span class="eyebrow">Change</span
+                ><span class="ctx-count">vs main</span>
+              </div>
+              <div class="meta-grid">
+                <div class="meta-cell">
+                  <b class="add">+184</b><span>Added</span>
+                </div>
+                <div class="meta-cell">
+                  <b class="del">−22</b><span>Removed</span>
+                </div>
+                <div class="meta-cell"><b>9</b><span>Files</span></div>
+                <div class="meta-cell"><b>4</b><span>Commits</span></div>
+              </div>
+
+              <div class="merge-sticker">
+                <svg class="ico ico-sm"><use href="#i-check" /></svg> Mergeable
+              </div>
+            </aside>
+          </div>
+        </section>
+      </div>
+
+      <footer class="statusbar">
+        <span class="block"
+          ><span class="sq"></span> Connected · 127.0.0.1:61422</span
+        >
+        <span class="rule"></span>
+        <span class="block">Cache 92%</span>
+        <span class="block">Sem 1.4s</span>
+        <span class="block">Sync 12s</span>
+        <span class="right">
+          <span class="block"><kbd>J</kbd><kbd>K</kbd> move</span>
+          <span class="block"><kbd>/</kbd> search</span>
+          <span class="block"><kbd>⌘K</kbd> jump</span>
+        </span>
+      </footer>
+    </div>
+
+    <script>
+      (() => {
+        const tabs = Array.from(document.querySelectorAll(".tab[data-tab]"));
+        const panels = Array.from(document.querySelectorAll("[data-panel]"));
+        const scroller = document.querySelector(".detail-scroll");
+
+        function show(name) {
+          const tab = tabs.find((item) => item.dataset.tab === name);
+          if (!tab) return;
+          tabs.forEach((item) => {
+            const active = item === tab;
+            item.classList.toggle("active", active);
+            item.setAttribute("aria-selected", String(active));
+          });
+          panels.forEach((panel) => {
+            panel.hidden = panel.dataset.panel !== name;
+          });
+          if (scroller) scroller.scrollTop = 0;
+        }
+
+        tabs.forEach((tab) => {
+          tab.addEventListener("click", () => show(tab.dataset.tab));
+        });
+
+        document.querySelectorAll("[data-goto-diff]").forEach((button) => {
+          button.addEventListener("click", () => {
+            show("diff");
+            const target = document.getElementById(button.dataset.gotoDiff);
+            if (!target) return;
+            target.classList.add("target");
+            target.scrollIntoView({ block: "start", behavior: "smooth" });
+          });
+        });
+      })();
+    </script>
+  </body>
+</html>

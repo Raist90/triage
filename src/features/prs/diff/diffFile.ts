@@ -215,6 +215,50 @@ function hunkDistance(hunk: DiffHunk, line: number): number {
   return Math.min(newDistance, oldDistance);
 }
 
+/**
+ * Fixed row metrics from `src/index.css`: `text-code` is 12/20px, and a hunk
+ * header row is one line plus `py-1`. Comment threads, finding patches and the
+ * open semantic rows add variable height, so this is a floor the mounted body
+ * corrects through scroll compensation.
+ */
+const LINE_HEIGHT = 20;
+const HUNK_HEADER_HEIGHT = 28;
+const BODY_BORDER = 1;
+
+/**
+ * Height of a file's rendered body before it mounts. Used by the lazy body
+ * placeholder so an unrendered file still occupies roughly its real space and
+ * the pane's scrollbar matches the fully expanded diff.
+ */
+export function estimateDiffBodyHeight(
+  file: DiffFile,
+  scopedHunks?: number[],
+): number {
+  if (file.binary) return BODY_BORDER + 32;
+  const all = file.hunks ?? [];
+  const rendered =
+    scopedHunks === undefined
+      ? all
+      : scopedHunks.flatMap((index) =>
+          index >= 0 && index < all.length ? [all[index]] : [],
+        );
+  if (rendered.length === 0) {
+    const lines = Math.max(1, file.patch.split("\n").length);
+    return BODY_BORDER + lines * LINE_HEIGHT;
+  }
+  let height = BODY_BORDER;
+  for (const hunk of rendered) {
+    height += HUNK_HEADER_HEIGHT + hunk.lines.length * LINE_HEIGHT;
+  }
+  // The whole-file view puts unanchored semantic changes behind one row.
+  const changes = file.semantic ?? [];
+  if (scopedHunks === undefined && changes.length > 0) {
+    const { unanchored } = anchorSemanticChanges(file.path, all, changes);
+    if (unanchored.length > 0) height += HUNK_HEADER_HEIGHT;
+  }
+  return height;
+}
+
 export function splitPath(path: string): { dir: string; name: string } {
   const slash = path.lastIndexOf("/");
   if (slash === -1) return { dir: "", name: path };

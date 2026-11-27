@@ -32,7 +32,6 @@ export type Artifact = {
   review?: Review;
   sha: string;
   usage: Usage;
-  worktree?: string;
 };
 
 export type ChangeCounts = {
@@ -54,9 +53,7 @@ export type Comment = {
   /**
    * What the timeline entry is
    */
-  kind: "comment" | "review" | "verdict";
-  line?: number;
-  path?: string;
+  kind: "comment" | "verdict";
   /**
    * Verdict state, e.g. approved or changes_requested
    */
@@ -178,7 +175,6 @@ export type FileReview = {
 
 export type Finding = {
   anchored: boolean;
-  appliedAt?: string;
   /**
    * What kind of problem it is
    */
@@ -192,7 +188,6 @@ export type Finding = {
   guidelineQuote?: string;
   id: string;
   line: number;
-  patch?: string;
   /**
    * How serious the finding is
    */
@@ -213,15 +208,24 @@ export type Hunk = {
 
 export type InlineComment = {
   author: string;
+  avatarURL?: string;
   body: string;
   commitID: string;
   createdAt: string;
+  /**
+   * Review finding this comment was published from
+   */
+  findingID?: string;
   id: number;
   inReplyToID?: number;
   line?: number;
   originalLine?: number;
   outdated?: boolean;
   path: string;
+  /**
+   * Comment belongs to an unsubmitted review
+   */
+  pending?: boolean;
   /**
    * Diff side the line belongs to
    */
@@ -299,6 +303,10 @@ export type Pr = {
    * Conversation timeline, detail responses only
    */
   comments?: Array<Comment>;
+  /**
+   * Number of commits on the pull request
+   */
+  commitCount: number;
   createdAt?: string;
   deletions: number;
   /**
@@ -328,11 +336,23 @@ export type Pr = {
    */
   mergedBy?: string;
   number: number;
+  /**
+   * The viewer has an unsubmitted draft review
+   */
+  pendingReview?: boolean;
   repo: string;
+  /**
+   * The viewer is a requested user reviewer; list responses only
+   */
+  reviewRequested?: boolean;
   /**
    * Review decision on the pull request
    */
   reviewState: "approved" | "changes_requested" | "review_required" | "none";
+  /**
+   * Latest automatic review summary; list responses only
+   */
+  reviewSummary?: ReviewSummary;
   /**
    * False when the repo disables squash merges
    */
@@ -342,6 +362,10 @@ export type Pr = {
    */
   state: string;
   title: string;
+  /**
+   * Unresolved review threads; detail responses only
+   */
+  unresolvedThreads?: number;
   updatedAt: string;
   url: string;
   viewerCanApprove?: boolean;
@@ -352,17 +376,27 @@ export type Pr = {
   viewerReview?: string;
 };
 
-export type PatchApplyResponse = {
-  appliedAt: string;
-  ok: boolean;
-  /**
-   * Worktree the patch was applied to
-   */
-  worktree: string;
-};
-
 export type PrDetailResponse = {
   pr: Pr;
+};
+
+export type PublishDraftRequest = {
+  /**
+   * Review action whose findings to publish
+   */
+  actionID: string;
+};
+
+export type PublishDraftResponse = {
+  /**
+   * Inline comments the draft carries
+   */
+  comments: number;
+  ok: boolean;
+  /**
+   * GitHub's id for the pending review
+   */
+  reviewID: number;
 };
 
 export type RepoReviewView = {
@@ -419,6 +453,16 @@ export type ReviewSignals = {
   noTests?: boolean;
   renameRipples?: number;
   rewrites?: number;
+};
+
+export type ReviewSummary = {
+  blocking: number;
+  createdAt: string;
+  nitpick: number;
+  praise: number;
+  sha: string;
+  stale: boolean;
+  warning: number;
 };
 
 export type SemanticChange = {
@@ -841,70 +885,6 @@ export type CancelActionResponses = {
 export type CancelActionResponse =
   CancelActionResponses[keyof CancelActionResponses];
 
-export type ApplyFindingPatchData = {
-  body?: never;
-  path: {
-    /**
-     * Repository owner
-     */
-    owner: string;
-    /**
-     * Repository name
-     */
-    repo: string;
-    /**
-     * Pull request number
-     */
-    number: number;
-    /**
-     * Action id from GET /config
-     */
-    actionID: string;
-    /**
-     * Finding id from the review artifact
-     */
-    findingID: string;
-  };
-  query?: never;
-  url: "/pr/{owner}/{repo}/{number}/actions/{actionID}/patches/{findingID}";
-};
-
-export type ApplyFindingPatchErrors = {
-  /**
-   * Bad Request
-   */
-  400: ApiError;
-  /**
-   * Not Found
-   */
-  404: ApiError;
-  /**
-   * Conflict
-   */
-  409: ApiError;
-  /**
-   * Unprocessable Entity
-   */
-  422: ApiError;
-  /**
-   * Internal Server Error
-   */
-  500: ApiError;
-};
-
-export type ApplyFindingPatchError =
-  ApplyFindingPatchErrors[keyof ApplyFindingPatchErrors];
-
-export type ApplyFindingPatchResponses = {
-  /**
-   * OK
-   */
-  200: PatchApplyResponse;
-};
-
-export type ApplyFindingPatchResponse =
-  ApplyFindingPatchResponses[keyof ApplyFindingPatchResponses];
-
 export type ClosePrData = {
   body?: never;
   path: {
@@ -1226,6 +1206,86 @@ export type SubmitReviewResponses = {
 
 export type SubmitReviewResponse =
   SubmitReviewResponses[keyof SubmitReviewResponses];
+
+export type DiscardReviewDraftData = {
+  body?: never;
+  path: {
+    /**
+     * Repository owner
+     */
+    owner: string;
+    /**
+     * Repository name
+     */
+    repo: string;
+    /**
+     * Pull request number
+     */
+    number: number;
+  };
+  query?: never;
+  url: "/pr/{owner}/{repo}/{number}/review/draft";
+};
+
+export type DiscardReviewDraftErrors = {
+  /**
+   * Error
+   */
+  default: ApiError;
+};
+
+export type DiscardReviewDraftError =
+  DiscardReviewDraftErrors[keyof DiscardReviewDraftErrors];
+
+export type DiscardReviewDraftResponses = {
+  /**
+   * OK
+   */
+  200: ClearedResponse;
+};
+
+export type DiscardReviewDraftResponse =
+  DiscardReviewDraftResponses[keyof DiscardReviewDraftResponses];
+
+export type PublishReviewDraftData = {
+  body: PublishDraftRequest;
+  path: {
+    /**
+     * Repository owner
+     */
+    owner: string;
+    /**
+     * Repository name
+     */
+    repo: string;
+    /**
+     * Pull request number
+     */
+    number: number;
+  };
+  query?: never;
+  url: "/pr/{owner}/{repo}/{number}/review/draft";
+};
+
+export type PublishReviewDraftErrors = {
+  /**
+   * Error
+   */
+  default: ApiError;
+};
+
+export type PublishReviewDraftError =
+  PublishReviewDraftErrors[keyof PublishReviewDraftErrors];
+
+export type PublishReviewDraftResponses = {
+  /**
+   * OK
+   */
+  200: PublishDraftResponse;
+};
+
+export type PublishReviewDraftResponse =
+  PublishReviewDraftResponses[keyof PublishReviewDraftResponses];
 
 export type ListPrsData = {
   body?: never;

@@ -1,4 +1,10 @@
-import { ArrowLeft, ExternalLink, Maximize2, Minimize2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ExternalLink,
+  Maximize2,
+  Minimize2,
+  PanelRight,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { IconButton } from "../../../components/ui";
 import { cx } from "../../../lib/cx";
@@ -10,26 +16,41 @@ type PRDetailBarProps = {
   fullscreen: boolean;
   onClose: () => void;
   onToggleFullscreen: () => void;
-  /** Review and state actions; present once the pull request has loaded. */
-  children?: ReactNode;
+  /** Below the wide breakpoint the bar is toggled from this control. */
+  barOpen: boolean;
+  onToggleBar: () => void;
+  /** Branch identity; present once the pull request has loaded. */
+  branch?: string;
+  /** Target branch, shown after an arrow. */
+  baseBranch?: string;
   /** GitHub link target; absent while the pull request is loading. */
   url?: string;
+  /** Manage menu; present once the PR and its controllers are loaded. */
+  manage?: ReactNode;
 };
 
+/**
+ * The one identity bar: repository, number, branch and the pane controls.
+ * Review state belongs to the review bar, so it is not printed here.
+ */
 export function PRDetailBar({
   repo,
   number,
   fullscreen,
   onClose,
   onToggleFullscreen,
-  children,
+  barOpen,
+  onToggleBar,
+  branch,
+  baseBranch,
   url,
+  manage,
 }: PRDetailBarProps) {
   return (
     <div
       data-tauri-drag-region
       className={cx(
-        "flex h-11 shrink-0 items-center gap-2 pr-1 pl-2",
+        "flex h-11 shrink-0 items-center gap-2 border-b border-line px-2",
         fullscreen && "bg-canvas",
       )}
     >
@@ -41,13 +62,32 @@ export function PRDetailBar({
         <ArrowLeft className="size-4" aria-hidden />
         Back
       </button>
-      <span className="min-w-0 truncate font-mono text-meta text-fg-faint">
+      <span className="max-w-56 shrink-0 truncate font-mono text-meta text-fg-faint">
         {repo}
         <span className="px-1 text-line-strong">#</span>
         <span className="text-fg-muted">{number}</span>
       </span>
-      {children}
+      {branch ? (
+        <>
+          <span
+            aria-hidden="true"
+            className="size-0.5 shrink-0 rounded-full bg-line-strong"
+          />
+          <span className="hidden min-w-0 truncate font-mono text-meta text-fg-faint min-[1280px]:inline">
+            {branch}
+            {baseBranch ? ` → ${baseBranch}` : null}
+          </span>
+        </>
+      ) : null}
       <div className="ml-auto flex shrink-0 items-center gap-1">
+        <IconButton
+          label={barOpen ? "Hide review bar" : "Show review bar"}
+          active={barOpen}
+          onClick={onToggleBar}
+          className="wide:hidden"
+        >
+          <PanelRight className="size-4" aria-hidden />
+        </IconButton>
         <IconButton
           label={
             fullscreen
@@ -63,16 +103,14 @@ export function PRDetailBar({
             <Maximize2 className="size-4" aria-hidden />
           )}
         </IconButton>
+        {manage}
         {url ? (
-          <button
-            type="button"
+          <IconButton
+            label="Open on GitHub"
             onClick={() => void openExternal(url)}
-            title="Open on GitHub"
-            aria-label="Open on GitHub"
-            className="flex size-7 shrink-0 items-center justify-center rounded-sm text-fg-faint transition-colors hover:bg-surface hover:text-fg"
           >
             <ExternalLink className="size-4" aria-hidden />
-          </button>
+          </IconButton>
         ) : null}
       </div>
     </div>

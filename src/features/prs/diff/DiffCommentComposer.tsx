@@ -32,7 +32,7 @@ export function CommentComposer({ anchor, onDone }: CommentComposerProps) {
   }
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-[72ch]">
       <label
         htmlFor={`inline-comment-${anchor.side}-${anchor.line}`}
         className="sr-only"

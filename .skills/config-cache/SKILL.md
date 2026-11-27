@@ -84,9 +84,12 @@ Rate limits are a product constraint. Cache aggressively, especially in dev.
   because a fresh answer is the point, not because the cache is slow.
 - Per-entry and whole-cache invalidation must be reachable from the UI
   (`Settings → Refresh data`). Invalidation is a user action, not a debug hack.
+- One cached `pr-comments` entry holds every inline review comment on a PR,
+  including the viewer's unsubmitted review comments (fetched through the review
+  scope and flagged `pending`). Publishing, discarding or submitting a review
+  invalidates it in both directions.
 - Claude artifacts live under `~/.triage/artifacts`; they are disposable and
   never contain tokens. Explain and Review share that tree: one file per SHA,
-  action and prompt version. Review artifacts also record the worktree path,
-  which is machine-local but never secret.
+  action and prompt version.
 - In dev, long TTLs are correct behavior. Never bypass the cache to "make it
   faster" — fix the cache.

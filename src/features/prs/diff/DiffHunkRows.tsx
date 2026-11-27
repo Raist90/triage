@@ -1,13 +1,17 @@
 import { ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { memo, useMemo, useState } from "react";
 import type {
   DiffHunk,
   InlineComment,
   SemanticChange,
 } from "../../../lib/types";
 import { ChangeAnnotation } from "./DiffAnnotation";
+import { DiffThread } from "./DiffThread";
+import { FindingThread } from "./FindingThread";
+import { anchorFindings, findingsForFile } from "./findingAnchors";
 import { anchorKey, lineAnchor, lineAnchors } from "./diffAnchors";
 import { LineRow, ROW_GRID } from "./DiffLineRow";
+import { useReviewFindings } from "./ReviewFindingsContext";
 import {
   badgeClassName,
   changeMark,
@@ -23,21 +27,37 @@ type HunkRowsProps = {
   flash: boolean;
   path: string;
   byAnchor: Map<string, InlineComment[]>;
+  /** Findings whose published comment now owns the line. */
+  publishedFindingIDs: ReadonlySet<string>;
   draft: string | null;
   onDraftChange: (key: string | null) => void;
 };
 
-export function HunkRows({
+const EMPTY_COMMENTS: InlineComment[] = [];
+
+/**
+ * Memoized: the file patch above re-renders on draft and flash changes, and a
+ * hunk that owns neither should not rebuild every line row.
+ */
+export const HunkRows = memo(function HunkRows({
   hunk,
   hunkKey,
   changes,
   flash,
   path,
   byAnchor,
+  publishedFindingIDs,
   draft,
   onDraftChange,
 }: HunkRowsProps) {
   const [open, setOpen] = useState(false);
+  const { review } = useReviewFindings();
+  const findingsByLine = useMemo(() => {
+    const findings = findingsForFile(review?.findings ?? [], path).filter(
+      (finding) => !publishedFindingIDs.has(finding.id),
+    );
+    return anchorFindings(hunk, findings);
+  }, [hunk, path, review, publishedFindingIDs]);
   const tally = changes.length > 0 ? tallyChanges(changes) : null;
   const dominant = tally?.dominant;
 
@@ -45,7 +65,7 @@ export function HunkRows({
     <>
       <div
         data-diff-hunk={hunkKey}
-        className={`${ROW_GRID} scroll-mt-9 bg-surface ${
+        className={`${ROW_GRID} scroll-mt-11 bg-surface ${
           flash ? "outline -outline-offset-1 outline-accent/50" : ""
         }`}
       >
@@ -96,20 +116,32 @@ export function HunkRows({
       ) : null}
       {hunk.lines.map((line, index) => {
         const anchor = lineAnchor(path, line);
-        const anchorComments = lineAnchors(path, line)
-          .flatMap((item) => byAnchor.get(anchorKey(item)) ?? [])
-          .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+        // Most files have no comments at all: skip two array allocations and a
+        // sort per rendered line when the file's anchor map is empty.
+        const anchorComments =
+          byAnchor.size === 0
+            ? EMPTY_COMMENTS
+            : lineAnchors(path, line)
+                .flatMap((item) => byAnchor.get(anchorKey(item)) ?? [])
+                .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+        const findings = findingsByLine.get(index) ?? [];
         return (
-          <LineRow
-            key={index}
-            line={line}
-            anchor={anchor}
-            anchorComments={anchorComments}
-            draft={draft}
-            onDraftChange={onDraftChange}
-          />
+          <div key={index}>
+            <LineRow
+              line={line}
+              anchor={anchor}
+              anchorComments={anchorComments}
+              draft={draft}
+              onDraftChange={onDraftChange}
+            />
+            {findings.map((finding) => (
+              <DiffThread key={finding.id}>
+                <FindingThread finding={finding} />
+              </DiffThread>
+            ))}
+          </div>
         );
       })}
     </>
   );
-}
+});

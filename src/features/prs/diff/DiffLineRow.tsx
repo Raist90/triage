@@ -1,10 +1,12 @@
 import { MessageSquarePlus } from "lucide-react";
+import { cx } from "../../../lib/cx";
 import type { DiffLine, InlineComment } from "../../../lib/types";
 import { anchorKey, type CommentAnchor } from "./diffAnchors";
 import { codeClasses, rowTint, spanClasses } from "./diffRows";
 import { CommentComposer } from "./DiffCommentComposer";
 import { useDiffCommentsContext } from "./DiffCommentsContext";
 import { InlineCommentRow } from "./DiffInlineCommentRow";
+import { DiffThread } from "./DiffThread";
 
 export const ROW_GRID = "grid grid-cols-[1.5rem_2.75rem_2.75rem_auto]";
 
@@ -23,17 +25,18 @@ export function LineRow({
   draft,
   onDraftChange,
 }: LineRowProps) {
-  const { canComment, viewerLogin } = useDiffCommentsContext();
+  const { canComment, showComments, viewerLogin } = useDiffCommentsContext();
   const gutter =
     "select-none border-r border-line px-2 text-right text-fg-faint";
   const key = anchor ? anchorKey(anchor) : null;
-  const composing = key !== null && draft === key;
+  const composing = showComments && key !== null && draft === key;
+  const thread = showComments ? anchorComments : [];
 
   return (
     <>
       <div className={`group ${ROW_GRID} ${rowTint(line.kind)}`}>
         <span className="flex items-center justify-center border-r border-line select-none">
-          {anchor && canComment ? (
+          {showComments && anchor && canComment ? (
             <button
               type="button"
               onClick={() => onDraftChange(composing ? null : key)}
@@ -61,26 +64,42 @@ export function LineRow({
         </span>
       </div>
 
-      {anchorComments.length > 0 ? (
-        <div className="border-b border-line bg-surface/40 px-3 py-2">
-          {anchorComments.map((comment) => (
-            <InlineCommentRow
-              key={comment.id}
-              comment={comment}
-              canDelete={
-                viewerLogin !== undefined &&
-                viewerLogin !== "" &&
-                comment.author.toLowerCase() === viewerLogin.toLowerCase()
-              }
-            />
-          ))}
-        </div>
+      {thread.length > 0 ? (
+        <DiffThread>
+          <div
+            className={cx(
+              "border-l-2 px-3 py-2",
+              thread.some((comment) => comment.pending)
+                ? "border-l-accent"
+                : "border-l-line-strong",
+            )}
+          >
+            <div className="flex flex-col gap-3">
+              {thread.map((comment) => (
+                <InlineCommentRow
+                  key={comment.id}
+                  comment={comment}
+                  canDelete={
+                    viewerLogin !== undefined &&
+                    viewerLogin !== "" &&
+                    comment.author.toLowerCase() === viewerLogin.toLowerCase()
+                  }
+                />
+              ))}
+            </div>
+          </div>
+        </DiffThread>
       ) : null}
 
       {composing && anchor ? (
-        <div className="border-b border-line bg-surface/40 px-3 py-2">
-          <CommentComposer anchor={anchor} onDone={() => onDraftChange(null)} />
-        </div>
+        <DiffThread>
+          <div className="border-l-2 border-l-accent px-3 py-2">
+            <CommentComposer
+              anchor={anchor}
+              onDone={() => onDraftChange(null)}
+            />
+          </div>
+        </DiffThread>
       ) : null}
     </>
   );

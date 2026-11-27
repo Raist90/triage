@@ -43,9 +43,8 @@ func (r *Runner) run(j *job, key string, action config.Action, prompt string, re
 	defer cancel()
 	j.setCancel(cancel)
 
-	kept := false
 	defer func() {
-		if kept || req.Cleanup == nil {
+		if req.Cleanup == nil {
 			return
 		}
 		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), cleanupTimeout)
@@ -209,9 +208,7 @@ func (r *Runner) run(j *job, key string, action config.Action, prompt string, re
 			Files:      prepared.Files,
 			Guidelines: prepared.Guidelines,
 		})
-		parsed = review.ValidatePatches(ctx, prepared.WorkDir, parsed, prepared.Files)
 		artifact.Review = &parsed
-		artifact.Worktree = prepared.WorkDir
 	} else {
 		markdown := final.markdown
 		if strings.TrimSpace(markdown) == "" {
@@ -224,8 +221,6 @@ func (r *Runner) run(j *job, key string, action config.Action, prompt string, re
 		r.logger.Warn("artifact write failed", "err", err)
 	}
 
-	// The worktree stays on success: patches need somewhere to land.
-	kept = true
 	j.mu.Lock()
 	j.artifact = artifact
 	j.info.Status = StatusDone

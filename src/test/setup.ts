@@ -18,3 +18,10 @@ if (typeof Element !== "undefined" && !Element.prototype.scrollIntoView) {
 
 const { cleanup } = await import("@testing-library/react");
 afterEach(() => cleanup());
+
+// happy-dom has no layout, so its IntersectionObserver reports every observed
+// node asynchronously and outside act(). Remove the API so the diff takes its
+// documented eager fallback: lazy body mounting is viewport behavior, exercised
+// in the app, not in layout-less unit tests.
+(globalThis as { IntersectionObserver?: unknown }).IntersectionObserver =
+  undefined;

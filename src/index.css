@@ -75,6 +75,8 @@
 
   /* Detail sits next to the list only when it has room. */
   --breakpoint-cockpit: 1180px;
+  /* The 300px review bar needs this much detail width to stay usable. */
+  --breakpoint-wide: 1400px;
 }
 
 @layer base {

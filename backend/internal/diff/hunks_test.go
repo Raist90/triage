@@ -175,3 +175,54 @@ func emphasized(spans []Span) string {
 	}
 	return text
 }
+
+func TestHunkTailLineResolvesTheLastContentLine(t *testing.T) {
+	cases := []struct {
+		name string
+		hunk string
+		kind string
+		old  int
+		new  int
+		ok   bool
+	}{
+		{
+			name: "added tail",
+			hunk: "@@ -10,3 +10,4 @@\n context\n-removed\n+added one\n+added two",
+			kind: "add",
+			new:  12,
+			ok:   true,
+		},
+		{
+			name: "removed tail",
+			hunk: "@@ -10,3 +10,2 @@\n context\n+added\n-removed",
+			kind: "del",
+			old:  11,
+			ok:   true,
+		},
+		{
+			name: "context tail",
+			hunk: "@@ -5,2 +5,2 @@\n context\n unchanged",
+			kind: "context",
+			old:  6,
+			new:  6,
+			ok:   true,
+		},
+		{
+			name: "last hunk wins",
+			hunk: "@@ -1,1 +1,1 @@\n-a\n+b\n@@ -20,1 +20,2 @@\n context\n+tail",
+			kind: "add",
+			new:  21,
+			ok:   true,
+		},
+		{
+			name: "no hunk",
+			hunk: "not a diff",
+		},
+	}
+	for _, tc := range cases {
+		kind, oldNumber, newNumber, ok := HunkTailLine(tc.hunk)
+		if kind != tc.kind || oldNumber != tc.old || newNumber != tc.new || ok != tc.ok {
+			t.Errorf("%s: got %q/%d/%d/%v", tc.name, kind, oldNumber, newNumber, ok)
+		}
+	}
+}

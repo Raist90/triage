@@ -9,10 +9,21 @@ const listFields = `        number
         isDraft
         state
         headRefName
+        headRefOid
         reviewDecision
+        viewerLatestReview { state }
+        additions
+        deletions
+        changedFiles
         author { login }
         repository { nameWithOwner }
-        commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
+        commits(last: 1) {
+          totalCount
+          nodes { commit { statusCheckRollup { state } } }
+        }
+        reviewRequests(first: 20) {
+          nodes { requestedReviewer { ... on User { login } } }
+        }
 `
 
 // prNodeIDQuery resolves the GraphQL node ID a draft mutation needs. REST has
@@ -66,7 +77,10 @@ const detailQuery = `query PRDetail($owner: String!, $name: String!, $number: In
       changedFiles
       author { login }
       repository { nameWithOwner squashMergeAllowed }
-      commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
+      commits(last: 1) {
+        totalCount
+        nodes { commit { statusCheckRollup { state } } }
+      }
       comments(first: 100) {
         nodes { author { login } body createdAt }
       }
@@ -82,6 +96,7 @@ const detailQuery = `query PRDetail($owner: String!, $name: String!, $number: In
         nodes {
           path
           line
+          isResolved
           comments(first: 20) {
             nodes { author { login } body createdAt }
           }

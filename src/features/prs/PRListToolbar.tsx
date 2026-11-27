@@ -97,8 +97,8 @@ export function PRListToolbar({
               {isLoading
                 ? "Loading…"
                 : isFiltered
-                  ? `${shown} of ${total}`
-                  : `${total} open`}
+                  ? `${shown} of ${total} open`
+                  : `${shown} open`}
             </span>
             <span className="h-3 w-px shrink-0 bg-line" aria-hidden="true" />
           </>
@@ -170,6 +170,7 @@ export function PRListToolbar({
           </IconButton>
           {filtersOpen ? (
             <PRFilterPopover
+              anchorRef={filterRef}
               prs={prs}
               filters={filters}
               showRepos={repo === null}

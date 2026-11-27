@@ -17,10 +17,14 @@ func TestCommentPayloadMapsReviewComment(t *testing.T) {
 		CreatedAt:    "2026-01-01T00:00:00Z",
 	}
 	payload.User.Login = "octocat"
+	payload.User.AvatarURL = "https://avatars.githubusercontent.com/u/1?v=4"
 
 	comment := payload.toInlineComment()
 	if comment.ID != 42 || comment.Author != "octocat" {
 		t.Fatalf("identity = %d/%q", comment.ID, comment.Author)
+	}
+	if comment.AvatarURL != "https://avatars.githubusercontent.com/u/1?v=4" {
+		t.Fatalf("avatar = %q", comment.AvatarURL)
 	}
 	if comment.Line != 12 || comment.OriginalLine != 10 || comment.StartLine != 11 {
 		t.Fatalf("line mapping = %d/%d/%d", comment.Line, comment.OriginalLine, comment.StartLine)

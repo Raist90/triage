@@ -10,7 +10,7 @@ import type { ReviewController } from "./useReview";
  * leak from one pull request into the next.
  *
  * Deliberately not part of this value: action run state (`useClaudeAction`)
- * and the diff. Those belong to the tab that runs or renders them.
+ * and the diff. Those belong to the place that runs or renders them.
  */
 export type PRDetailValue = {
   pr: PR;

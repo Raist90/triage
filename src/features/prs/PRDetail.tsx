@@ -2,30 +2,26 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ErrorState } from "../../components/ErrorState";
 import { describeError, getConfig, getPR } from "../../lib/api";
+import { cx } from "../../lib/cx";
 import { useLiveRefresh } from "../../lib/liveRefresh";
 import { loadDiffForHead } from "../../lib/prRefresh";
-import type { ReviewFinding } from "../../lib/types";
+import type { InlineComment, ReviewFinding } from "../../lib/types";
 import { useUIStore } from "../../stores/ui";
 import { useClaudeAction } from "./action/useClaudeAction";
-import { Conversation } from "./detail/Conversation";
-import { ContextRail } from "./detail/ContextRail";
-import { DetailPanel } from "./detail/DetailPanel";
+import { ContextRow } from "./detail/ContextRow";
 import { DetailSkeleton } from "./detail/DetailSkeleton";
-import { DetailTabs, type DetailTab, type TabDef } from "./detail/DetailTabs";
-import { DiffTab } from "./detail/DiffTab";
-import { ExplainTab } from "./detail/ExplainTab";
+import { DiffDocument } from "./detail/DiffDocument";
+import { ManageMenu } from "./detail/ManageMenu";
 import { PRDetailBar } from "./detail/PRDetailBar";
 import { PRDetailContext } from "./detail/PRDetailContext";
-import { PRHeader } from "./detail/PRHeader";
+import { PRStatePanel } from "./detail/PRStatePanel";
 import { PRSummary } from "./detail/PRSummary";
-import { ReviewPanel } from "./detail/ReviewPanel";
-import { PRStateActions, PRStatePanel } from "./detail/PRStateActions";
-import { ReviewHeaderActions } from "./detail/ReviewHeaderActions";
+import { ReviewBar } from "./detail/ReviewBar";
 import { usePRMutations } from "./detail/usePRMutations";
 import { useReview } from "./detail/useReview";
 import type { DiffTarget } from "./diff/diffSelection";
+import { ReviewFindingsContext } from "./diff/ReviewFindingsContext";
 import { useDiffComments } from "./diff/useDiffComments";
-import { ReviewTab } from "./review/ReviewTab";
 
 type PRDetailProps = {
   repo: string;
@@ -43,28 +39,34 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
   const closeDetail = useUIStore((state) => state.closeDetail);
   const fullscreen = useUIStore((state) => state.detailFullscreen);
   const toggleFullscreen = useUIStore((state) => state.toggleDetailFullscreen);
-  const setDiffMode = useUIStore((state) => state.setDiffMode);
+  const barOpen = useUIStore((state) => state.reviewBarOpen);
+  const toggleBar = useUIStore((state) => state.toggleReviewBar);
+  const setShowDiffComments = useUIStore((state) => state.setShowDiffComments);
   const prKey = `${repo}#${number}`;
-  const [tabState, setTabState] = useState<{
-    key: string;
-    tab: DetailTab;
-  }>({ key: prKey, tab: "conversation" });
-  const tab: DetailTab = tabState.key === prKey ? tabState.tab : "conversation";
-  const setTab = (next: DetailTab) => setTabState({ key: prKey, tab: next });
-  // A finding clicked in the Review tab. The token re-triggers the jump for two
-  // findings in the same file; the target is never cleared after consumption.
+
+  // The Context row is collapsed by default and is the first thing Escape
+  // closes, ahead of fullscreen.
+  const [contextOpen, setContextOpen] = useState(false);
+  // A diff jump owned by the bar; the token re-triggers the same target.
   const [diffTarget, setDiffTarget] = useState<DiffTarget | null>(null);
-  function openInDiff(finding: ReviewFinding) {
-    // A finding jump targets one file and line; leave the guided path so the
-    // target is always mounted, regardless of which step owns it.
-    setDiffMode("files");
-    setDiffTarget({
-      path: finding.file,
-      line: finding.line,
-      token: Date.now(),
-    });
-    setTab("diff");
+
+  // A row click lands on the document with Context collapsed. Apply it during
+  // render (the React "adjust state when props change" pattern), then clear the
+  // store intent in an effect so a refetch or remount cannot replay it.
+  const detailIntent = useUIStore((state) => state.detailIntent);
+  const clearDetailIntent = useUIStore((state) => state.clearDetailIntent);
+  const [appliedIntent, setAppliedIntent] = useState<number | null>(null);
+  if (
+    detailIntent &&
+    detailIntent.prKey === prKey &&
+    detailIntent.token !== appliedIntent
+  ) {
+    setAppliedIntent(detailIntent.token);
+    setContextOpen(false);
   }
+  useEffect(() => {
+    if (detailIntent && detailIntent.prKey === prKey) clearDetailIntent();
+  }, [detailIntent, prKey, clearDetailIntent]);
 
   const mergePolls = useRef(0);
   // A live re-read must see GitHub's current state, so the next fetch bypasses
@@ -129,7 +131,47 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
   );
   const review = useReview(repo, number);
   const mutations = usePRMutations(repo, number);
-  const diffComments = useDiffComments(repo, number, isOpen && tab === "diff");
+
+  // Two different facts: the repository can host a review (local clone), and
+  // an action is actually configured to run it.
+  const reviewConfigured = configuredRepo?.review.available ?? false;
+  const reviewAvailable =
+    reviewConfigured &&
+    reviewController.enabled &&
+    reviewController.action !== null;
+
+  // The diff is the document; comments only load while the PR is open.
+  const diffComments = useDiffComments(repo, number, Boolean(isOpen));
+
+  // A published finding is rendered by its GitHub comment, so the index jump
+  // targets that comment instead of a finding thread that no longer exists.
+  // The comment's commit does not matter: only an anchor GitHub can still place
+  // (not outdated) keeps the finding hidden.
+  function focusFinding(finding: ReviewFinding) {
+    const published = diffComments.comments.find(
+      (comment) => comment.findingID === finding.id && !comment.outdated,
+    );
+    setDiffTarget({
+      path: finding.file,
+      line: finding.line,
+      findingID: published ? undefined : finding.id,
+      commentID: published?.id,
+      token: Date.now(),
+    });
+  }
+
+  // Conversation jumps land on the exact thread; comments can be hidden, so
+  // the target also turns them on.
+  function focusComment(comment: InlineComment) {
+    setShowDiffComments(true);
+    setDiffTarget({
+      path: comment.path,
+      line: comment.line,
+      commentID: comment.id,
+      token: Date.now(),
+    });
+  }
+
   const reviewOpen = review.open;
   const closeReview = review.closePanel;
 
@@ -143,20 +185,31 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
     if (confirming !== null) closeConfirm();
   }, [isOpen, reviewOpen, closeReview, confirming, closeConfirm]);
 
+  // Escape must act on the committed state even when this listener has not been
+  // rebound yet: after a merge the receipt is on screen while the old closure
+  // still carries an open review form or confirmation. A ref keeps the handler
+  // current instead of waiting for the effect to re-subscribe.
+  const escape = useRef<(event: KeyboardEvent) => void>(() => {});
   useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
+    escape.current = (event) => {
       if (event.key !== "Escape") return;
-      // A line-comment composer closes itself and marks the event handled.
+      // A line-comment composer or the Manage menu closes itself and marks the
+      // event handled.
       if (event.defaultPrevented) return;
       event.preventDefault();
-      // The merge and close confirmation bars and the review form close first,
-      // then fullscreen, then the detail itself.
-      if (mutations.confirming !== null) {
-        mutations.closeConfirm();
+      // Confirmations and the review form outrank the document: they cannot
+      // scroll away, so Escape clears them first. Then Context, then fullscreen,
+      // then the detail itself.
+      if (isOpen && confirming !== null) {
+        closeConfirm();
         return;
       }
-      if (reviewOpen) {
+      if (isOpen && reviewOpen) {
         closeReview();
+        return;
+      }
+      if (isOpen && contextOpen) {
+        setContextOpen(false);
         return;
       }
       if (fullscreen) {
@@ -164,17 +217,16 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
         return;
       }
       closeDetail();
+    };
+  });
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      escape.current(event);
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [
-    closeDetail,
-    mutations,
-    reviewOpen,
-    closeReview,
-    fullscreen,
-    toggleFullscreen,
-  ]);
+  }, []);
 
   const refetchDetail = detailQuery.refetch;
 
@@ -196,31 +248,34 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
     }, 1500);
     return () => window.clearTimeout(timer);
   }, [pr, refetchDetail]);
-  const comments = pr?.comments ?? [];
-  const explainAvailable = explain.enabled && explain.action !== null;
-  const reviewAvailable =
-    reviewController.enabled && reviewController.action !== null;
-  const requestedTabAvailable =
-    (tab !== "explain" || explainAvailable) &&
-    (tab !== "review" || reviewAvailable);
-  const activeTab: DetailTab = requestedTabAvailable ? tab : "conversation";
 
-  const tabs: TabDef[] = [
-    { id: "conversation", label: "Conversation", count: comments.length },
-    { id: "diff", label: "Diff", count: pr?.changedFiles },
-  ];
-  if (reviewAvailable) {
-    tabs.push({ id: "review", label: "Review" });
-  }
-  if (explain.action) {
-    tabs.push({ id: "explain", label: explain.action.label });
-  }
+  // The bar's review line comes from the review artifact, not from the list's
+  // reviewSummary (detail responses do not carry it).
+  const artifactReview = reviewController.artifact?.review;
+  const reviewStale = Boolean(
+    reviewController.artifact &&
+    (reviewController.stale ||
+      (pr?.headSHA !== "" && reviewController.artifact.sha !== pr?.headSHA)),
+  );
+  const currentReview = reviewStale ? undefined : artifactReview;
 
   // One value for the bar and the body. Stable as long as the PR and the two
   // memoized controllers are, so an unrelated pane render wakes no consumer.
   const detail = useMemo(
     () => (pr ? { pr, mutations, review } : null),
     [pr, mutations, review],
+  );
+
+  // Findings re-render every hunk that reads the context; a run that only
+  // streams text must not create a new value.
+  const artifact = reviewController.artifact;
+  const findingsValue = useMemo(
+    () => ({
+      review: currentReview,
+      artifact,
+      stale: reviewStale,
+    }),
+    [currentReview, artifact, reviewStale],
   );
 
   // Pending and error are the only states without a loaded PR, so one element
@@ -241,80 +296,72 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
       <PRDetailBar
         repo={repo}
         number={number}
+        branch={pr?.branch}
+        baseBranch={pr?.baseBranch}
         fullscreen={fullscreen}
+        barOpen={barOpen}
+        onToggleBar={toggleBar}
         onClose={closeDetail}
         onToggleFullscreen={toggleFullscreen}
         url={pr?.url}
-      >
-        {detail ? (
-          <PRDetailContext value={detail}>
-            <ReviewHeaderActions />
-            <PRStateActions />
-          </PRDetailContext>
-        ) : null}
-      </PRDetailBar>
+        manage={
+          detail ? (
+            <ManageMenu
+              pr={detail.pr}
+              review={detail.review}
+              mutations={detail.mutations}
+            />
+          ) : null
+        }
+      />
 
       {detail ? (
         <PRDetailContext value={detail}>
-          {isOpen ? <ReviewPanel /> : null}
           {isOpen ? <PRStatePanel /> : null}
 
-          <div className="flex min-h-0 flex-1">
-            <div className="flex min-w-0 flex-1 flex-col">
-              {loadingOrError ??
-                (isOpen ? (
-                  <>
-                    <PRHeader pr={detail.pr} />
-                    <DetailTabs
-                      tabs={tabs}
-                      active={activeTab}
-                      onSelect={setTab}
-                    />
-
-                    <DetailPanel activeTab={activeTab}>
-                      {activeTab === "conversation" ? (
-                        <Conversation pr={detail.pr} comments={comments} />
-                      ) : null}
-
-                      {activeTab === "diff" ? (
-                        <DiffTab
-                          pr={detail.pr}
-                          prKey={prKey}
-                          diffQuery={diffQuery}
-                          comments={diffComments}
-                          focusTarget={diffTarget ?? undefined}
-                        />
-                      ) : null}
-
-                      {activeTab === "review" ? (
-                        <ReviewTab
-                          repo={repo}
-                          number={number}
-                          controller={reviewController}
-                          reviewAvailable={
-                            configuredRepo?.review.available ?? false
-                          }
-                          unavailableReason={configuredRepo?.review.reason}
-                          configPath={configQuery.data?.configPath}
-                          diffFiles={diffQuery.data?.files}
-                          onOpenInDiff={openInDiff}
-                        />
-                      ) : null}
-
-                      {activeTab === "explain" ? (
-                        <ExplainTab controller={explain} />
-                      ) : null}
-                    </DetailPanel>
-                  </>
-                ) : (
-                  <PRSummary pr={detail.pr} />
-                ))}
-            </div>
-
-            {isOpen && activeTab !== "diff" ? (
-              <ContextRail diff={diffQuery.data} />
-            ) : null}
-          </div>
+          {isOpen ? (
+            <ReviewFindingsContext value={findingsValue}>
+              <div
+                className={cx(
+                  "grid min-h-0 flex-1",
+                  barOpen
+                    ? "grid-cols-[minmax(0,1fr)_300px]"
+                    : "grid-cols-1 wide:grid-cols-[minmax(0,1fr)_300px]",
+                )}
+              >
+                <div className="flex min-h-0 min-w-0 flex-col">
+                  <ContextRow
+                    description={detail.pr.description}
+                    open={contextOpen}
+                    onToggle={() => setContextOpen((current) => !current)}
+                  />
+                  <DiffDocument
+                    pr={detail.pr}
+                    prKey={prKey}
+                    diffQuery={diffQuery}
+                    comments={diffComments}
+                    focusTarget={diffTarget ?? undefined}
+                  />
+                </div>
+                <ReviewBar
+                  pr={detail.pr}
+                  review={reviewController}
+                  explain={explain}
+                  reviewAvailable={reviewAvailable}
+                  reviewConfigured={reviewConfigured}
+                  stale={reviewStale}
+                  unavailableReason={configuredRepo?.review.reason}
+                  configPath={configQuery.data?.configPath}
+                  onFocusFinding={focusFinding}
+                  inlineComments={diffComments.comments}
+                  onFocusComment={focusComment}
+                  open={barOpen}
+                />
+              </div>
+            </ReviewFindingsContext>
+          ) : (
+            <PRSummary pr={detail.pr} />
+          )}
         </PRDetailContext>
       ) : (
         <div className="flex min-h-0 flex-1">

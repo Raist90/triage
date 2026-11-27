@@ -26,6 +26,7 @@ const maxCommentPages = 10
 type InlineComment struct {
 	ID           int64  `json:"id"`
 	Author       string `json:"author"`
+	AvatarURL    string `json:"avatarURL,omitempty"`
 	Body         string `json:"body"`
 	CreatedAt    string `json:"createdAt"`
 	Path         string `json:"path"`
@@ -36,6 +37,14 @@ type InlineComment struct {
 	CommitID     string `json:"commitID"`
 	InReplyToID  int64  `json:"inReplyToID,omitempty"`
 	Outdated     bool   `json:"outdated,omitempty"`
+	Pending      bool   `json:"pending,omitempty" doc:"Comment belongs to an unsubmitted review"`
+	FindingID    string `json:"findingID,omitempty" doc:"Review finding this comment was published from"`
+
+	// GitHub returns line and side as null for comments on an unsubmitted
+	// review. DiffHunk still ends on the commented line, so the API layer
+	// resolves the anchor from it. Neither field is part of the client contract.
+	DiffHunk string `json:"-"`
+	Position int    `json:"-"`
 }
 
 // NewInlineComment is the POST body for one review comment. Side is RIGHT for
@@ -49,8 +58,9 @@ type NewInlineComment struct {
 }
 
 // ListReviewComments returns every inline review comment on a pull request.
-// Comments from older commits are included with Outdated set; the diff view
-// only anchors the ones matching the current head.
+// Comments from older commits are included; a comment carries the commit it was
+// written at, not the current head. The diff view anchors any comment that still
+// has a line and is not outdated.
 func (c *Client) ListReviewComments(ctx context.Context, owner, repo string, number int) ([]InlineComment, error) {
 	if !c.Configured() {
 		return nil, &gql.APIError{Message: "GitHub is not configured"}
@@ -60,6 +70,33 @@ func (c *Client) ListReviewComments(ctx context.Context, owner, repo string, num
 	for page := 1; page <= maxCommentPages; page++ {
 		path := fmt.Sprintf("/repos/%s/%s/pulls/%d/comments?per_page=100&page=%d",
 			url.PathEscape(owner), url.PathEscape(repo), number, page)
+
+		var raw []commentPayload
+		if err := c.doJSON(ctx, http.MethodGet, path, nil, &raw); err != nil {
+			return nil, err
+		}
+		for _, item := range raw {
+			comments = append(comments, item.toInlineComment())
+		}
+		if len(raw) < 100 {
+			break
+		}
+	}
+	return comments, nil
+}
+
+// ListReviewCommentsForReview returns the inline comments attached to one
+// review. A pending review's comments live only here: the pull-request-wide
+// list does not expose an unsubmitted draft.
+func (c *Client) ListReviewCommentsForReview(ctx context.Context, owner, repo string, number int, reviewID int64) ([]InlineComment, error) {
+	if !c.Configured() {
+		return nil, &gql.APIError{Message: "GitHub is not configured"}
+	}
+
+	comments := make([]InlineComment, 0)
+	for page := 1; page <= maxCommentPages; page++ {
+		path := fmt.Sprintf("/repos/%s/%s/pulls/%d/reviews/%d/comments?per_page=100&page=%d",
+			url.PathEscape(owner), url.PathEscape(repo), number, reviewID, page)
 
 		var raw []commentPayload
 		if err := c.doJSON(ctx, http.MethodGet, path, nil, &raw); err != nil {
@@ -119,8 +156,11 @@ type commentPayload struct {
 	CommitID     string `json:"commit_id"`
 	InReplyToID  int64  `json:"in_reply_to_id"`
 	CreatedAt    string `json:"created_at"`
+	DiffHunk     string `json:"diff_hunk"`
+	Position     *int   `json:"position"`
 	User         struct {
-		Login string `json:"login"`
+		Login     string `json:"login"`
+		AvatarURL string `json:"avatar_url"`
 	} `json:"user"`
 }
 
@@ -128,6 +168,7 @@ func (p commentPayload) toInlineComment() InlineComment {
 	comment := InlineComment{
 		ID:          p.ID,
 		Author:      p.User.Login,
+		AvatarURL:   p.User.AvatarURL,
 		Body:        p.Body,
 		CreatedAt:   p.CreatedAt,
 		Path:        p.Path,
@@ -135,6 +176,10 @@ func (p commentPayload) toInlineComment() InlineComment {
 		CommitID:    p.CommitID,
 		InReplyToID: p.InReplyToID,
 		Outdated:    p.Line == nil,
+		DiffHunk:    p.DiffHunk,
+	}
+	if p.Position != nil {
+		comment.Position = *p.Position
 	}
 	if p.Line != nil {
 		comment.Line = *p.Line

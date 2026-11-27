@@ -1,12 +1,15 @@
 import { Check, Minus, X } from "lucide-react";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 import { Button, IconButton, MicroLabel } from "../../components/ui";
 import { cx } from "../../lib/cx";
 import type { CheckState, PR, ReviewState } from "../../lib/types";
+import { useOverlaySide } from "../../lib/useOverlaySide";
 import type { PRFilterSection, PRFilters } from "../../stores/ui";
 import { facetCounts, type FacetOption } from "./prFilters";
 
 type PRFilterPopoverProps = {
+  /** The toolbar control the panel hangs from. */
+  anchorRef: RefObject<HTMLElement | null>;
   /** The unfiltered list, used for facet counts. */
   prs: PR[];
   filters: PRFilters;
@@ -26,6 +29,7 @@ type PRFilterPopoverProps = {
  * the store and the list re-renders, so there is no Apply button.
  */
 export function PRFilterPopover({
+  anchorRef,
   prs,
   filters,
   showRepos,
@@ -38,6 +42,12 @@ export function PRFilterPopover({
   onClose,
 }: PRFilterPopoverProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const placement = useOverlaySide({
+    anchorRef,
+    panelRef,
+    open: true,
+    maxHeight: Math.min(480, window.innerHeight * 0.7),
+  });
   const counts = facetCounts(prs, filters);
 
   useEffect(() => {
@@ -58,7 +68,11 @@ export function PRFilterPopover({
       ref={panelRef}
       role="dialog"
       aria-label="Filter pull requests"
-      className="absolute top-8 right-0 z-30 flex max-h-[min(480px,70vh)] w-64 surface-in flex-col overflow-hidden rounded-md elevated"
+      style={{ maxHeight: placement.maxHeight }}
+      className={cx(
+        "absolute right-0 z-30 flex w-64 surface-in flex-col overflow-hidden rounded-md elevated",
+        placement.side === "up" ? "bottom-8" : "top-8",
+      )}
     >
       <div className="flex h-9 shrink-0 items-center justify-between border-b border-line pr-1 pl-3">
         <span className="text-ui font-medium text-fg">Filter</span>

@@ -7,6 +7,7 @@ import {
   within,
 } from "@testing-library/react";
 import * as actualApi from "../../lib/api";
+import type { ActionResponse } from "../../lib/types";
 import { useUIStore } from "../../stores/ui";
 import {
   makeConfig,
@@ -20,7 +21,7 @@ import { renderWithQuery } from "../../test/render";
 
 const pr = makePR({
   title: "Add checkout flow",
-  description: "Checkout body copy.",
+  description: "Checkout body copy.\n\nSecond paragraph.",
   comments: [
     {
       author: "octocat",
@@ -52,21 +53,63 @@ const diff = makeDiffResponse(
     }),
   ],
   {
-    complexity: {
-      band: "high",
-      score: 88,
-      changes: 12,
-      sourceFiles: 3,
-      deletes: 1,
-      rewrites: 4,
-      ripples: 2,
+    walkthrough: {
+      steps: [
+        {
+          id: "step-1",
+          title: "Add the checkout line",
+          additions: 1,
+          deletions: 0,
+          files: [{ path: "src/app.ts", hunks: [0] }],
+        },
+      ],
     },
   },
 );
 
+const reviewAction = {
+  id: "review-1",
+  kind: "review" as const,
+  label: "Review",
+};
+const explainAction = {
+  id: "explain-1",
+  kind: "explain" as const,
+  label: "Explain",
+};
+
+const reviewArtifact: ActionResponse = {
+  artifact: {
+    action: "review",
+    createdAt: "2026-06-15T12:00:00Z",
+    markdown: "",
+    model: "haiku",
+    promptVersion: "1",
+    sha: pr.headSHA,
+    usage: { inputTokens: 1, outputTokens: 1, totalCostUsd: 0.1 },
+    review: {
+      findings: [
+        {
+          id: "finding-1",
+          anchored: true,
+          category: "risk",
+          claim: "The early return skips commit.",
+          file: "src/app.ts",
+          line: 2,
+          severity: "blocking",
+          suggestion: "Commit before returning.",
+          title: "Skipped commit",
+        },
+      ],
+      verdict: { safeToMerge: false, summary: "One blocking finding." },
+    },
+  },
+};
+
 const getConfig = mock(async () => makeConfig());
 const getPR = mock(async () => ({ pr }));
 const getPRDiff = mock(async () => diff);
+const getAction = mock(async (): Promise<ActionResponse | null> => null);
 const mergePR = mock(async () => ({ ok: true }));
 
 mock.module("../../lib/api", () => ({
@@ -74,9 +117,12 @@ mock.module("../../lib/api", () => ({
   getConfig,
   getPR,
   getPRDiff,
+  getAction,
   mergePR,
 }));
 
+// `mock.module` must run before the component module is evaluated, and static
+// imports hoist above it; this test intentionally exercises that boundary.
 const { PRDetail } = await import("./PRDetail");
 
 const initialUIState = useUIStore.getState();
@@ -93,10 +139,12 @@ beforeEach(() => {
   getConfig.mockClear();
   getPR.mockClear();
   getPRDiff.mockClear();
+  getAction.mockClear();
   mergePR.mockClear();
   getConfig.mockImplementation(async () => makeConfig());
   getPR.mockImplementation(async () => ({ pr }));
   getPRDiff.mockImplementation(async () => diff);
+  getAction.mockImplementation(async () => null);
 });
 
 afterAll(() => {
@@ -105,31 +153,182 @@ afterAll(() => {
 
 async function renderDetail() {
   const result = renderWithQuery(<PRDetail repo="acme/web" number={42} />);
-  await screen.findByText("Add checkout flow");
+  await screen.findByText("added line");
   return result;
 }
 
-describe("PRDetail", () => {
-  test("opens on the conversation and shows the context rail", async () => {
+describe("PRDetail document", () => {
+  test("is one screen: bar, Context, strip, diff, and no repeated title", async () => {
     await renderDetail();
 
-    expect(screen.getByRole("tab", { name: /Conversation/ })).toBeDefined();
-    expect(screen.getByText("Checkout body copy.")).toBeDefined();
-    expect(screen.getByText("Please add tests.")).toBeDefined();
-
-    const rail = screen.getByLabelText("Pull request context");
-    expect(within(rail).getByText("Checks passing")).toBeDefined();
-    expect(within(rail).getByText("Complexity")).toBeDefined();
-    expect(within(rail).getByText("3 source files · 12 changes")).toBeDefined();
+    expect(screen.queryByText("Add checkout flow")).toBeNull();
+    expect(screen.queryByRole("tablist")).toBeNull();
+    expect(
+      screen.getAllByText("acme/web", { exact: false }).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: /Context/ })).toBeDefined();
+    expect(screen.getByText("2 files")).toBeDefined();
+    expect(await screen.findByText("added line")).toBeDefined();
+    expect(screen.getByRole("button", { name: "Start review" })).toBeDefined();
   });
 
-  test("hides the context rail on the diff tab and shows the diff", async () => {
+  test("Context starts collapsed, expands in place and closes first on Escape", async () => {
+    useUIStore.setState({ detailFullscreen: true });
     await renderDetail();
-    fireEvent.click(screen.getByRole("tab", { name: /^Diff/ }));
+    const context = screen.getByRole("button", { name: /Context/ });
+    expect(context.getAttribute("aria-expanded")).toBe("false");
+
+    fireEvent.click(context);
+    expect(context.getAttribute("aria-expanded")).toBe("true");
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(context.getAttribute("aria-expanded")).toBe("false");
+    expect(useUIStore.getState().detailFullscreen).toBe(true);
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(useUIStore.getState().detailFullscreen).toBe(false);
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(useUIStore.getState().detailOpen).toBe(false);
+  });
+
+  test("a finding index row jumps into the diff", async () => {
+    getConfig.mockImplementation(async () =>
+      makeConfig({ actions: [reviewAction] }),
+    );
+    getAction.mockImplementation(async () => reviewArtifact);
+    await renderDetail();
+
+    const index = await screen.findByText("src/app.ts:2");
+    expect(index).toBeDefined();
+    fireEvent.click(index);
+    expect(await screen.findByText("added line")).toBeDefined();
+  });
+
+  test("findings render as threads on their line as well as in the bar", async () => {
+    getConfig.mockImplementation(async () =>
+      makeConfig({ actions: [reviewAction] }),
+    );
+    getAction.mockImplementation(async () => reviewArtifact);
+    await renderDetail();
+
+    await waitFor(() =>
+      expect(
+        screen.getAllByText("Skipped commit").length,
+      ).toBeGreaterThanOrEqual(2),
+    );
+    expect(screen.getByText("The early return skips commit.")).toBeDefined();
+  });
+
+  test("a stale artifact says so and does not anchor findings", async () => {
+    getConfig.mockImplementation(async () =>
+      makeConfig({ actions: [reviewAction] }),
+    );
+    getAction.mockImplementation(async () => ({
+      artifact: {
+        ...reviewArtifact.artifact!,
+        sha: "0000000000000",
+      },
+    }));
+    await renderDetail();
+
+    expect(
+      await screen.findByText(/This review is from an older commit/),
+    ).toBeDefined();
+    expect(screen.queryByText("Skipped commit")).toBeNull();
+  });
+
+  test("review submission mounts at the top of the bar and Escape closes it first", async () => {
+    await renderDetail();
+    fireEvent.click(screen.getByRole("button", { name: "Manage" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Request changes/ }));
+
+    expect(screen.getByLabelText("Review comment")).toBeDefined();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByLabelText("Review comment")).toBeNull();
+    expect(useUIStore.getState().detailOpen).toBe(true);
+  });
+
+  test("unavailable review explains repoPaths and disables the action", async () => {
+    getConfig.mockImplementation(async () =>
+      makeConfig({
+        actions: [reviewAction],
+        repos: [
+          {
+            owner: "acme",
+            name: "web",
+            actions: true,
+            review: { available: false, reason: "No local clone." },
+          },
+        ],
+      }),
+    );
+    await renderDetail();
+
+    expect(
+      await screen.findByText(/Automatic review needs a local clone/),
+    ).toBeDefined();
+    expect(screen.getByText(/No local clone/)).toBeDefined();
+    const start = screen.getByRole("button", { name: "Start review" });
+    expect(start.hasAttribute("disabled")).toBe(true);
+  });
+
+  test("explain is in the bar when configured", async () => {
+    getConfig.mockImplementation(async () =>
+      makeConfig({ actions: [explainAction] }),
+    );
+    await renderDetail();
+
+    expect(
+      await screen.findByRole("button", { name: "Explain this PR" }),
+    ).toBeDefined();
+  });
+});
+
+describe("PRDetail receipts and errors", () => {
+  test("a merged PR opens as its receipt and never loads a diff", async () => {
+    getPR.mockImplementation(async () => ({
+      pr: makePR({
+        state: "merged",
+        mergedAt: "2026-06-15T12:00:00Z",
+        mergedBy: "octocat",
+        mergeCommitSHA: "9f3c2abffee12",
+      }),
+    }));
+    renderWithQuery(<PRDetail repo="acme/web" number={42} />);
+
+    expect(await screen.findByText(/Merged into/)).toBeDefined();
+    expect(screen.getByText("Merge commit")).toBeDefined();
+    expect(screen.queryByLabelText("Review bar")).toBeNull();
+    expect(getPRDiff).not.toHaveBeenCalled();
+  });
+
+  test("a closed PR keeps the receipt but drops the merge rows", async () => {
+    getPR.mockImplementation(async () => ({
+      pr: makePR({ state: "closed", isDraft: false }),
+    }));
+    renderWithQuery(<PRDetail repo="acme/web" number={42} />);
+
+    expect(await screen.findByText("Closed without merging")).toBeDefined();
+    expect(screen.queryByText("Merge commit")).toBeNull();
+    expect(screen.queryByLabelText("Review bar")).toBeNull();
+  });
+
+  test("a failed PR load offers a retry", async () => {
+    getPR.mockImplementation(async () => {
+      throw new Error("GitHub is unavailable");
+    });
+    renderWithQuery(<PRDetail repo="acme/web" number={42} />);
+
+    expect(
+      await screen.findByText("Can’t load this pull request"),
+    ).toBeDefined();
+    expect(screen.getByText("GitHub is unavailable")).toBeDefined();
+
+    getPR.mockImplementation(async () => ({ pr }));
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
 
     expect(await screen.findByText("added line")).toBeDefined();
-    expect(screen.queryByLabelText("Pull request context")).toBeNull();
-    expect(getPRDiff).toHaveBeenCalledTimes(1);
   });
 
   test("never caches a diff under a head it does not describe", async () => {
@@ -148,7 +347,7 @@ describe("PRDetail", () => {
     const { client } = renderWithQuery(
       <PRDetail repo="acme/web" number={42} />,
     );
-    await screen.findByText("Add checkout flow");
+    expect(await screen.findByText(/moved\.ts/)).toBeDefined();
 
     await waitFor(() =>
       expect(
@@ -160,74 +359,10 @@ describe("PRDetail", () => {
     ).toBeUndefined();
     expect(detailCalls).toBeGreaterThanOrEqual(2);
   });
+});
 
-  test("omits Review and Explain tabs when the server offers no actions", async () => {
-    await renderDetail();
-
-    expect(screen.queryByRole("tab", { name: /^Review/ })).toBeNull();
-    expect(screen.queryByRole("tab", { name: /^Explain/ })).toBeNull();
-  });
-
-  test("fades the tab panel when its content overflows", async () => {
-    await renderDetail();
-    const panel = screen.getByRole("tabpanel");
-    Object.defineProperty(panel, "scrollHeight", {
-      configurable: true,
-      value: 1000,
-    });
-    Object.defineProperty(panel, "clientHeight", {
-      configurable: true,
-      value: 100,
-    });
-
-    fireEvent.scroll(panel);
-
-    await waitFor(() => expect(panel.className).toContain("fade-bottom"));
-  });
-
-  test("copies the head SHA from the context rail", async () => {
-    const writeText = mock(async () => {});
-    const descriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
-    Object.defineProperty(navigator, "clipboard", {
-      configurable: true,
-      value: { writeText },
-    });
-    try {
-      await renderDetail();
-
-      fireEvent.click(screen.getByRole("button", { name: "Copy commit SHA" }));
-
-      await waitFor(() => expect(writeText).toHaveBeenCalledWith(pr.headSHA));
-      expect(
-        await screen.findByRole("button", { name: "Copied" }),
-      ).toBeDefined();
-    } finally {
-      if (descriptor) {
-        Object.defineProperty(navigator, "clipboard", descriptor);
-      } else {
-        Reflect.deleteProperty(navigator, "clipboard");
-      }
-    }
-  });
-
-  test("Escape closes the detail", async () => {
-    await renderDetail();
-    fireEvent.keyDown(window, { key: "Escape" });
-
-    expect(useUIStore.getState().detailOpen).toBe(false);
-  });
-
-  test("Escape leaves fullscreen before closing the detail", async () => {
-    useUIStore.setState({ detailFullscreen: true });
-    await renderDetail();
-
-    fireEvent.keyDown(window, { key: "Escape" });
-
-    expect(useUIStore.getState().detailFullscreen).toBe(false);
-    expect(useUIStore.getState().detailOpen).toBe(true);
-  });
-
-  test("shows the merged receipt instead of closing the detail", async () => {
+describe("PRDetail Manage", () => {
+  test("squash merge runs from Manage and lands on the receipt", async () => {
     const myPR = makePR({
       author: "viewer",
       viewerLogin: "viewer",
@@ -246,21 +381,21 @@ describe("PRDetail", () => {
     useUIStore.setState({ detailFullscreen: true });
     await renderDetail();
 
+    fireEvent.click(screen.getByRole("button", { name: "Manage" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Squash merge" }));
+    const confirm = screen.getByLabelText("Confirm squash merge");
     mergePR.mockImplementation(async () => {
       merged = true;
       return { ok: true };
     });
-    fireEvent.click(screen.getByRole("button", { name: "Squash merge" }));
-    const confirm = screen.getByLabelText("Confirm squash merge");
     fireEvent.click(
       within(confirm).getByRole("button", { name: "Squash merge" }),
     );
 
     await waitFor(() => expect(mergePR).toHaveBeenCalled());
     expect(await screen.findByText(/Merged into/)).toBeDefined();
-    expect(screen.queryByRole("tablist")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Start review" })).toBeNull();
     expect(screen.getByText("9f3c2ab")).toBeDefined();
-    expect(screen.queryByRole("button", { name: "Squash merge" })).toBeNull();
     expect(useUIStore.getState().selectedPR).toBe("acme/web#42");
     expect(useUIStore.getState().detailOpen).toBe(true);
   });
@@ -283,10 +418,14 @@ describe("PRDetail", () => {
     getPR.mockImplementation(async () => ({ pr: merged ? mergedPR : myPR }));
     const { client } = await renderDetail();
 
-    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    fireEvent.click(screen.getByRole("button", { name: "Manage" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Request changes/ }));
     expect(screen.getByLabelText("Review comment")).toBeDefined();
-    fireEvent.click(screen.getByRole("button", { name: "Squash merge" }));
-    expect(screen.getByLabelText("Confirm squash merge")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Manage" }));
+    fireEvent.click(
+      screen.getByRole("menuitem", { name: "Close pull request" }),
+    );
+    expect(screen.getByLabelText("Confirm close pull request")).toBeDefined();
 
     merged = true;
     await act(() =>
@@ -295,60 +434,10 @@ describe("PRDetail", () => {
 
     expect(await screen.findByText(/Merged into/)).toBeDefined();
     expect(screen.queryByLabelText("Review comment")).toBeNull();
-    expect(screen.queryByLabelText("Confirm squash merge")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Squash merge" })).toBeNull();
+    expect(screen.queryByLabelText("Confirm close pull request")).toBeNull();
 
     // Nothing hidden is left consuming Escape; it closes the detail.
     fireEvent.keyDown(window, { key: "Escape" });
     expect(useUIStore.getState().detailOpen).toBe(false);
-  });
-
-  test("a merged PR opens as its receipt, not the tabbed view", async () => {
-    getPR.mockImplementation(async () => ({
-      pr: makePR({
-        state: "merged",
-        mergedAt: "2026-06-15T12:00:00Z",
-        mergedBy: "octocat",
-        mergeCommitSHA: "9f3c2abffee12",
-      }),
-    }));
-    await renderDetail();
-
-    expect(screen.queryByRole("tablist")).toBeNull();
-    expect(screen.queryByLabelText("Pull request context")).toBeNull();
-    expect(screen.getByText(/Merged into/)).toBeDefined();
-    expect(screen.getByText("Merge commit")).toBeDefined();
-    expect(getPRDiff).not.toHaveBeenCalled();
-  });
-
-  test("a closed PR keeps the receipt but drops the merge rows", async () => {
-    getPR.mockImplementation(async () => ({
-      pr: makePR({ state: "closed", isDraft: false }),
-    }));
-    await renderDetail();
-
-    expect(screen.getByText("Closed without merging")).toBeDefined();
-    expect(screen.queryByText("Merge commit")).toBeNull();
-    expect(screen.queryByText("Merged")).toBeNull();
-    expect(screen.queryByRole("tablist")).toBeNull();
-  });
-
-  test("a failed PR load offers a retry", async () => {
-    getPR.mockImplementation(async () => {
-      throw new Error("GitHub is unavailable");
-    });
-    renderWithQuery(<PRDetail repo="acme/web" number={42} />);
-
-    expect(
-      await screen.findByText("Can’t load this pull request"),
-    ).toBeDefined();
-    expect(screen.getByText("GitHub is unavailable")).toBeDefined();
-
-    getPR.mockImplementation(async () => ({ pr }));
-    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
-
-    await waitFor(() =>
-      expect(screen.getByText("Add checkout flow")).toBeDefined(),
-    );
   });
 });

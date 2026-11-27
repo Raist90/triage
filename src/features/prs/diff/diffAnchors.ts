@@ -32,20 +32,25 @@ export function lineAnchors(path: string, line: DiffLine): CommentAnchor[] {
 }
 
 /**
- * Comments for one file at the current head, grouped by anchor and ordered
- * oldest first. Comments on other files, other commits or without a line are
- * ignored because they cannot be placed on this patch.
+ * Comments for one file grouped by anchor and ordered oldest first. Comments on
+ * other files, without a resolvable line, or that GitHub has already marked
+ * outdated are ignored because they cannot be placed on this patch.
+ *
+ * The commit they were written at is deliberately not checked: GitHub anchors a
+ * comment to the commit it was made against, so every comment carries the old
+ * SHA after a rebase or any push. The line it returns is still resolved against
+ * the current diff, and a line GitHub can no longer place comes back null,
+ * which is exactly `outdated`.
  */
 export function groupCommentsByAnchor(
   comments: InlineComment[],
   filePath: string,
-  headSHA: string,
 ): Map<string, InlineComment[]> {
   const byAnchor = new Map<string, InlineComment[]>();
   for (const comment of comments) {
     if (
       comment.path !== filePath ||
-      comment.commitID !== headSHA ||
+      comment.outdated ||
       comment.line === undefined ||
       (comment.side !== "RIGHT" && comment.side !== "LEFT")
     ) {

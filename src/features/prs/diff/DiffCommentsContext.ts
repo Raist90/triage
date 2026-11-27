@@ -15,6 +15,8 @@ export type DiffCommentsValue = {
   headSHA: string;
   canComment: boolean;
   viewerLogin?: string;
+  /** False hides existing threads and the composer, never the code. */
+  showComments: boolean;
 };
 
 /** Provided at the root of `DiffView`, above every file section. */
