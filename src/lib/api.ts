@@ -205,6 +205,37 @@ export function deletePRComment({
   );
 }
 
+export type ReviewDraftResponse = {
+  ok: boolean;
+  reviewID: number;
+  comments: number;
+};
+
+/**
+ * Turn a review's findings into one pending review on GitHub. GitHub keeps the
+ * draft private until the review is submitted.
+ */
+export function publishReviewDraft({
+  repo,
+  number,
+  actionID,
+}: PROptions & { actionID: string }): Promise<ReviewDraftResponse> {
+  return request<ReviewDraftResponse>(`${prPath(repo, number)}/review/draft`, {
+    method: "POST",
+    body: { actionID },
+  });
+}
+
+/** Delete the viewer's pending review on GitHub. */
+export function discardReviewDraft({
+  repo,
+  number,
+}: PROptions): Promise<{ cleared: number }> {
+  return request<{ cleared: number }>(`${prPath(repo, number)}/review/draft`, {
+    method: "DELETE",
+  });
+}
+
 type ActionOptions = PROptions & {
   actionID: string;
 };

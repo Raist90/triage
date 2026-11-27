@@ -41,6 +41,7 @@ func TestOpenAPIContract(t *testing.T) {
 		"/pr/{owner}/{repo}/{number}",
 		"/pr/{owner}/{repo}/{number}/diff",
 		"/pr/{owner}/{repo}/{number}/review",
+		"/pr/{owner}/{repo}/{number}/review/draft",
 		"/pr/{owner}/{repo}/{number}/comments/{commentID}",
 		"/pr/{owner}/{repo}/{number}/actions/{actionID}",
 		"/pr/{owner}/{repo}/{number}/actions/{actionID}/patches/{findingID}",

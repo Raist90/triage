@@ -155,11 +155,16 @@ func (n prNode) toPR() PR {
 	for _, comment := range n.Comments.Nodes {
 		comments = append(comments, comment.toComment("comment"))
 	}
+	pending := false
 	for _, review := range n.Reviews.Nodes {
 		state := strings.ToLower(review.State)
 		// Pending reviews are private drafts; empty COMMENTED reviews are just
 		// the batch that carries inline comments, which arrive on their own.
-		if review.State == "PENDING" || (review.State == "COMMENTED" && review.Body == "") {
+		if review.State == "PENDING" {
+			pending = true
+			continue
+		}
+		if review.State == "COMMENTED" && review.Body == "" {
 			continue
 		}
 		comments = append(comments, Comment{
@@ -191,6 +196,7 @@ func (n prNode) toPR() PR {
 		CheckStatus:        check,
 		ReviewState:        review,
 		ViewerReview:       normalizeReviewState(n.ViewerLatestReview.State),
+		PendingReview:      pending,
 		State:              strings.ToLower(n.State),
 		Description:        n.Body,
 		Additions:          n.Additions,

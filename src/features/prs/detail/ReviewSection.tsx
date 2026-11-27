@@ -4,6 +4,7 @@ import { cx } from "../../../lib/cx";
 import { formatRelative } from "../../../lib/time";
 import type { PR, ReviewFinding, ReviewSeverity } from "../../../lib/types";
 import type { ClaudeActionController } from "../action/useClaudeAction";
+import { PublishDraft } from "../review/PublishDraft";
 import { ReviewStages } from "../review/ReviewStages";
 import { ReviewVerdict } from "../review/ReviewVerdict";
 
@@ -148,6 +149,16 @@ export function ReviewSection({
                 : ""}
               .
             </p>
+          ) : null}
+
+          {pr.state === "open" && controller.action ? (
+            <PublishDraft
+              repo={pr.repo}
+              number={pr.number}
+              actionID={controller.action.id}
+              findings={current.findings}
+              pending={pr.pendingReview === true}
+            />
           ) : null}
         </>
       ) : stale || canceled ? (

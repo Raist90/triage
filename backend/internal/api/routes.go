@@ -116,9 +116,28 @@ func (s *Server) registerRoutes(api huma.API) {
 		Method:       http.MethodPost,
 		Path:         "/pr/{owner}/{repo}/{number}/review",
 		Summary:      "Approve, request changes or comment on a pull request",
+		Description:  "Submits the viewer's pending review when one exists, otherwise creates a review with the body.",
 		MaxBodyBytes: maxReviewBody,
 		Tags:         []string{"prs"},
 	}, s.submitReview)
+
+	huma.Register(api, huma.Operation{
+		OperationID:  "publish-review-draft",
+		Method:       http.MethodPost,
+		Path:         "/pr/{owner}/{repo}/{number}/review/draft",
+		Summary:      "Publish review findings as one pending review on GitHub",
+		Description:  "Creates a draft review with one inline comment per finding. Nothing is public until the review is submitted.",
+		MaxBodyBytes: maxPRStateBody,
+		Tags:         []string{"prs"},
+	}, s.publishReviewDraft)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "discard-review-draft",
+		Method:      http.MethodDelete,
+		Path:        "/pr/{owner}/{repo}/{number}/review/draft",
+		Summary:     "Discard the viewer's pending review on GitHub",
+		Tags:        []string{"prs"},
+	}, s.discardReviewDraft)
 
 	huma.Register(api, huma.Operation{
 		OperationID:  "set-pr-draft",

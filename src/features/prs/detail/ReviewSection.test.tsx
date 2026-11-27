@@ -1,11 +1,12 @@
 import { describe, expect, mock, test } from "bun:test";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import type {
   ActionArtifact,
   ReviewDocument,
   ReviewFinding,
 } from "../../../lib/types";
 import { makePR } from "../../../test/fixtures";
+import { renderWithQuery } from "../../../test/render";
 import type { ClaudeActionController } from "../action/useClaudeAction";
 import { ReviewSection } from "./ReviewSection";
 
@@ -64,7 +65,7 @@ function renderSection(
     onFocusFinding?: (finding: ReviewFinding) => void;
   } = {},
 ) {
-  return render(
+  return renderWithQuery(
     <ReviewSection
       pr={makePR({ reviewState: "changes_requested" })}
       controller={controller(overrides)}

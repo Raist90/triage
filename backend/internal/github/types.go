@@ -49,15 +49,19 @@ type PR struct {
 	ViewerLogin string `json:"viewerLogin,omitempty"`
 	// ViewerCanApprove is false for the author's own PR, where GitHub rejects
 	// an approval. Detail responses only.
-	ViewerCanApprove bool   `json:"viewerCanApprove,omitempty"`
-	State            string `json:"state" doc:"GitHub pull request state, lowercased"`
-	Description      string `json:"description" doc:"Pull request body, markdown"`
-	Additions        int    `json:"additions"`
-	Deletions        int    `json:"deletions"`
-	ChangedFiles     int    `json:"changedFiles"`
-	CommitCount      int    `json:"commitCount" doc:"Number of commits on the pull request"`
-	CreatedAt        string `json:"createdAt,omitempty"`
-	UpdatedAt        string `json:"updatedAt"`
+	ViewerCanApprove bool `json:"viewerCanApprove,omitempty"`
+	// PendingReview is true when the viewer has a draft review on the PR that
+	// they have not submitted. Detail responses only; GitHub hides the draft
+	// from everyone else, so any pending review is the viewer's.
+	PendingReview bool   `json:"pendingReview,omitempty" doc:"The viewer has an unsubmitted draft review"`
+	State         string `json:"state" doc:"GitHub pull request state, lowercased"`
+	Description   string `json:"description" doc:"Pull request body, markdown"`
+	Additions     int    `json:"additions"`
+	Deletions     int    `json:"deletions"`
+	ChangedFiles  int    `json:"changedFiles"`
+	CommitCount   int    `json:"commitCount" doc:"Number of commits on the pull request"`
+	CreatedAt     string `json:"createdAt,omitempty"`
+	UpdatedAt     string `json:"updatedAt"`
 	// MergedAt, MergedBy and MergeCommitSHA are the merge receipt. Detail
 	// responses only, and only once GitHub reports the PR merged.
 	MergedAt       string `json:"mergedAt,omitempty" doc:"When the pull request merged"`

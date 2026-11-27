@@ -332,6 +332,10 @@ export type Pr = {
    */
   mergedBy?: string;
   number: number;
+  /**
+   * The viewer has an unsubmitted draft review
+   */
+  pendingReview?: boolean;
   repo: string;
   /**
    * The viewer is a requested user reviewer; list responses only
@@ -379,6 +383,25 @@ export type PatchApplyResponse = {
 
 export type PrDetailResponse = {
   pr: Pr;
+};
+
+export type PublishDraftRequest = {
+  /**
+   * Review action whose findings to publish
+   */
+  actionID: string;
+};
+
+export type PublishDraftResponse = {
+  /**
+   * Inline comments the draft carries
+   */
+  comments: number;
+  ok: boolean;
+  /**
+   * GitHub's id for the pending review
+   */
+  reviewID: number;
 };
 
 export type RepoReviewView = {
@@ -1252,6 +1275,86 @@ export type SubmitReviewResponses = {
 
 export type SubmitReviewResponse =
   SubmitReviewResponses[keyof SubmitReviewResponses];
+
+export type DiscardReviewDraftData = {
+  body?: never;
+  path: {
+    /**
+     * Repository owner
+     */
+    owner: string;
+    /**
+     * Repository name
+     */
+    repo: string;
+    /**
+     * Pull request number
+     */
+    number: number;
+  };
+  query?: never;
+  url: "/pr/{owner}/{repo}/{number}/review/draft";
+};
+
+export type DiscardReviewDraftErrors = {
+  /**
+   * Error
+   */
+  default: ApiError;
+};
+
+export type DiscardReviewDraftError =
+  DiscardReviewDraftErrors[keyof DiscardReviewDraftErrors];
+
+export type DiscardReviewDraftResponses = {
+  /**
+   * OK
+   */
+  200: ClearedResponse;
+};
+
+export type DiscardReviewDraftResponse =
+  DiscardReviewDraftResponses[keyof DiscardReviewDraftResponses];
+
+export type PublishReviewDraftData = {
+  body: PublishDraftRequest;
+  path: {
+    /**
+     * Repository owner
+     */
+    owner: string;
+    /**
+     * Repository name
+     */
+    repo: string;
+    /**
+     * Pull request number
+     */
+    number: number;
+  };
+  query?: never;
+  url: "/pr/{owner}/{repo}/{number}/review/draft";
+};
+
+export type PublishReviewDraftErrors = {
+  /**
+   * Error
+   */
+  default: ApiError;
+};
+
+export type PublishReviewDraftError =
+  PublishReviewDraftErrors[keyof PublishReviewDraftErrors];
+
+export type PublishReviewDraftResponses = {
+  /**
+   * OK
+   */
+  200: PublishDraftResponse;
+};
+
+export type PublishReviewDraftResponse =
+  PublishReviewDraftResponses[keyof PublishReviewDraftResponses];
 
 export type ListPrsData = {
   body?: never;

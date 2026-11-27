@@ -71,7 +71,10 @@ stay side by side; reviewing is the only flow that matters.
   followed by a proportional severity strip. The bar lists one index row per
   finding (`path:line`, 2px severity rail, title); clicking it jumps to the
   diff. Every finding renders as a thread under its diff line with the same
-  2px rail, and only offers Apply patch (publishing is out of scope).
+  2px rail, and offers Apply patch. One control under the index publishes the
+  findings as a single draft review on GitHub (praise excluded, nothing public
+  until the review is submitted); an existing draft is only replaced when the
+  user asks, never silently.
 - **PR detail:** open PRs are one screen, not places or tabs. 44px detail bar
   (`repo#number`, branch, fullscreen, Manage, GitHub; a review-bar toggle below
   `wide`) → a collapsed 40px Context row (PR body, expands in place) → the 44px

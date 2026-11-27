@@ -134,8 +134,10 @@ In:
   scrolling diff, and a fixed 300px review bar (review state and finding index,
   conversation, explanation). No places or briefing.
 - Inline review findings: each finding renders as a thread on the diff line it
-  cites, with Apply patch; the bar keeps the index. Findings are never published.
-- Post a review: approve, request changes, comment
+  cites, with Apply patch; the bar keeps the index. Findings publish only as one
+  pending review on GitHub that the user submits.
+- Post a review: approve, request changes, comment; a pending review submitted
+  from Triage keeps the comments that were published into it
 - Toggle your own PRs between draft and ready for review; squash merge your own
   PRs once GitHub reports them mergeable; close your own open PRs without
   merging behind a confirmation bar. The list refreshes after a short delay.
@@ -153,7 +155,8 @@ Out (do not build yet):
 - Notifications, multi-account, GitHub OAuth/device flow
 - Real-time updates/webhooks; polling anything beyond the visible list and the
   open PR
-- Publishing review comments or findings to GitHub
+- Publishing review comments or findings outside a draft review (no standalone
+  model-authored comment posts)
 - Comment thread replies, resolve, suggestion commits
 - Reopen a closed PR, merge methods other than squash, auto-merge, checkout locally
 - Side-by-side diff, diff modes beyond per-file unified
