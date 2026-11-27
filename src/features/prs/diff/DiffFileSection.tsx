@@ -57,7 +57,7 @@ export const DiffFileSection = memo(function DiffFileSection({
   mount,
   onBodySettled,
 }: DiffFileSectionProps) {
-  const { comments, headSHA } = useDiffCommentsContext();
+  const { comments } = useDiffCommentsContext();
   const bodyRef = useRef<HTMLDivElement | null>(null);
   // Height the placeholder occupied before the body mounted. Zero once the
   // body owns the space, so later re-renders do not report twice.
@@ -82,7 +82,7 @@ export const DiffFileSection = memo(function DiffFileSection({
   const fileCommentCount = comments.comments.filter(
     (comment) =>
       comment.path === file.path &&
-      comment.commitID === headSHA &&
+      !comment.outdated &&
       comment.line !== undefined,
   ).length;
   const meta = [

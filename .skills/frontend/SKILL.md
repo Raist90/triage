@@ -78,7 +78,11 @@ stay side by side; reviewing is the only flow that matters.
   (`100cqw`, sticky left) so a long code line never forces a sideways scroll to
   read them, with bodies at the same 12px measure and a 2px rail (accent while
   pending). Conversation review entries jump to their thread; issue comments
-  have no diff anchor. One control under the index publishes the
+  have no diff anchor. A review comment anchors by `path`/`side`/`line`, never
+  by the commit it was written at: after a rebase or push the head SHA moves but
+  GitHub still resolves the line, and only a null line (`outdated`) takes a
+  comment out of the diff while it stays in the conversation. One control under
+  the index publishes the
   findings as a single draft review on GitHub (praise excluded, nothing public
   until the review is submitted); an existing draft is only replaced when the
   user asks, never silently.

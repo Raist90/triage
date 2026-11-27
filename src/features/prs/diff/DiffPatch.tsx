@@ -31,7 +31,7 @@ export function FilePatch({
   onDraftChange,
   flash,
 }: FilePatchProps) {
-  const { comments, headSHA } = useDiffCommentsContext();
+  const { comments } = useDiffCommentsContext();
   const [showUnanchored, setShowUnanchored] = useState(false);
 
   const allHunks = file.hunks ?? EMPTY_HUNKS;
@@ -49,24 +49,22 @@ export function FilePatch({
   // Both are shared by every row below, so run them once per patch change, not
   // on every draft, flash or selection render.
   const byAnchor = useMemo(
-    () => groupCommentsByAnchor(comments.comments, file.path, headSHA),
-    [comments.comments, file.path, headSHA],
+    () => groupCommentsByAnchor(comments.comments, file.path),
+    [comments.comments, file.path],
   );
   // A finding whose comment Triage published is now the comment's job to
   // render: hide the finding thread on the line instead of stacking two copies.
+  // The comment's commit is irrelevant; only an outdated anchor (GitHub no
+  // longer places it on the diff) hands the line back to the finding.
   const publishedFindingIDs = useMemo(() => {
     const ids = new Set<string>();
     for (const comment of comments.comments) {
-      if (
-        comment.findingID &&
-        !comment.outdated &&
-        comment.commitID === headSHA
-      ) {
+      if (comment.findingID && !comment.outdated) {
         ids.add(comment.findingID);
       }
     }
     return ids;
-  }, [comments.comments, headSHA]);
+  }, [comments.comments]);
   const changes = file.semantic ?? EMPTY_CHANGES;
   const { byHunk, unanchored } = useMemo(
     () =>

@@ -58,8 +58,9 @@ type NewInlineComment struct {
 }
 
 // ListReviewComments returns every inline review comment on a pull request.
-// Comments from older commits are included with Outdated set; the diff view
-// only anchors the ones matching the current head.
+// Comments from older commits are included; a comment carries the commit it was
+// written at, not the current head. The diff view anchors any comment that still
+// has a line and is not outdated.
 func (c *Client) ListReviewComments(ctx context.Context, owner, repo string, number int) ([]InlineComment, error) {
 	if !c.Configured() {
 		return nil, &gql.APIError{Message: "GitHub is not configured"}

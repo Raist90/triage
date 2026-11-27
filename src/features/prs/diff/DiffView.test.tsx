@@ -312,6 +312,7 @@ describe("DiffView", () => {
           makeInlineComment({
             id: 77,
             body: "Published body.",
+            commitID: "old-head-before-rebase",
             findingID: "finding-1",
             pending: true,
             path: "src/b.ts",
@@ -406,14 +407,15 @@ describe("DiffView", () => {
     ).toBeNull();
   });
 
-  test("renders existing comments on the matching side and line", () => {
+  test("renders existing comments on the matching side and line, at any commit", () => {
     const comments = makeCommentsController({
       comments: [
         {
           id: 7,
           author: "octocat",
           body: "Existing thread",
-          commitID: headSHA,
+          // Written before a rebase and push: the head moved, the line did not.
+          commitID: "old-head-before-rebase",
           createdAt: "2026-06-15T11:50:00Z",
           path: "src/a.ts",
           side: "RIGHT",

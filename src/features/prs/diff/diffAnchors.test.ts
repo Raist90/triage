@@ -50,14 +50,14 @@ describe("line anchors", () => {
 });
 
 describe("comment grouping", () => {
-  test("keeps only comments on this file, this commit and a real line", () => {
+  test("keeps comments on this file and a placeable line, at any commit", () => {
     const comments = [
       makeInlineComment({ id: 1, path: "src/a.ts", line: 2 }),
       makeInlineComment({ id: 2, path: "src/b.ts", line: 2 }),
       makeInlineComment({
         id: 3,
         path: "src/a.ts",
-        commitID: "older",
+        commitID: "old-head-before-rebase",
         line: 2,
       }),
       makeInlineComment({ id: 4, path: "src/a.ts", line: undefined }),
@@ -67,18 +67,22 @@ describe("comment grouping", () => {
         line: 2,
         side: "SIDE" as never,
       }),
+      makeInlineComment({
+        id: 6,
+        path: "src/a.ts",
+        line: 2,
+        outdated: true,
+      }),
     ];
 
-    const groups = groupCommentsByAnchor(
-      comments,
-      "src/a.ts",
-      "abc1234def5678",
-    );
+    const groups = groupCommentsByAnchor(comments, "src/a.ts");
 
     expect(groups.size).toBe(1);
     expect(
-      groups.get(anchorKey({ path: "src/a.ts", side: "RIGHT", line: 2 })),
-    ).toEqual([makeInlineComment({ id: 1, path: "src/a.ts", line: 2 })]);
+      groups
+        .get(anchorKey({ path: "src/a.ts", side: "RIGHT", line: 2 }))
+        ?.map((comment) => comment.id),
+    ).toEqual([1, 3]);
   });
 
   test("orders comments on the same anchor oldest first", () => {
@@ -91,11 +95,7 @@ describe("comment grouping", () => {
       createdAt: "2026-06-15T11:00:00Z",
     });
 
-    const groups = groupCommentsByAnchor(
-      [later, earlier],
-      "src/app.ts",
-      "abc1234def5678",
-    );
+    const groups = groupCommentsByAnchor([later, earlier], "src/app.ts");
     const bucket = groups.get(
       anchorKey({ path: "src/app.ts", side: "RIGHT", line: 2 }),
     );

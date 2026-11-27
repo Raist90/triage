@@ -145,12 +145,11 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
 
   // A published finding is rendered by its GitHub comment, so the index jump
   // targets that comment instead of a finding thread that no longer exists.
+  // The comment's commit does not matter: only an anchor GitHub can still place
+  // (not outdated) keeps the finding hidden.
   function focusFinding(finding: ReviewFinding) {
     const published = diffComments.comments.find(
-      (comment) =>
-        comment.findingID === finding.id &&
-        !comment.outdated &&
-        comment.commitID === headSHA,
+      (comment) => comment.findingID === finding.id && !comment.outdated,
     );
     setDiffTarget({
       path: finding.file,
