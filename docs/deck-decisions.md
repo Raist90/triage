@@ -2,6 +2,14 @@
 
 Status: implementation contract. Dated 2026-11-26.
 
+> **Amendment 2026-11-27 — the hero is dropped.** The deck is grouping plus
+> rows only: no hero, no draft fallback, no Skip, no extra options above the
+> buckets. The elected row stays in its bucket, bucket counts include every
+> filtered row, and the first row of the first bucket is the only “up next”
+> affordance. This supersedes D2, D7's hero content, the Skip decision, and
+> every other hero reference below; those sections stay as history. See
+> `mock/hero-directions.html` option 01 for the shipped composition.
+
 Open-PR detail navigation ships as the briefing in
 `docs/pr-detail-briefing.md`, which supersedes the tab model. D9/D10 below
 describe the shipped briefing and places.

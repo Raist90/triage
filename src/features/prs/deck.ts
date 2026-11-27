@@ -9,22 +9,19 @@ export type DeckSeverity = "blocked" | "warn" | "wait";
 export type DeckBucket = {
   id: DeckBucketID;
   label: string;
-  /** Rows in this bucket, already ordered, excluding the hero. */
+  /** Rows in this bucket, already ordered. */
   rows: PR[];
 };
 
-/** A rendered row in cursor order. `bucket` is null for the hero. */
+/** A rendered row in cursor order. */
 export type DeckRowRef = {
   pr: PR;
-  bucket: DeckBucketID | null;
+  bucket: DeckBucketID;
 };
 
 export type Deck = {
-  hero: PR | null;
-  /** Which hero shape applies: Up next, Needs you, or the draft fallback. */
-  heroKind: "ready" | "needs" | "draft" | null;
   buckets: DeckBucket[];
-  /** Hero first, then every row of every non-empty bucket. */
+  /** Every row of every non-empty bucket, in visual order. */
   rows: DeckRowRef[];
 };
 
@@ -201,28 +198,10 @@ export function deckOrder(prs: PR[], tab: string, viewer: string): PR[] {
 }
 
 /**
- * Whether a row can ever be the hero in this tab, ignoring the skipped set.
- * Mine elects non-drafts then drafts; review elects non-drafts; all elects
- * non-drafts that need the viewer. Skip cycling uses this to know when the
- * candidate list is exhausted.
- */
-export function canBeHero(pr: PR, tab: string, viewer: string): boolean {
-  if (isDraft(pr)) return tab === "mine";
-  if (tab === "mine" || tab === "review") return true;
-  return bucketFor(pr, tab, viewer) === "needs";
-}
-
-/**
  * Build the deck. `prs` must already be filtered and searched: bucket counts
- * and hero election describe the filtered set. `skipped` is session-only and
- * affects hero election only.
+ * and order describe the filtered set.
  */
-export function buildDeck(
-  prs: PR[],
-  tab: string,
-  viewer: string,
-  skipped: ReadonlySet<string> = new Set(),
-): Deck {
+export function buildDeck(prs: PR[], tab: string, viewer: string): Deck {
   const ordered = deckOrder(prs, tab, viewer);
   const groups = new Map<DeckBucketID, PR[]>();
   for (const pr of ordered) {
@@ -232,46 +211,14 @@ export function buildDeck(
     else groups.set(id, [pr]);
   }
 
-  let hero: PR | null = null;
-  let heroKind: Deck["heroKind"] = null;
-  if (tab === "mine") {
-    hero =
-      ordered.find((pr) => !isDraft(pr) && !skipped.has(prKey(pr))) ?? null;
-    if (hero) {
-      heroKind = "ready";
-    } else {
-      hero =
-        ordered
-          .filter((pr) => isDraft(pr) && !skipped.has(prKey(pr)))
-          .sort(compareDrafts)[0] ?? null;
-      if (hero) heroKind = "draft";
-    }
-  } else {
-    hero =
-      ordered.find(
-        (pr) => canBeHero(pr, tab, viewer) && !skipped.has(prKey(pr)),
-      ) ?? null;
-    if (hero) heroKind = "needs";
-  }
-
-  if (hero) {
-    const id = bucketFor(hero, tab, viewer);
-    const rows = groups.get(id);
-    if (rows) {
-      const index = rows.findIndex((pr) => prKey(pr) === prKey(hero));
-      if (index >= 0) rows.splice(index, 1);
-    }
-  }
-
   const buckets = (BUCKETS[tab] ?? BUCKETS.all)
     .map((def) => ({ ...def, rows: groups.get(def.id) ?? [] }))
     .filter((bucket) => bucket.rows.length > 0);
 
   const rows: DeckRowRef[] = [];
-  if (hero) rows.push({ pr: hero, bucket: null });
   for (const bucket of buckets) {
     for (const pr of bucket.rows) rows.push({ pr, bucket: bucket.id });
   }
 
-  return { hero, heroKind, buckets, rows };
+  return { buckets, rows };
 }

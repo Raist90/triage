@@ -9,7 +9,6 @@ import { cx } from "../../lib/cx";
 import type { PR, PRListResponse } from "../../lib/types";
 import { scrollEdgeClass, useScrollEdges } from "../../lib/useScrollEdges";
 import { useUIStore, type PRFilters } from "../../stores/ui";
-import { DeckHero } from "./DeckHero";
 import { DeckRow } from "./DeckRow";
 import { DraftRow } from "./DraftRow";
 import { prKey, type Deck, type DeckBucketID } from "./deck";
@@ -29,8 +28,6 @@ type PRListBodyProps = {
   repo: string | null;
   selectedPR: string | null;
   onPick: (pr: PR) => void;
-  onOpenDiff: (pr: PR) => void;
-  onSkip: (pr: PR) => void;
   onRetry: () => void;
   onClearFilters: () => void;
   onOpenSearch: () => void;
@@ -59,8 +56,6 @@ export function PRListBody({
   repo,
   selectedPR,
   onPick,
-  onOpenDiff,
-  onSkip,
   onRetry,
   onClearFilters,
   onOpenSearch,
@@ -79,9 +74,7 @@ export function PRListBody({
     setCollapsed((current) => ({ ...current, [id]: !current[id] }));
   }, []);
 
-  const rows = live
-    ? deck.rows.filter((row) => row.bucket === null || !collapsed[row.bucket])
-    : [];
+  const rows = live ? deck.rows.filter((row) => !collapsed[row.bucket]) : [];
   const keys = rows.map((row) => prKey(row.pr));
   const byKey = new Map(rows.map((row) => [prKey(row.pr), row.pr]));
 
@@ -166,19 +159,6 @@ export function PRListBody({
         />
       ) : (
         <>
-          {deck.hero && deck.heroKind ? (
-            <DeckHero
-              pr={deck.hero}
-              kind={deck.heroKind}
-              optionId={optionID(prKey(deck.hero))}
-              cursor={cursorKey === prKey(deck.hero)}
-              selected={selectedPR === prKey(deck.hero)}
-              onOpenPR={() => onPick(deck.hero as PR)}
-              onOpenDiff={() => onOpenDiff(deck.hero as PR)}
-              onSkip={() => onSkip(deck.hero as PR)}
-            />
-          ) : null}
-
           {deck.buckets.map((bucket) => {
             const isCollapsed = collapsed[bucket.id] === true;
             return (

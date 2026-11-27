@@ -16,13 +16,12 @@ export type DiffSort = "priority" | "path";
 export type DiffMode = "files" | "path";
 
 /**
- * A hero action that must land the open PR on the diff. "diff" only reveals
- * the document; a path/line also focuses that hunk.
+ * A row click that must open the document with Context collapsed. The token
+ * re-applies on the same PR.
  */
 export type DetailIntent = {
   prKey: string;
-  target?: "diff" | { path: string; line?: number };
-  /** Re-triggers the same jump for two findings on one line. */
+  /** Re-triggers the same collapse for two actions on one PR. */
   token: number;
 };
 
@@ -75,7 +74,7 @@ type UIState = {
   reviewBarOpen: boolean;
   /** PR list facets and search, session-wide. */
   prFilters: PRFilters;
-  /** Hero actions that must land the document on a diff target. */
+  /** Row actions that must open the document with Context collapsed. */
   detailIntent: DetailIntent | null;
   selectRepo: (repo: string | null) => void;
   setActiveTab: (tabID: string) => void;
@@ -146,7 +145,7 @@ export const useUIStore = create<UIState>((set) => ({
     set({
       selectedPR: pr,
       detailOpen: pr !== null,
-      // A plain row click opens the default tab. Hero actions set the intent
+      // A plain row click opens the document. Row actions set the intent
       // right after selecting, so a stale intent must not survive.
       detailIntent: null,
     }),

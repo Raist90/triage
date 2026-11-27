@@ -18,15 +18,13 @@ import {
   hasFacetFilters,
   type FilterChip,
 } from "./prFilters";
-import { buildDeck, canBeHero, prKey } from "./deck";
+import { buildDeck, prKey } from "./deck";
 
 type PRListProps = {
   tabID: string;
   tabLabel: string;
   repo: string | null;
 };
-
-const EMPTY_SKIPPED: ReadonlySet<string> = new Set();
 
 type RefreshFailure = {
   message: string;
@@ -70,17 +68,12 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
   const clearPRFilters = useUIStore((state) => state.clearPRFilters);
 
   const visible = useMemo(() => filterPRs(prs, filters), [prs, filters]);
-  // Skip is session-only and scoped to this list mount. Keying the state by
-  // tab/repo makes a change reset it without an effect.
+  // Keying the surface by tab/repo resets local state (cursor, collapse) on a
+  // scope change without an effect.
   const scopeKey = `${tabID}:${repo ?? ""}`;
-  const [skipState, setSkipState] = useState<{
-    scope: string;
-    keys: ReadonlySet<string>;
-  }>({ scope: scopeKey, keys: new Set() });
-  const skipped = skipState.scope === scopeKey ? skipState.keys : EMPTY_SKIPPED;
   const deck = useMemo(
-    () => buildDeck(visible, tabID, viewer, skipped),
-    [visible, tabID, viewer, skipped],
+    () => buildDeck(visible, tabID, viewer),
+    [visible, tabID, viewer],
   );
   const chips = useMemo(() => filterChips(prs, filters), [prs, filters]);
 
@@ -122,25 +115,6 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
     // The list row carries the fresh head; a cached detail from an older
     // commit is re-read instead of being shown as current.
     void syncPRHead(queryClient, pr).catch(() => {});
-  }
-
-  function openDiff(pr: PR) {
-    selectPR(prKey(pr));
-    setDetailIntent({ prKey: prKey(pr), target: "diff", token: Date.now() });
-    void syncPRHead(queryClient, pr).catch(() => {});
-  }
-
-  function skipPR(pr: PR) {
-    setSkipState((current) => {
-      const keys = current.scope === scopeKey ? current.keys : EMPTY_SKIPPED;
-      const next = new Set(keys).add(prKey(pr));
-      // Skipping the last eligible row restarts the cycle instead of dropping
-      // the hero: the hero is elected from the set, not removed from the list.
-      const exhausted = visible
-        .filter((item) => canBeHero(item, tabID, viewer))
-        .every((item) => next.has(prKey(item)));
-      return { scope: scopeKey, keys: exhausted ? EMPTY_SKIPPED : next };
-    });
   }
 
   function clearAllFilters() {
@@ -239,8 +213,6 @@ export function PRList({ tabID, tabLabel, repo }: PRListProps) {
         repo={repo}
         selectedPR={selectedPR}
         onPick={pickPR}
-        onOpenDiff={openDiff}
-        onSkip={skipPR}
         onRetry={() => void query.refetch()}
         onClearFilters={clearAllFilters}
         onOpenSearch={openSearch}

@@ -12,14 +12,12 @@ export function DiffDocument({
   diffQuery,
   comments,
   focusTarget,
-  revealToken,
 }: {
   pr: PR;
   prKey: string;
   diffQuery: UseQueryResult<PRDiffResponse, Error>;
   comments: DiffCommentsController;
   focusTarget?: DiffTarget;
-  revealToken?: number;
 }) {
   if (diffQuery.isPending) {
     return (
@@ -70,7 +68,6 @@ export function DiffDocument({
         canComment={pr.state === "open" && pr.headSHA !== ""}
         viewerLogin={pr.viewerLogin}
         focusTarget={focusTarget}
-        revealToken={revealToken}
       />
     </div>
   );

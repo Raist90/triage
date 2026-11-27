@@ -49,7 +49,6 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
   const [contextOpen, setContextOpen] = useState(false);
   // A finding index jump; the token re-triggers the same target.
   const [diffTarget, setDiffTarget] = useState<DiffTarget | null>(null);
-  const [revealToken, setRevealToken] = useState(0);
 
   function focusFinding(finding: ReviewFinding) {
     setDiffTarget({
@@ -60,9 +59,9 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
     });
   }
 
-  // A hero action lands on the diff. Apply it during render (the React
-  // "adjust state when props change" pattern), then clear the store intent in
-  // an effect so a refetch or remount cannot replay the jump.
+  // A row click lands on the document with Context collapsed. Apply it during
+  // render (the React "adjust state when props change" pattern), then clear the
+  // store intent in an effect so a refetch or remount cannot replay it.
   const detailIntent = useUIStore((state) => state.detailIntent);
   const clearDetailIntent = useUIStore((state) => state.clearDetailIntent);
   const [appliedIntent, setAppliedIntent] = useState<number | null>(null);
@@ -72,13 +71,7 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
     detailIntent.token !== appliedIntent
   ) {
     setAppliedIntent(detailIntent.token);
-    // Every hero/row action opens the document with Context collapsed.
     setContextOpen(false);
-    if (detailIntent.target === "diff") {
-      setRevealToken(detailIntent.token);
-    } else if (detailIntent.target) {
-      setDiffTarget({ ...detailIntent.target, token: detailIntent.token });
-    }
   }
   useEffect(() => {
     if (detailIntent && detailIntent.prKey === prKey) clearDetailIntent();
@@ -338,7 +331,6 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
                     diffQuery={diffQuery}
                     comments={diffComments}
                     focusTarget={diffTarget ?? undefined}
-                    revealToken={revealToken}
                   />
                 </div>
                 <ReviewBar

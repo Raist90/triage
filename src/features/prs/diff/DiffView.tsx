@@ -39,8 +39,6 @@ type DiffViewProps = {
   viewerLogin?: string;
   /** Open this file and hunk once. The token re-triggers the same target. */
   focusTarget?: DiffTarget;
-  /** Bumped by "Open diff" so the pane scrolls back to the start. */
-  revealToken?: number;
 };
 
 /**
@@ -57,7 +55,6 @@ export function DiffView({
   canComment,
   viewerLogin,
   focusTarget,
-  revealToken,
 }: DiffViewProps) {
   const [draft, setDraft] = useState<string | null>(null);
   // Bodies mounted once and kept: unmounting would lose an open comment
@@ -185,12 +182,6 @@ export function DiffView({
     expandFiles(pathFiles.map((entry) => entry.key));
     if (paneRef.current) paneRef.current.scrollTop = 0;
   }, [pathMode, stepID, pathFiles, expandFiles, paneRef]);
-
-  // "Open diff" from the hero lands at the top of the code.
-  useEffect(() => {
-    if (revealToken === undefined || !paneRef.current) return;
-    paneRef.current.scrollTop = 0;
-  }, [revealToken, paneRef]);
 
   const scrollEdges = useScrollEdges(paneRef);
 

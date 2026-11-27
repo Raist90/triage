@@ -3,10 +3,8 @@ import { makePR } from "../../test/fixtures";
 import {
   bucketFor,
   buildDeck,
-  canBeHero,
   deckOrder,
   isDim,
-  prKey,
   reasonFor,
   severityFor,
 } from "./deck";
@@ -131,124 +129,37 @@ describe("deckOrder", () => {
 });
 
 describe("buildDeck", () => {
-  test("mine lifts the first eligible ready row out of its bucket", () => {
+  test("groups rows into buckets and flattens them in visual order", () => {
     const ready = pr(2, { reviewState: "approved", checkStatus: "success" });
     const blocked = pr(3, { reviewState: "changes_requested" });
     const draft = pr(1, { isDraft: true });
     const deck = buildDeck([ready, blocked, draft], "mine", viewer);
 
-    expect(deck.hero && prKey(deck.hero)).toBe(prKey(blocked));
-    expect(deck.heroKind).toBe("ready");
     expect(deck.buckets.map((bucket) => bucket.id)).toEqual([
+      "blocked",
       "ready",
       "drafts",
     ]);
-    expect(deck.buckets[0].rows).toEqual([ready]);
-    expect(deck.buckets[1].rows).toEqual([draft]);
-    expect(deck.rows[0].pr).toBe(blocked);
-    expect(deck.rows[0].bucket).toBeNull();
+    expect(deck.buckets[0].rows).toEqual([blocked]);
+    expect(deck.buckets[1].rows).toEqual([ready]);
+    expect(deck.rows.map((row) => row.pr.number)).toEqual([3, 2, 1]);
+    expect(deck.rows.map((row) => row.bucket)).toEqual([
+      "blocked",
+      "ready",
+      "drafts",
+    ]);
   });
 
-  test("hero is not repeated and bucket counts exclude it", () => {
-    const first = pr(2, {
-      reviewState: "changes_requested",
-      updatedAt: "2026-06-15T09:00:00Z",
-    });
-    const second = pr(3, { reviewState: "changes_requested" });
-    const deck = buildDeck([first, second], "mine", viewer);
+  test("the first row stays in its bucket and empty buckets are omitted", () => {
+    const needs = pr(1, { author: "someone", reviewRequested: true });
+    const waiting = pr(2, { author: "someone" });
+    const deck = buildDeck([waiting, needs], "all", viewer);
 
-    expect(deck.hero).toBe(first);
-    expect(deck.buckets[0].id).toBe("blocked");
-    expect(deck.buckets[0].rows).toEqual([second]);
-  });
-
-  test("skip re-elects without removing the row", () => {
-    const first = pr(2, {
-      reviewState: "changes_requested",
-      updatedAt: "2026-06-15T09:00:00Z",
-    });
-    const second = pr(3, { reviewState: "changes_requested" });
-    const skipped = new Set([prKey(first)]);
-    const deck = buildDeck([first, second], "mine", viewer, skipped);
-
-    expect(deck.hero).toBe(second);
-    expect(deck.buckets[0].rows).toEqual([first]);
-  });
-
-  test("falls back to the first non-skipped draft", () => {
-    const ready = pr(2, { reviewState: "approved", checkStatus: "success" });
-    const draft = pr(1, { isDraft: true });
-    const deck = buildDeck(
-      [ready, draft],
-      "mine",
-      viewer,
-      new Set([prKey(ready)]),
-    );
-
-    expect(deck.hero).toBe(draft);
-    expect(deck.heroKind).toBe("draft");
-    expect(deck.buckets[0].id).toBe("ready");
-  });
-
-  test("no eligible row means no hero and no placeholder", () => {
-    const draft = pr(1, { isDraft: true });
-    const deck = buildDeck([draft], "mine", viewer, new Set([prKey(draft)]));
-    expect(deck.hero).toBeNull();
-    expect(deck.buckets[0].rows).toEqual([draft]);
-  });
-
-  test("review and all lift the needs-you row into the hero", () => {
-    const reviewPR = pr(1, { author: "someone", reviewRequested: true });
-    const reviewDeck = buildDeck([reviewPR], "review", viewer);
-    expect(reviewDeck.hero).toEqual(reviewPR);
-    expect(reviewDeck.heroKind).toBe("needs");
-    expect(reviewDeck.buckets).toEqual([]);
-
-    const allDeck = buildDeck([reviewPR], "all", viewer);
-    expect(allDeck.hero).toEqual(reviewPR);
-    expect(allDeck.heroKind).toBe("needs");
-    expect(allDeck.buckets).toEqual([]);
-  });
-
-  test("all lifts only needs-you rows into the hero", () => {
-    const waiting = pr(1, {
-      author: "someone",
-      reviewState: "review_required",
-    });
-    const deck = buildDeck([waiting], "all", viewer);
-    expect(deck.hero).toBeNull();
-    expect(deck.buckets.map((bucket) => bucket.id)).toEqual(["waiting"]);
-  });
-
-  test("canBeHero mirrors each tab's hero eligibility", () => {
-    expect(canBeHero(pr(1), "mine", viewer)).toBe(true);
-    expect(canBeHero(pr(1, { isDraft: true }), "mine", viewer)).toBe(true);
-    expect(canBeHero(pr(1), "review", viewer)).toBe(true);
-    expect(canBeHero(pr(1, { isDraft: true }), "review", viewer)).toBe(false);
-    expect(
-      canBeHero(
-        pr(1, { author: "someone", reviewState: "approved" }),
-        "all",
-        viewer,
-      ),
-    ).toBe(false);
-    expect(
-      canBeHero(
-        pr(1, { author: "someone", reviewRequested: true }),
-        "all",
-        viewer,
-      ),
-    ).toBe(true);
-  });
-
-  test("review and all never promote a draft", () => {
-    const draft = pr(1, { author: "someone", isDraft: true });
-    const reviewDeck = buildDeck([draft], "review", viewer);
-    expect(reviewDeck.hero).toBeNull();
-    expect(reviewDeck.buckets.map((bucket) => bucket.id)).toEqual(["drafts"]);
-
-    const allDeck = buildDeck([draft], "all", viewer);
-    expect(allDeck.hero).toBeNull();
-    expect(allDeck.buckets.map((bucket) => bucket.id)).toEqual(["drafts"]);
+    expect(deck.buckets.map((bucket) => bucket.id)).toEqual([
+      "needs",
+      "waiting",
+    ]);
+    expect(deck.buckets[0].rows).toEqual([needs]);
+    expect(deck.rows[0]).toEqual({ pr: needs, bucket: "needs" });
   });
 });

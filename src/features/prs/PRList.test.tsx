@@ -104,7 +104,7 @@ describe("PRList", () => {
     });
   });
 
-  test("all open lifts a needs-you row into the hero", async () => {
+  test("all open keeps needs-you rows inside their bucket", async () => {
     const needsYou = makePR({
       number: 7,
       title: "Needs a look",
@@ -118,23 +118,8 @@ describe("PRList", () => {
 
     const rows = screen.getAllByRole("option");
     expect(rows[0].textContent).toContain("Needs a look");
-    expect(rows[0].textContent).toContain("Needs you");
-  });
-
-  test("skipping every row restarts the hero cycle", async () => {
-    getPRs.mockImplementation(async () => listResponse([middle, newest]));
-
-    renderWithQuery(<PRList tabID="mine" tabLabel="My PRs" repo={null} />);
-    await screen.findByRole("listbox");
-
-    const heroTitle = () => screen.getAllByRole("option")[0].textContent;
-    expect(heroTitle()).toContain("Newest change");
-
-    fireEvent.click(screen.getByRole("button", { name: "Skip" }));
-    expect(heroTitle()).toContain("Middle change");
-
-    fireEvent.click(screen.getByRole("button", { name: "Skip" }));
-    expect(heroTitle()).toContain("Newest change");
+    expect(rows[0].closest("section")?.textContent).toContain("Needs you");
+    expect(rows[0].textContent).not.toContain("Needs you");
   });
 
   test("j moves the cursor without opening; Enter opens", async () => {

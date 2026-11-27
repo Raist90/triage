@@ -6,7 +6,7 @@ import {
 } from "react";
 
 type UsePRListCursorOptions = {
-  /** Rendered row keys in cursor order: hero, then expanded buckets. */
+  /** Rendered row keys in cursor order: every expanded bucket's rows. */
   keys: string[];
   /** Key of the open PR, or null. */
   selectedKey: string | null;
@@ -70,7 +70,7 @@ export function usePRListCursor({
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
-      // A control inside the listbox (bucket head, hero action) owns its keys.
+      // A control inside the listbox (bucket head) owns its keys.
       if (event.target !== event.currentTarget) return;
 
       switch (event.key) {

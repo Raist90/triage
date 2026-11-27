@@ -1,0 +1,1668 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Triage — hero directions</title>
+    <style>
+      /* ---------------------------------------------------------------------------
+   Tokens copied from src/index.css. Nothing here invents a hue.
+   --------------------------------------------------------------------------- */
+      :root {
+        --canvas: #09090b;
+        --surface: #111113;
+        --raised: #18181b;
+        --line: #27272a;
+        --line-strong: #3f3f46;
+        --fg: #fafafa;
+        --fg-body: #d4d4d8;
+        --fg-muted: #a1a1aa;
+        --fg-faint: #71717a;
+        --accent: #4ade80;
+        --danger: #f87171;
+
+        --s1: 4px;
+        --s2: 8px;
+        --s3: 12px;
+        --s4: 16px;
+        --s5: 24px;
+        --s6: 32px;
+        --band: 44px;
+        --row: 52px;
+        --tag: 18px;
+        --chip: 24px;
+        --gutter-list: 12px;
+      }
+
+      @font-face {
+        font-family: "Geist";
+        font-style: normal;
+        font-weight: 100 900;
+        font-display: swap;
+        src: url("../src/assets/fonts/geist-latin-wght-normal.woff2")
+          format("woff2");
+      }
+      @font-face {
+        font-family: "Geist Mono";
+        font-style: normal;
+        font-weight: 100 900;
+        font-display: swap;
+        src: url("../src/assets/fonts/geist-mono-latin-wght-normal.woff2")
+          format("woff2");
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+      }
+      body {
+        background: var(--canvas);
+        color: var(--fg);
+        font-family:
+          "Geist",
+          -apple-system,
+          ui-sans-serif,
+          sans-serif;
+        font-size: 13px;
+        line-height: 18px;
+        -webkit-font-smoothing: antialiased;
+      }
+      button {
+        font: inherit;
+        color: inherit;
+        background: none;
+        border: 0;
+        cursor: pointer;
+        padding: 0;
+        text-align: left;
+      }
+      h1,
+      h2,
+      h3,
+      p,
+      ul,
+      li {
+        margin: 0;
+      }
+      ul {
+        padding: 0;
+        list-style: none;
+      }
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .mono {
+        font-family: "Geist Mono", ui-monospace, monospace;
+        font-variant-ligatures: none;
+        font-variant-numeric: tabular-nums;
+      }
+      .micro {
+        font-size: 10px;
+        line-height: 14px;
+        font-weight: 500;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--fg-faint);
+      }
+      .faint {
+        color: var(--fg-faint);
+      }
+      .muted {
+        color: var(--fg-muted);
+      }
+      .body-t {
+        color: var(--fg-body);
+      }
+      .danger {
+        color: var(--danger);
+      }
+      .accent {
+        color: var(--accent);
+      }
+      .trunc {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        min-width: 0;
+      }
+      .i {
+        width: 16px;
+        height: 16px;
+        flex: none;
+        display: block;
+      }
+      .i-sm {
+        width: 14px;
+        height: 14px;
+        flex: none;
+        display: block;
+      }
+      .i-xs {
+        width: 12px;
+        height: 12px;
+        flex: none;
+        display: block;
+      }
+
+      /* ---------------------------------------------------------------------------
+   Mock chrome
+   --------------------------------------------------------------------------- */
+      .mockbar {
+        position: sticky;
+        top: 0;
+        z-index: 60;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        height: 56px;
+        padding: 0 24px;
+        background: var(--canvas);
+        border-bottom: 1px solid var(--line);
+      }
+      .brandmark {
+        font-family: "Geist Mono", monospace;
+        font-size: 10px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      .brandmark span {
+        color: var(--fg-faint);
+        letter-spacing: 0.08em;
+        margin-left: 8px;
+      }
+      .mocknav {
+        display: flex;
+        gap: 2px;
+        padding: 2px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+      }
+      .mocknav a {
+        padding: 5px 9px;
+        border-radius: 4px;
+        font-family: "Geist Mono", monospace;
+        font-size: 11px;
+        line-height: 16px;
+        color: var(--fg-faint);
+        transition:
+          color 0.12s,
+          background-color 0.12s;
+      }
+      .mocknav a:hover {
+        color: var(--fg);
+      }
+      .mocknav a.is-on {
+        background: var(--raised);
+        color: var(--fg);
+      }
+      .mockbar .hint {
+        margin-left: auto;
+        font-family: "Geist Mono", monospace;
+        font-size: 10px;
+        line-height: 14px;
+        color: var(--fg-faint);
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+      }
+
+      .page {
+        padding: 32px 24px 96px;
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+      }
+      .lede {
+        max-width: 1120px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .lede h1 {
+        font-size: 28px;
+        line-height: 34px;
+        font-weight: 500;
+        letter-spacing: -0.02em;
+      }
+      .lede .thesis {
+        font-size: 14px;
+        line-height: 22px;
+        color: var(--fg-muted);
+        max-width: 88ch;
+      }
+      .lede .thesis b {
+        color: var(--fg-body);
+        font-weight: 500;
+      }
+      .facts {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 12px 24px;
+        border-top: 1px solid var(--line);
+        padding-top: 12px;
+        max-width: 1120px;
+      }
+      .facts div {
+        font-size: 12px;
+        line-height: 18px;
+        color: var(--fg-muted);
+      }
+      .facts b {
+        display: block;
+        font-family: "Geist Mono", monospace;
+        font-size: 10px;
+        line-height: 14px;
+        font-weight: 500;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--fg-faint);
+        margin-bottom: 2px;
+      }
+      .verdict {
+        max-width: 1120px;
+        border: 1px solid var(--line);
+        border-left: 2px solid var(--accent);
+        border-radius: 4px;
+        padding: 12px 14px;
+        background: linear-gradient(
+          90deg,
+          color-mix(in oklab, var(--accent) 5%, transparent),
+          transparent 60%
+        );
+        font-size: 12px;
+        line-height: 19px;
+        color: var(--fg-muted);
+      }
+      .verdict b {
+        color: var(--fg-body);
+        font-weight: 500;
+      }
+
+      .grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 40px 24px;
+        align-items: flex-start;
+      }
+      .card {
+        width: 376px;
+        flex: none;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        scroll-margin-top: 72px;
+      }
+      .card-head {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .card-head .kicker {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-family: "Geist Mono", monospace;
+        font-size: 10px;
+        line-height: 14px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--fg-faint);
+      }
+      .card-head .kicker .num {
+        color: var(--fg-body);
+      }
+      .card-head .kicker .dot {
+        width: 2px;
+        height: 2px;
+        border-radius: 999px;
+        background: var(--line-strong);
+      }
+      .card-head h2 {
+        font-size: 16px;
+        line-height: 22px;
+        font-weight: 500;
+        letter-spacing: -0.01em;
+      }
+      .card-head p {
+        font-size: 12px;
+        line-height: 18px;
+        color: var(--fg-muted);
+      }
+      .notes {
+        border-top: 1px solid var(--line);
+        padding-top: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 12px;
+        line-height: 18px;
+        color: var(--fg-muted);
+      }
+      .notes div {
+        display: grid;
+        grid-template-columns: 42px minmax(0, 1fr);
+        gap: 8px;
+      }
+      .notes b {
+        font-family: "Geist Mono", monospace;
+        font-size: 10px;
+        line-height: 18px;
+        font-weight: 500;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--fg-faint);
+      }
+
+      /* ---------------------------------------------------------------------------
+   The list panel (376px, the real list column)
+   --------------------------------------------------------------------------- */
+      .pane {
+        width: 376px;
+        height: 600px;
+        flex: none;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        background: var(--canvas);
+        background-image: radial-gradient(
+          90% 60% at 0% 0%,
+          color-mix(in oklab, var(--accent) 5%, transparent),
+          transparent 62%
+        );
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        color: var(--fg);
+      }
+      .band {
+        height: var(--band);
+        flex: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 var(--gutter-list);
+        min-width: 0;
+      }
+      .seam {
+        position: relative;
+      }
+      .seam::after {
+        content: "";
+        position: absolute;
+        inset-inline: 0;
+        bottom: -1px;
+        height: 1px;
+        z-index: 2;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--line) 12%,
+          var(--line) 88%,
+          transparent
+        );
+      }
+      .toolbar-meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+        flex: 1;
+        font-size: 12px;
+        line-height: 16px;
+      }
+      .toolbar-meta .name {
+        font-size: 13px;
+        line-height: 18px;
+        font-weight: 500;
+        white-space: nowrap;
+      }
+      .toolbar-meta .count {
+        color: var(--fg-faint);
+        white-space: nowrap;
+      }
+      .toolbar-meta .div {
+        width: 1px;
+        height: 12px;
+        background: var(--line);
+        flex: none;
+      }
+      .toolbar-meta .search {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        color: var(--fg-faint);
+        white-space: nowrap;
+      }
+      .toolbar-meta .search:hover {
+        color: var(--fg);
+      }
+      .icon-btn {
+        width: 28px;
+        height: 28px;
+        display: grid;
+        place-items: center;
+        border-radius: 4px;
+        color: var(--fg-faint);
+        flex: none;
+        position: relative;
+      }
+      .icon-btn:hover {
+        background: var(--surface);
+        color: var(--fg);
+      }
+      .icon-btn.is-on {
+        color: var(--fg);
+      }
+      .chips {
+        height: 36px;
+        flex: none;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 0 var(--gutter-list);
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        height: var(--chip);
+        padding: 0 8px;
+        flex: none;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        font-size: 12px;
+        line-height: 16px;
+        color: var(--fg-body);
+      }
+      .chip:hover {
+        border-color: var(--line-strong);
+        color: var(--fg);
+      }
+      .chips .clear {
+        margin-left: auto;
+        color: var(--fg-faint);
+        font-size: 12px;
+        line-height: 16px;
+      }
+      .chips .clear:hover {
+        color: var(--fg);
+      }
+      .pane-body {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .pane-body > * {
+        flex: none;
+      }
+      .foot {
+        height: var(--band);
+        flex: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border-top: 1px solid var(--line);
+        padding: 0 var(--gutter-list);
+        font-family: "Geist Mono", monospace;
+        font-size: 10px;
+        line-height: 14px;
+        color: var(--fg-faint);
+        letter-spacing: 0.02em;
+      }
+      .foot .keys {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        min-width: 0;
+        white-space: nowrap;
+      }
+      .foot .fresh {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+      }
+      .live-dot {
+        width: 4px;
+        height: 4px;
+        border-radius: 999px;
+        background: var(--accent);
+        flex: none;
+        box-shadow: 0 0 0 3px
+          color-mix(in oklab, var(--accent) 10%, transparent);
+      }
+      .kbd {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 14px;
+        padding: 0 4px;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        background: linear-gradient(180deg, var(--raised), var(--surface));
+        box-shadow: inset 0 1px 0 color-mix(in oklab, var(--fg) 6%, transparent);
+        font-family: "Geist Mono", monospace;
+        font-size: 10px;
+        line-height: 14px;
+        color: var(--fg-faint);
+      }
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        height: var(--tag);
+        padding: 0 4px;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        font-family: "Geist Mono", monospace;
+        font-size: 10px;
+        line-height: 14px;
+        color: var(--fg-faint);
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+      }
+      .tag.is-danger {
+        color: var(--danger);
+        border-color: color-mix(in oklab, var(--danger) 32%, var(--line));
+      }
+      .tag.plain {
+        border-color: transparent;
+        padding: 0;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        flex: none;
+        height: 28px;
+        padding: 0 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        line-height: 16px;
+        white-space: nowrap;
+      }
+      .btn-primary {
+        background-image: linear-gradient(
+          180deg,
+          color-mix(in oklab, var(--accent) 88%, white),
+          var(--accent)
+        );
+        color: var(--canvas);
+        font-weight: 500;
+        box-shadow:
+          inset 0 1px 0 color-mix(in oklab, var(--fg) 22%, transparent),
+          0 6px 16px -10px color-mix(in oklab, var(--accent) 65%, transparent);
+      }
+      .btn-ghost {
+        color: var(--fg-muted);
+      }
+      .btn-ghost:hover {
+        background: var(--surface);
+        color: var(--fg);
+      }
+
+      /* ---------------------------------------------------------------------------
+   Bucket + row grammar (identity for every option except the focus band)
+   --------------------------------------------------------------------------- */
+      .bucket {
+        padding: 0 var(--gutter-list) 4px;
+      }
+      .bucket-head {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 0;
+        border-top: 1px solid var(--line);
+        text-align: left;
+      }
+      .bucket-head .micro {
+        color: var(--fg-muted);
+      }
+      .bucket-head .count {
+        font-family: "Geist Mono", monospace;
+        font-size: 10px;
+        line-height: 14px;
+        color: var(--fg-faint);
+      }
+      .bucket-head .chev {
+        margin-left: auto;
+        color: var(--fg-faint);
+      }
+
+      .deck-row {
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 2px 12px;
+        width: 100%;
+        height: var(--row);
+        padding: 8px var(--gutter-list);
+        text-align: left;
+        border-radius: 4px;
+        transition: background-color 0.12s;
+      }
+      .deck-row:hover {
+        background: color-mix(in oklab, var(--surface) 70%, transparent);
+      }
+      .deck-row::before {
+        content: "";
+        position: absolute;
+        inset-block: 10px;
+        left: 0;
+        width: 2px;
+        border-radius: 999px;
+        background: var(--line-strong);
+      }
+      .deck-row.sev-blocked::before {
+        background: var(--danger);
+      }
+      .deck-row.sev-warn::before {
+        background: var(--fg-muted);
+      }
+      .deck-row.is-selected {
+        background-image: linear-gradient(
+          90deg,
+          var(--surface) 0%,
+          color-mix(in oklab, var(--surface) 55%, transparent) 42%,
+          transparent 82%
+        );
+      }
+      .deck-row.is-selected::before {
+        background-image: linear-gradient(
+          180deg,
+          var(--accent) 0%,
+          color-mix(in oklab, var(--accent) 30%, transparent) 100%
+        );
+        box-shadow: 0 0 10px 0
+          color-mix(in oklab, var(--accent) 35%, transparent);
+      }
+      .deck-row .title {
+        font-size: 13px;
+        line-height: 18px;
+        font-weight: 500;
+        color: var(--fg);
+        min-width: 0;
+      }
+      .deck-row .title .mark {
+        color: var(--accent);
+      }
+      .deck-row .sub {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        line-height: 16px;
+        color: var(--fg-faint);
+        min-width: 0;
+      }
+      .deck-row .sub .repo {
+        font-family: "Geist Mono", monospace;
+        max-width: 110px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .deck-row .sub .num {
+        font-family: "Geist Mono", monospace;
+      }
+      .deck-row .sub .why {
+        color: var(--fg-muted);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .deck-row .sub .sep {
+        color: var(--line-strong);
+      }
+      .deck-row .right {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 4px;
+      }
+      .deck-row .age {
+        font-family: "Geist Mono", monospace;
+        font-size: 10px;
+        line-height: 14px;
+        color: var(--fg-faint);
+      }
+
+      /* 00 — today's hero */
+      .hero {
+        position: relative;
+        margin: 8px 0 4px;
+        padding: 12px var(--gutter-list);
+        border-radius: 4px;
+        transition: background-color 0.12s;
+      }
+      .hero::before {
+        content: "";
+        position: absolute;
+        inset-block: 10px;
+        left: 0;
+        width: 2px;
+        border-radius: 999px;
+        background: linear-gradient(
+          180deg,
+          var(--danger),
+          color-mix(in oklab, var(--danger) 30%, transparent)
+        );
+      }
+      .hero:hover:not(.is-selected) {
+        background: color-mix(in oklab, var(--surface) 70%, transparent);
+      }
+      .hero.is-selected {
+        background-image: linear-gradient(
+          90deg,
+          var(--surface) 0%,
+          color-mix(in oklab, var(--surface) 55%, transparent) 42%,
+          transparent 82%
+        );
+      }
+      .hero.is-selected::before {
+        background: linear-gradient(
+          180deg,
+          var(--accent),
+          color-mix(in oklab, var(--accent) 30%, transparent)
+        );
+        box-shadow: 0 0 10px 0
+          color-mix(in oklab, var(--accent) 35%, transparent);
+      }
+      .hero-top {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .hero-top .when {
+        margin-left: auto;
+        font-size: 10px;
+        line-height: 14px;
+      }
+      .hero-title {
+        display: block;
+        width: 100%;
+        text-align: left;
+        font-size: 16px;
+        line-height: 24px;
+        font-weight: 500;
+        color: var(--fg);
+        letter-spacing: -0.01em;
+        max-width: 40ch;
+      }
+      .hero-title:hover {
+        color: color-mix(in oklab, var(--fg) 88%, var(--accent));
+      }
+      .hero-why {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        margin-top: 4px;
+        font-size: 12px;
+        line-height: 16px;
+        color: var(--fg-muted);
+        min-width: 0;
+      }
+      .hero-why .who {
+        color: var(--fg-body);
+        font-weight: 500;
+      }
+      .hero-facts {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px;
+        margin-top: 8px;
+      }
+      .hero-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .hero-actions .btn-ghost {
+        margin-left: auto;
+      }
+
+      /* 02 — the hero wears the row */
+      .hero-row {
+        background-image: linear-gradient(
+          90deg,
+          color-mix(in oklab, var(--accent) 5%, transparent) 0%,
+          transparent 78%
+        );
+      }
+      .hero-row::before {
+        background: linear-gradient(
+          180deg,
+          var(--danger),
+          color-mix(in oklab, var(--danger) 30%, transparent)
+        );
+      }
+      .hero-row.is-selected {
+        background-image: linear-gradient(
+          90deg,
+          var(--surface) 0%,
+          color-mix(in oklab, var(--surface) 55%, transparent) 42%,
+          transparent 82%
+        );
+      }
+      .hero-row .title {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .next-tag {
+        flex: none;
+        display: inline-flex;
+        align-items: center;
+        height: 14px;
+        padding: 0 3px;
+        border: 1px solid color-mix(in oklab, var(--accent) 30%, var(--line));
+        border-radius: 3px;
+        font-family: "Geist Mono", monospace;
+        font-size: 9px;
+        line-height: 12px;
+        font-weight: 500;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+      .hero-row .right {
+        flex-direction: row;
+        align-items: center;
+        gap: 6px;
+      }
+
+      /* 03 — focus band in the chrome layer */
+      .focus-band {
+        flex: none;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 2px;
+        height: var(--band);
+        padding: 5px var(--gutter-list);
+        background-image: linear-gradient(
+          90deg,
+          color-mix(in oklab, var(--danger) 7%, transparent),
+          transparent 72%
+        );
+      }
+      .fb-line {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+      }
+      .fb-line .why {
+        font-size: 11px;
+        line-height: 14px;
+        color: var(--fg-muted);
+        white-space: nowrap;
+      }
+      .fb-line .when {
+        margin-left: auto;
+        font-size: 10px;
+        line-height: 14px;
+      }
+      .fb-line .title {
+        font-size: 13px;
+        line-height: 18px;
+        font-weight: 500;
+        min-width: 0;
+      }
+      .fb-line .ref {
+        margin-left: auto;
+        font-size: 10px;
+        line-height: 14px;
+        flex: none;
+      }
+      .fb-line .kbd {
+        flex: none;
+      }
+
+      /* 04 — the hero is the bucket head */
+      .bucket-hero {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 2px;
+        padding: 8px var(--gutter-list) 8px;
+        position: relative;
+      }
+      .bucket-hero::before {
+        content: "";
+        position: absolute;
+        inset-block: 10px;
+        left: 0;
+        width: 2px;
+        border-radius: 999px;
+        background: linear-gradient(
+          180deg,
+          var(--danger),
+          color-mix(in oklab, var(--danger) 30%, transparent)
+        );
+      }
+      .bucket-hero.is-selected {
+        background-image: linear-gradient(
+          90deg,
+          var(--surface) 0%,
+          color-mix(in oklab, var(--surface) 55%, transparent) 42%,
+          transparent 82%
+        );
+      }
+      .bucket-hero.is-selected::before {
+        background: linear-gradient(
+          180deg,
+          var(--accent),
+          color-mix(in oklab, var(--accent) 30%, transparent)
+        );
+      }
+      .bh-top {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .bh-top .when {
+        margin-left: auto;
+        font-size: 10px;
+        line-height: 14px;
+      }
+      .bh-title {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        line-height: 18px;
+        font-weight: 500;
+        min-width: 0;
+      }
+      .bh-sub {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        line-height: 16px;
+        color: var(--fg-faint);
+        min-width: 0;
+      }
+      .bh-sub .why {
+        color: var(--fg-muted);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <defs>
+        <symbol id="i-search" viewBox="0 0 16 16">
+          <g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="7" cy="7" r="4.5" />
+            <path d="m10.5 10.5 3 3" />
+          </g>
+        </symbol>
+        <symbol id="i-filter" viewBox="0 0 16 16">
+          <path d="M2.5 3.5h11l-4 5v3.5l-3 1.5V8.5z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-refresh" viewBox="0 0 16 16">
+          <g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M13 8a5 5 0 1 1-1.46-3.54" />
+            <path d="M13 2.5V5h-2.5" />
+          </g>
+        </symbol>
+        <symbol id="i-chevron-down" viewBox="0 0 16 16">
+          <path d="m4 6 4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-alert" viewBox="0 0 16 16">
+          <g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 2.5 14 13H2z" />
+            <path d="M8 6.5v3" />
+            <path d="M8 11.2v.1" />
+          </g>
+        </symbol>
+        <symbol id="i-skip" viewBox="0 0 16 16">
+          <g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3.5 3.5 8 8l-4.5 4.5z" />
+            <path d="M11.5 3.5v9" />
+          </g>
+        </symbol>
+        <symbol id="i-x" viewBox="0 0 16 16">
+          <path d="m4 4 8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+        </symbol>
+      </defs>
+    </svg>
+
+    <div class="mockbar">
+      <div class="brandmark">Triage <span>hero directions</span></div>
+      <nav class="mocknav">
+        <a href="#v00">00 today</a>
+        <a href="#v01">01 drop</a>
+        <a href="#v02">02 as row</a>
+        <a href="#v03">03 chrome</a>
+        <a href="#v04">04 bucket</a>
+      </nav>
+      <span class="hint">same PR, same data, 376px list column</span>
+    </div>
+
+    <main class="page">
+      <header class="lede">
+        <h1>The hero doesn’t use the list’s grammar.</h1>
+        <p class="thesis">
+          It is the only block with a <b>16px title</b> (rows are 13), five
+          stacked bands (label, title, why, facts, buttons), roughly
+          <b>three rows of height</b>, and it floats <b>above the bucket
+          headers</b> so it belongs to no group. It also owns the only two
+          labelled buttons in the list. The options below change one thing at a
+          time; everything else is held constant.
+        </p>
+        <div class="facts">
+          <div>
+            <b>Invariant</b>
+            Election is unchanged: the first eligible row for the tab, minus
+            skipped rows.
+          </div>
+          <div>
+            <b>Invariant</b>
+            <span class="mono">↵</span> opens, <span class="mono">d</span> lands
+            on the diff, <span class="mono">s</span> skips. The footer never
+            changes.
+          </div>
+          <div>
+            <b>Invariant</b>
+            One PR appears once. No option duplicates it as both a highlight
+            and a row.
+          </div>
+          <div>
+            <b>Watch the count</b>
+            A hero shown outside its bucket is excluded from that bucket’s
+            count (00, 03); a hero inside it is counted (01, 02, 04).
+          </div>
+        </div>
+      </header>
+
+      <div class="verdict">
+        <b>Reading the options:</b> 01 is the cleanest answer if the hero’s
+        prompt is not worth ~150px of a 376px column — the list needs no new
+        component and urgency survives in ordering, the severity rail and the
+        selected state. 02 is the cheapest way to keep the prompt: same row
+        geometry, placed inside the bucket it belongs to. 03 trades list space
+        for chrome space and reads like a status line. 04 is included to show
+        what merging the hero with grouping looks like; it has a click-semantics
+        problem (collapse vs. open the PR), so it is the least likely to ship.
+      </div>
+
+      <div class="grid">
+        <!-- 00 ----------------------------------------------------------------->
+        <article class="card" id="v00">
+          <header class="card-head">
+            <div class="kicker"><span class="num">00</span><span class="dot"></span>today</div>
+            <h2>Card above the buckets</h2>
+            <p>
+              The current mock. Loud on purpose: larger type, boxed facts, two
+              CTAs, selected gradient and rail. Nothing else in the list looks
+              or behaves like it.
+            </p>
+          </header>
+
+          <div class="pane">
+            <div class="band seam">
+              <div class="toolbar-meta">
+                <span class="name">Review requested</span>
+                <span class="count">12 open</span>
+                <span class="div"></span>
+                <button class="search">
+                  <svg class="i-sm"><use href="#i-search" /></svg>Search
+                </button>
+              </div>
+              <button class="icon-btn is-on" title="Filter">
+                <svg class="i"><use href="#i-filter" /></svg>
+              </button>
+              <button class="icon-btn" title="Refresh">
+                <svg class="i"><use href="#i-refresh" /></svg>
+              </button>
+            </div>
+
+            <div class="chips">
+              <button class="chip">author: maya <svg class="i-xs"><use href="#i-x" /></svg></button>
+              <button class="chip">blocked <svg class="i-xs"><use href="#i-x" /></svg></button>
+              <button class="clear">Clear</button>
+            </div>
+
+            <div class="pane-body">
+              <article class="hero is-selected">
+                <div class="hero-top">
+                  <span class="micro danger">Needs you</span>
+                  <span class="mono faint when">updated 2h ago</span>
+                </div>
+                <button class="hero-title">
+                  Handshake: tolerate a bound port and print the real one
+                </button>
+                <div class="hero-why">
+                  <span class="who">maya chen</span>
+                  <span>requested changes</span>
+                  <span class="faint">·</span>
+                  <span class="mono faint">forge/triage#412</span>
+                </div>
+                <div class="hero-facts">
+                  <span class="tag is-danger"><svg class="i-xs"><use href="#i-alert" /></svg>2 blocking</span>
+                  <span class="tag">6 files</span>
+                  <span class="tag plain mono"><span class="accent">+128</span>&nbsp;<span class="danger">−41</span></span>
+                </div>
+                <div class="hero-actions">
+                  <button class="btn btn-primary">Open PR</button>
+                  <button class="btn btn-ghost"><svg class="i-sm"><use href="#i-skip" /></svg>Skip</button>
+                </div>
+              </article>
+
+              <section class="bucket">
+                <button class="bucket-head">
+                  <span class="micro">Needs your review</span>
+                  <span class="count">7</span>
+                  <svg class="i-sm chev"><use href="#i-chevron-down" /></svg>
+                </button>
+                <button class="deck-row sev-blocked">
+                  <span class="title trunc">fix: sidecar handshake fails when port is taken</span>
+                  <span class="right"><span class="age">1d</span></span>
+                  <span class="sub"><span class="repo">forge/triage</span><span class="num">#398</span><span class="why trunc">changes requested · 1 blocking</span></span>
+                </button>
+                <button class="deck-row sev-warn">
+                  <span class="title trunc">feat: cache PR diffs by head SHA</span>
+                  <span class="right"><span class="age">5h</span></span>
+                  <span class="sub"><span class="repo">forge/triage</span><span class="num">#401</span><span class="why trunc">checks pending</span></span>
+                </button>
+                <button class="deck-row sev-wait">
+                  <span class="title trunc">chore: bump chroma to 2.9.1</span>
+                  <span class="right"><span class="age">3h</span></span>
+                  <span class="sub"><span class="repo">forge/sem</span><span class="num">#88</span><span class="why trunc">2 files · +12 −4</span></span>
+                </button>
+                <button class="deck-row sev-wait">
+                  <span class="title trunc">feat: inline review comments</span>
+                  <span class="right"><span class="age">6h</span></span>
+                  <span class="sub"><span class="repo">forge/triage</span><span class="num">#405</span><span class="why trunc">review requested · 9 files</span></span>
+                </button>
+                <button class="deck-row sev-blocked">
+                  <span class="title trunc">fix: stale worktree lock after crash</span>
+                  <span class="right"><span class="age">9h</span></span>
+                  <span class="sub"><span class="repo">acme/api</span><span class="num">#1204</span><span class="why trunc">checks failing</span></span>
+                </button>
+              </section>
+              <section class="bucket">
+                <button class="bucket-head">
+                  <span class="micro">Drafts</span>
+                  <span class="count">2</span>
+                  <svg class="i-sm chev"><use href="#i-chevron-down" /></svg>
+                </button>
+              </section>
+            </div>
+
+            <div class="foot">
+              <span class="keys"><kbd class="kbd">j</kbd><kbd class="kbd">k</kbd> move <span class="faint">·</span> <kbd class="kbd">↵</kbd> open <span class="faint">·</span> <kbd class="kbd">d</kbd> diff</span>
+              <span class="fresh"><i class="live-dot"></i>2m</span>
+            </div>
+          </div>
+
+          <div class="notes">
+            <div><b>Keep</b><span>Unmissable prompt; the CTA is in the reading path.</span></div>
+            <div><b>Cost</b><span>Three type scales and a card frame; orphaned from grouping; ~150px of list.</span></div>
+          </div>
+        </article>
+
+        <!-- 01 ----------------------------------------------------------------->
+        <article class="card" id="v01">
+          <header class="card-head">
+            <div class="kicker"><span class="num">01</span><span class="dot"></span>drop it</div>
+            <h2>No hero: the list is the list</h2>
+            <p>
+              Remove the component. The elected PR is simply the first row of
+              its bucket, with the treatment every row already has: severity
+              rail, 13px title, sub line, selected gradient.
+            </p>
+          </header>
+
+          <div class="pane">
+            <div class="band seam">
+              <div class="toolbar-meta">
+                <span class="name">Review requested</span>
+                <span class="count">12 open</span>
+                <span class="div"></span>
+                <button class="search">
+                  <svg class="i-sm"><use href="#i-search" /></svg>Search
+                </button>
+              </div>
+              <button class="icon-btn is-on" title="Filter">
+                <svg class="i"><use href="#i-filter" /></svg>
+              </button>
+              <button class="icon-btn" title="Refresh">
+                <svg class="i"><use href="#i-refresh" /></svg>
+              </button>
+            </div>
+
+            <div class="chips">
+              <button class="chip">author: maya <svg class="i-xs"><use href="#i-x" /></svg></button>
+              <button class="chip">blocked <svg class="i-xs"><use href="#i-x" /></svg></button>
+              <button class="clear">Clear</button>
+            </div>
+
+            <div class="pane-body">
+              <section class="bucket">
+                <button class="bucket-head">
+                  <span class="micro">Needs your review</span>
+                  <span class="count">8</span>
+                  <svg class="i-sm chev"><use href="#i-chevron-down" /></svg>
+                </button>
+
+                <button class="deck-row sev-blocked is-selected">
+                  <span class="title trunc">Handshake: tolerate a bound port and print the real one</span>
+                  <span class="right"><span class="age">2h</span></span>
+                  <span class="sub">
+                    <span class="repo">forge/triage</span><span class="num">#412</span>
+                    <span class="why trunc">changes requested · <span class="danger">2 blocking</span></span>
+                  </span>
+                </button>
+
+                <button class="deck-row sev-blocked">
+                  <span class="title trunc">fix: sidecar handshake fails when port is taken</span>
+                  <span class="right"><span class="age">1d</span></span>
+                  <span class="sub"><span class="repo">forge/triage</span><span class="num">#398</span><span class="why trunc">changes requested · 1 blocking</span></span>
+                </button>
+                <button class="deck-row sev-warn">
+                  <span class="title trunc">feat: cache PR diffs by head SHA</span>
+                  <span class="right"><span class="age">5h</span></span>
+                  <span class="sub"><span class="repo">forge/triage</span><span class="num">#401</span><span class="why trunc">checks pending</span></span>
+                </button>
+                <button class="deck-row sev-wait">
+                  <span class="title trunc">chore: bump chroma to 2.9.1</span>
+                  <span class="right"><span class="age">3h</span></span>
+                  <span class="sub"><span class="repo">forge/sem</span><span class="num">#88</span><span class="why trunc">2 files · +12 −4</span></span>
+                </button>
+                <button class="deck-row sev-wait">
+                  <span class="title trunc">feat: inline review comments</span>
+                  <span class="right"><span class="age">6h</span></span>
+                  <span class="sub"><span class="repo">forge/triage</span><span class="num">#405</span><span class="why trunc">review requested · 9 files</span></span>
+                </button>
+                <button class="deck-row sev-blocked">
+                  <span class="title trunc">fix: stale worktree lock after crash</span>
+                  <span class="right"><span class="age">9h</span></span>
+                  <span class="sub"><span class="repo">acme/api</span><span class="num">#1204</span><span class="why trunc">checks failing</span></span>
+                </button>
+                <button class="deck-row sev-wait">
+                  <span class="title trunc">docs: clarify repoPaths setup</span>
+                  <span class="right"><span class="age">1d</span></span>
+                  <span class="sub"><span class="repo">forge/triage</span><span class="num">#409</span><span class="why trunc">1 file · +18 −2</span></span>
+                </button>
+              </section>
+
+              <section class="bucket">
+                <button class="bucket-head">
+                  <span class="micro">Drafts</span>
+                  <span class="count">2</span>
+                  <svg class="i-sm chev"><use href="#i-chevron-down" /></svg>
+                </button>
+              </section>
+            </div>
+
+            <div class="foot">
+              <span class="keys"><kbd class="kbd">j</kbd><kbd class="kbd">k</kbd> move <span class="faint">·</span> <kbd class="kbd">↵</kbd> open <span class="faint">·</span> <kbd class="kbd">d</kbd> diff</span>
+              <span class="fresh"><i class="live-dot"></i>2m</span>
+            </div>
+          </div>
+
+          <div class="notes">
+            <div><b>Gain</b><span>One grammar, no new component, ~2 extra rows visible, grouping is honest.</span></div>
+            <div><b>Cost</b><span>No explicit prompt or skip affordance; election becomes ordering + rail + selection only.</span></div>
+            <div><b>Try</b><span>If urgency still reads, this is the answer. Compare #412 here with 00 at arm’s length.</span></div>
+          </div>
+        </article>
+
+        <!-- 02 ----------------------------------------------------------------->
+        <article class="card" id="v02">
+          <header class="card-head">
+            <div class="kicker"><span class="num">02</span><span class="dot"></span>as a row</div>
+            <h2>Keep the hero, borrow the row</h2>
+            <p>
+              One row, 52px, inside the bucket it belongs to. The prompt
+              survives as a 14px <span class="mono">Next</span> tag and a
+              stronger rail; actions return to the keyboard map
+              (<span class="mono">↵</span>, <span class="mono">d</span>,
+              <span class="mono">s</span>).
+            </p>
+          </header>
+
+          <div class="pane">
+            <div class="band seam">
+              <div class="toolbar-meta">
+                <span class="name">Review requested</span>
+                <span class="count">12 open</span>
+                <span class="div"></span>
+                <button class="search">
+                  <svg class="i-sm"><use href="#i-search" /></svg>Search
+                </button>
+              </div>
+              <button class="icon-btn is-on" title="Filter">
+                <svg class="i"><use href="#i-filter" /></svg>
+              </button>
+              <button class="icon-btn" title="Refresh">
+                <svg class="i"><use href="#i-refresh" /></svg>
+              </button>
+            </div>
+
+            <div class="chips">
+              <button class="chip">author: maya <svg class="i-xs"><use href="#i-x" /></svg></button>
+              <button class="chip">blocked <svg class="i-xs"><use href="#i-x" /></svg></button>
+              <button class="clear">Clear</button>
+            </div>
+
+            <div class="pane-body">
+              <section class="bucket">
+                <button class="bucket-head">
+                  <span class="micro">Needs your review</span>
+                  <span class="count">8</span>
+                  <svg class="i-sm chev"><use href="#i-chevron-down" /></svg>
+                </button>
+
+                <button class="deck-row hero-row sev-blocked is-selected">
+                  <span class="title">
+                    <span class="next-tag">Next</span>
+                    <span class="trunc">Handshake: tolerate a bound port and print the real one</span>
+                  </span>
+                  <span class="right"><span class="age">2h</span><kbd class="kbd">↵</kbd></span>
+                  <span class="sub">
+                    <span class="repo">forge/triage</span><span class="num">#412</span>
+                    <span class="why trunc"><span class="danger">2 blocking</span> · 6 files</span>
+                  </span>
+                </button>
+
+                <button class="deck-row sev-blocked">
+                  <span class="title trunc">fix: sidecar handshake fails when port is taken</span>
+                  <span class="right"><span class="age">1d</span></span>
+                  <span class="sub"><span class="repo">forge/triage</span><span class="num">#398</span><span class="why trunc">changes requested · 1 blocking</span></span>
+                </button>
+                <button class="deck-row sev-warn">
+                  <span class="title trunc">feat: cache PR diffs by head SHA</span>
+                  <span class="right"><span class="age">5h</span></span>
+                  <span class="sub"><span class="repo">forge/triage</span><span class="num">#401</span><span class="why trunc">checks pending</span></span>
+                </button>
+                <button class="deck-row sev-wait">
+                  <span class="title trunc">chore: bump chroma to 2.9.1</span>
+                  <span class="right"><span class="age">3h</span></span>
+                  <span class="sub"><span class="repo">forge/sem</span><span class="num">#88</span><span class="why trunc">2 files · +12 −4</span></span>
+                </button>
+                <button class="deck-row sev-wait">
+                  <span class="title trunc">feat: inline review comments</span>
+                  <span class="right"><span class="age">6h</span></span>
+                  <span class="sub"><span class="repo">forge/triage</span><span class="num">#405</span><span class="why trunc">review requested · 9 files</span></span>
+                </button>
+                <button class="deck-row sev-blocked">
+                  <span class="title trunc">fix: stale worktree lock after crash</span>
+                  <span class="right"><span class="age">9h</span></span>
+                  <span class="sub"><span class="repo">acme/api</span><span class="num">#1204</span><span class="why trunc">checks failing</span></span>
+                </button>
+                <button class="deck-row sev-wait">
+                  <span class="title trunc">docs: clarify repoPaths setup</span>
+                  <span class="right"><span class="age">1d</span></span>
+                  <span class="sub"><span class="repo">forge/triage</span><span class="num">#409</span><span class="why trunc">1 file · +18 −2</span></span>
+                </button>
+              </section>
+
+              <section class="bucket">
+                <button class="bucket-head">
+                  <span class="micro">Drafts</span>
+                  <span class="count">2</span>
+                  <svg class="i-sm chev"><use href="#i-chevron-down" /></svg>
+                </button>
+              </section>
+            </div>
+
+            <div class="foot">
+              <span class="keys"><kbd class="kbd">j</kbd><kbd class="kbd">k</kbd> move <span class="faint">·</span> <kbd class="kbd">↵</kbd> open <span class="faint">·</span> <kbd class="kbd">d</kbd> diff <span class="faint">·</span> <kbd class="kbd">s</kbd> skip</span>
+              <span class="fresh"><i class="live-dot"></i>2m</span>
+            </div>
+          </div>
+
+          <div class="notes">
+            <div><b>Gain</b><span>Keeps the prompt, one grid, one type scale, no orphan row; the hero now belongs to “Needs your review”.</span></div>
+            <div><b>Cost</b><span>The label is subtle; a user who never reads the tag sees the selected row and nothing more.</span></div>
+            <div><b>Open</b><span>Does the tag need to be “Up next” instead of “Next”, or is the danger rail enough?</span></div>
+          </div>
+        </article>
+
+        <!-- 03 ----------------------------------------------------------------->
+        <article class="card" id="v03">
+          <header class="card-head">
+            <div class="kicker"><span class="num">03</span><span class="dot"></span>chrome layer</div>
+            <h2>Focus becomes a status line</h2>
+            <p>
+              Move the election out of the list: one 44px band under the chips,
+              same height and gutters as every other band. The scroll area is a
+              pure grouped list.
+            </p>
+          </header>
+
+          <div class="pane">
+            <div class="band seam">
+              <div class="toolbar-meta">
+                <span class="name">Review requested</span>
+                <span class="count">12 open</span>
+                <span class="div"></span>
+                <button class="search">
+                  <svg class="i-sm"><use href="#i-search" /></svg>Search
+                </button>
+              </div>
+              <button class="icon-btn is-on" title="Filter">
+                <svg class="i"><use href="#i-filter" /></svg>
+              </button>
+              <button class="icon-btn" title="Refresh">
+                <svg class="i"><use href="#i-refresh" /></svg>
+              </button>
+            </div>
+
+            <div class="chips">
+              <button class="chip">author: maya <svg class="i-xs"><use href="#i-x" /></svg></button>
+              <button class="chip">blocked <svg class="i-xs"><use href="#i-x" /></svg></button>
+              <button class="clear">Clear</button>
+            </div>
+
+            <div class="focus-band seam">
+              <div class="fb-line">
+                <span class="micro danger">Needs you</span>
+                <span class="mono faint">·</span>
+                <span class="why trunc">maya chen requested changes</span>
+                <span class="mono faint when">2h</span>
+              </div>
+              <div class="fb-line">
+                <span class="title trunc">Handshake: tolerate a bound port and print the real one</span>
+                <span class="ref mono faint">#412</span>
+                <kbd class="kbd">↵</kbd>
+              </div>
+            </div>
+
+            <div class="pane-body">
+              <section class="bucket">
+                <button class="bucket-head">
+                  <span class="micro">Needs your review</span>
+                  <span class="count">7</span>
+                  <svg class="i-sm chev"><use href="#i-chevron-down" /></svg>
+                </button>
+                <button class="deck-row sev-blocked">
+                  <span class="title trunc">fix: sidecar handshake fails when port is taken</span>
+                  <span class="right"><span class="age">1d</span></span>
+                  <span class="sub"><span class="repo">forge/triage</span><span class="num">#398</span><span class="why trunc">changes requested · 1 blocking</span></span>
+                </button>
+                <button class="deck-row sev-warn">
+                  <span class="title trunc">feat: cache PR diffs by head SHA</span>
+                  <span class="right"><span class="age">5h</span></span>
+                  <span class="sub"><span class="repo">forge/triage</span><span class="num">#401</span><span class="why trunc">checks pending</span></span>
+                </button>
+                <button class="deck-row sev-wait">
+                  <span class="title trunc">chore: bump chroma to 2.9.1</span>
+                  <span class="right"><span class="age">3h</span></span>
+                  <span class="sub"><span class="repo">forge/sem</span><span class="num">#88</span><span class="why trunc">2 files · +12 −4</span></span>
+                </button>
+                <button class="deck-row sev-wait">
+                  <span class="title trunc">feat: inline review comments</span>
+                  <span class="right"><span class="age">6h</span></span>
+                  <span class="sub"><span class="repo">forge/triage</span><span class="num">#405</span><span class="why trunc">review requested · 9 files</span></span>
+                </button>
+                <button class="deck-row sev-blocked">
+                  <span class="title trunc">fix: stale worktree lock after crash</span>
+                  <span class="right"><span class="age">9h</span></span>
+                  <span class="sub"><span class="repo">acme/api</span><span class="num">#1204</span><span class="why trunc">checks failing</span></span>
+                </button>
+                <button class="deck-row sev-wait">
+                  <span class="title trunc">docs: clarify repoPaths setup</span>
+                  <span class="right"><span class="age">1d</span></span>
+                  <span class="sub"><span class="repo">forge/triage</span><span class="num">#409</span><span class="why trunc">1 file · +18 −2</span></span>
+                </button>
+                <button class="deck-row sev-wait">
+                  <span class="title trunc">refactor: split diff fixture loader</span>
+                  <span class="right"><span class="age">2d</span></span>
+                  <span class="sub"><span class="repo">forge/triage</span><span class="num">#410</span><span class="why trunc">3 files · +64 −28</span></span>
+                </button>
+              </section>
+
+              <section class="bucket">
+                <button class="bucket-head">
+                  <span class="micro">Drafts</span>
+                  <span class="count">2</span>
+                  <svg class="i-sm chev"><use href="#i-chevron-down" /></svg>
+                </button>
+              </section>
+            </div>
+
+            <div class="foot">
+              <span class="keys"><kbd class="kbd">j</kbd><kbd class="kbd">k</kbd> move <span class="faint">·</span> <kbd class="kbd">↵</kbd> open <span class="faint">·</span> <kbd class="kbd">d</kbd> diff</span>
+              <span class="fresh"><i class="live-dot"></i>2m</span>
+            </div>
+          </div>
+
+          <div class="notes">
+            <div><b>Gain</b><span>List and chrome stop competing; focus is constant while scrolling; one extra row visible vs 00.</span></div>
+            <div><b>Cost</b><span>Permanent 44px even when the list is empty or filtered; truncation starts earlier: no facts beyond “2 blocking” fit.</span></div>
+            <div><b>Open</b><span>Does a persistent focus line feel like a mode? If yes, it should be dismissible or only appear off-list.</span></div>
+          </div>
+        </article>
+
+        <!-- 04 ----------------------------------------------------------------->
+        <article class="card" id="v04">
+          <header class="card-head">
+            <div class="kicker"><span class="num">04</span><span class="dot"></span>bucket head</div>
+            <h2>Fold the hero into grouping</h2>
+            <p>
+              The first group header becomes the hero: label, count, age on
+              line one; title, why and facts on the next two. There is no third
+              object in the list.
+            </p>
+          </header>
+
+          <div class="pane">
+            <div class="band seam">
+              <div class="toolbar-meta">
+                <span class="name">Review requested</span>
+                <span class="count">12 open</span>
+                <span class="div"></span>
+                <button class="search">
+                  <svg class="i-sm"><use href="#i-search" /></svg>Search
+                </button>
+              </div>
+              <button class="icon-btn is-on" title="Filter">
+                <svg class="i"><use href="#i-filter" /></svg>
+              </button>
+              <button class="icon-btn" title="Refresh">
+                <svg class="i"><use href="#i-refresh" /></svg>
+              </button>
+            </div>
+
+            <div class="chips">
+              <button class="chip">author: maya <svg class="i-xs"><use href="#i-x" /></svg></button>
+              <button class="chip">blocked <svg class="i-xs"><use href="#i-x" /></svg></button>
+              <button class="clear">Clear</button>
+            </div>
+
+            <div class="pane-body">
+              <section class="bucket">
+                <button class="bucket-head bucket-hero is-selected">
+                  <div class="bh-top">
+                    <span class="micro danger">Needs you</span>
+                    <span class="count">8</span>
+                    <span class="mono faint when">updated 2h</span>
+                    <svg class="i-sm chev"><use href="#i-chevron-down" /></svg>
+                  </div>
+                  <div class="bh-title">
+                    <span class="trunc">Handshake: tolerate a bound port and print the real one</span>
+                  </div>
+                  <div class="bh-sub">
+                    <span class="why trunc">maya chen requested changes · <span class="danger">2 blocking</span> · 6 files</span>
+                  </div>
+                </button>
+
+                <button class="deck-row sev-blocked">
+                  <span class="title trunc">fix: sidecar handshake fails when port is taken</span>
+                  <span class="right"><span class="age">1d</span></span>
+                  <span class="sub"><span class="repo">forge/triage</span><span class="num">#398</span><span class="why trunc">changes requested · 1 blocking</span></span>
+                </button>
+                <button class="deck-row sev-warn">
+                  <span class="title trunc">feat: cache PR diffs by head SHA</span>
+                  <span class="right"><span class="age">5h</span></span>
+                  <span class="sub"><span class="repo">forge/triage</span><span class="num">#401</span><span class="why trunc">checks pending</span></span>
+                </button>
+                <button class="deck-row sev-wait">
+                  <span class="title trunc">chore: bump chroma to 2.9.1</span>
+                  <span class="right"><span class="age">3h</span></span>
+                  <span class="sub"><span class="repo">forge/sem</span><span class="num">#88</span><span class="why trunc">2 files · +12 −4</span></span>
+                </button>
+                <button class="deck-row sev-wait">
+                  <span class="title trunc">feat: inline review comments</span>
+                  <span class="right"><span class="age">6h</span></span>
+                  <span class="sub"><span class="repo">forge/triage</span><span class="num">#405</span><span class="why trunc">review requested · 9 files</span></span>
+                </button>
+                <button class="deck-row sev-blocked">
+                  <span class="title trunc">fix: stale worktree lock after crash</span>
+                  <span class="right"><span class="age">9h</span></span>
+                  <span class="sub"><span class="repo">acme/api</span><span class="num">#1204</span><span class="why trunc">checks failing</span></span>
+                </button>
+                <button class="deck-row sev-wait">
+                  <span class="title trunc">docs: clarify repoPaths setup</span>
+                  <span class="right"><span class="age">1d</span></span>
+                  <span class="sub"><span class="repo">forge/triage</span><span class="num">#409</span><span class="why trunc">1 file · +18 −2</span></span>
+                </button>
+              </section>
+
+              <section class="bucket">
+                <button class="bucket-head">
+                  <span class="micro">Drafts</span>
+                  <span class="count">2</span>
+                  <svg class="i-sm chev"><use href="#i-chevron-down" /></svg>
+                </button>
+              </section>
+            </div>
+
+            <div class="foot">
+              <span class="keys"><kbd class="kbd">j</kbd><kbd class="kbd">k</kbd> move <span class="faint">·</span> <kbd class="kbd">↵</kbd> open <span class="faint">·</span> <kbd class="kbd">d</kbd> diff</span>
+              <span class="fresh"><i class="live-dot"></i>2m</span>
+            </div>
+          </div>
+
+          <div class="notes">
+            <div><b>Gain</b><span>Fewest objects; strongest grouping; the prompt reads as a section title, not a card.</span></div>
+            <div><b>Cost</b><span>Ambiguous click: the same target would collapse the group and open the PR. Chevron-only collapse is possible but weaker.</span></div>
+            <div><b>Open</b><span>Only worth it if header click means “open the top PR” and collapse moves to the chevron.</span></div>
+          </div>
+        </article>
+      </div>
+    </main>
+  </body>
+</html>
