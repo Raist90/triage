@@ -3,6 +3,7 @@ import { Markdown } from "../../../components/Markdown";
 import { Button } from "../../../components/ui";
 import type { InlineComment } from "../../../lib/types";
 import { formatRelative } from "../../../lib/time";
+import { Avatar } from "../detail/Avatar";
 import { useDiffCommentsContext } from "./DiffCommentsContext";
 
 type InlineCommentRowProps = {
@@ -31,12 +32,19 @@ export function InlineCommentRow({
 
   return (
     <article
-      className={`group border-line py-2 first:pt-0 last:pb-0 ${
+      data-comment-id={comment.id}
+      className={`group scroll-mt-11 border-line py-2 first:pt-0 last:pb-0 ${
         reply ? "mt-2 border-l-2 pl-3" : "border-b last:border-b-0"
       }`}
     >
       <div className="flex items-center gap-2 text-meta">
+        <Avatar name={comment.author} src={comment.avatarURL} />
         <span className="font-medium text-fg">{comment.author}</span>
+        {comment.pending ? (
+          <span className="inline-flex h-4.5 shrink-0 items-center rounded-sm border border-accent/28 px-1 font-mono text-micro text-accent">
+            Pending
+          </span>
+        ) : null}
         {reply ? <span className="text-micro text-fg-faint">reply</span> : null}
         <span className="text-fg-faint tabular-nums">
           {formatRelative(comment.createdAt)}

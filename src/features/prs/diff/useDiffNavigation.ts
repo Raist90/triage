@@ -12,6 +12,8 @@ type Jump = {
   hunkIndex?: number;
   /** Land on this finding's thread instead of the hunk header. */
   findingID?: string;
+  /** Land on this published comment's thread instead. */
+  commentID?: number;
   token: number;
 };
 
@@ -138,6 +140,7 @@ export function useDiffNavigation({
   const focusPath = focusTarget?.path;
   const focusLine = focusTarget?.line;
   const focusFindingID = focusTarget?.findingID;
+  const focusCommentID = focusTarget?.commentID;
   const focusToken = focusTarget?.token;
   useEffect(() => {
     if (focusToken === undefined || focusPath === undefined) return;
@@ -166,9 +169,17 @@ export function useDiffNavigation({
       key,
       hunkIndex,
       findingID: focusFindingID,
+      commentID: focusCommentID,
       token: (current?.token ?? 0) + 1,
     }));
-  }, [focusToken, focusPath, focusLine, focusFindingID, visibleSignature]);
+  }, [
+    focusToken,
+    focusPath,
+    focusLine,
+    focusFindingID,
+    focusCommentID,
+    visibleSignature,
+  ]);
 
   // Run the jump after the expanded-state commit, never before it: collapsing
   // the previously open file changes the height of every section above, so a
@@ -176,6 +187,19 @@ export function useDiffNavigation({
   useEffect(() => {
     if (!jump) return;
     const pane = paneRef.current;
+    // A comment clicked in the conversation targets the rendered thread
+    // itself, so the row the user clicked is centred.
+    if (pane && jump.commentID !== undefined) {
+      const thread = Array.from(
+        pane.querySelectorAll<HTMLElement>("[data-comment-id]"),
+      ).find(
+        (candidate) => candidate.dataset.commentId === String(jump.commentID),
+      );
+      if (thread) {
+        thread.scrollIntoView({ block: "center" });
+        return;
+      }
+    }
     // A finding jump targets the rendered thread itself, so the comment the
     // user clicked is centred instead of the head of its hunk.
     if (jump.findingID && pane) {

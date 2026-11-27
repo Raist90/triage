@@ -175,14 +175,8 @@ func (n prNode) toPR() PR {
 			State:     state,
 		})
 	}
-	for _, thread := range n.ReviewThreads.Nodes {
-		for _, comment := range thread.Comments.Nodes {
-			item := comment.toComment("review")
-			item.Path = thread.Path
-			item.Line = thread.Line
-			comments = append(comments, item)
-		}
-	}
+	// Inline review comments (including a pending draft's) come from the REST
+	// comment list, which carries their ids. They are not duplicated here.
 
 	return PR{
 		Number:             n.Number,

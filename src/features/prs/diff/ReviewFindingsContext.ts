@@ -1,10 +1,5 @@
 import { createContext, useContext } from "react";
-import type {
-  ActionArtifact,
-  ReviewDocument,
-  ReviewFinding,
-} from "../../../lib/types";
-import type { FindingApplyFailure } from "../review/useApplyFinding";
+import type { ActionArtifact, ReviewDocument } from "../../../lib/types";
 
 /**
  * The review artifact, provided above `DiffView` so every hunk can render the
@@ -16,16 +11,10 @@ export type ReviewFindingsValue = {
   review?: ReviewDocument;
   artifact?: ActionArtifact;
   stale: boolean;
-  applying: string | null;
-  applyFailure: FindingApplyFailure | null;
-  onApply: (finding: ReviewFinding) => void;
 };
 
 const EMPTY: ReviewFindingsValue = {
   stale: false,
-  applying: null,
-  applyFailure: null,
-  onApply: () => {},
 };
 
 /** Safe outside a review: DiffView standalone (tests) renders no threads. */

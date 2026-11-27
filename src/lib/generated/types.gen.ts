@@ -32,7 +32,6 @@ export type Artifact = {
   review?: Review;
   sha: string;
   usage: Usage;
-  worktree?: string;
 };
 
 export type ChangeCounts = {
@@ -54,9 +53,7 @@ export type Comment = {
   /**
    * What the timeline entry is
    */
-  kind: "comment" | "review" | "verdict";
-  line?: number;
-  path?: string;
+  kind: "comment" | "verdict";
   /**
    * Verdict state, e.g. approved or changes_requested
    */
@@ -178,7 +175,6 @@ export type FileReview = {
 
 export type Finding = {
   anchored: boolean;
-  appliedAt?: string;
   /**
    * What kind of problem it is
    */
@@ -192,7 +188,6 @@ export type Finding = {
   guidelineQuote?: string;
   id: string;
   line: number;
-  patch?: string;
   /**
    * How serious the finding is
    */
@@ -213,15 +208,24 @@ export type Hunk = {
 
 export type InlineComment = {
   author: string;
+  avatarURL?: string;
   body: string;
   commitID: string;
   createdAt: string;
+  /**
+   * Review finding this comment was published from
+   */
+  findingID?: string;
   id: number;
   inReplyToID?: number;
   line?: number;
   originalLine?: number;
   outdated?: boolean;
   path: string;
+  /**
+   * Comment belongs to an unsubmitted review
+   */
+  pending?: boolean;
   /**
    * Diff side the line belongs to
    */
@@ -370,15 +374,6 @@ export type Pr = {
    * The viewer's latest review, when they have one
    */
   viewerReview?: string;
-};
-
-export type PatchApplyResponse = {
-  appliedAt: string;
-  ok: boolean;
-  /**
-   * Worktree the patch was applied to
-   */
-  worktree: string;
 };
 
 export type PrDetailResponse = {
@@ -889,70 +884,6 @@ export type CancelActionResponses = {
 
 export type CancelActionResponse =
   CancelActionResponses[keyof CancelActionResponses];
-
-export type ApplyFindingPatchData = {
-  body?: never;
-  path: {
-    /**
-     * Repository owner
-     */
-    owner: string;
-    /**
-     * Repository name
-     */
-    repo: string;
-    /**
-     * Pull request number
-     */
-    number: number;
-    /**
-     * Action id from GET /config
-     */
-    actionID: string;
-    /**
-     * Finding id from the review artifact
-     */
-    findingID: string;
-  };
-  query?: never;
-  url: "/pr/{owner}/{repo}/{number}/actions/{actionID}/patches/{findingID}";
-};
-
-export type ApplyFindingPatchErrors = {
-  /**
-   * Bad Request
-   */
-  400: ApiError;
-  /**
-   * Not Found
-   */
-  404: ApiError;
-  /**
-   * Conflict
-   */
-  409: ApiError;
-  /**
-   * Unprocessable Entity
-   */
-  422: ApiError;
-  /**
-   * Internal Server Error
-   */
-  500: ApiError;
-};
-
-export type ApplyFindingPatchError =
-  ApplyFindingPatchErrors[keyof ApplyFindingPatchErrors];
-
-export type ApplyFindingPatchResponses = {
-  /**
-   * OK
-   */
-  200: PatchApplyResponse;
-};
-
-export type ApplyFindingPatchResponse =
-  ApplyFindingPatchResponses[keyof ApplyFindingPatchResponses];
 
 export type ClosePrData = {
   body?: never;

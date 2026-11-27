@@ -273,9 +273,6 @@ describe("DiffView", () => {
               verdict: { safeToMerge: true, summary: "Safe" },
             },
             stale: false,
-            applying: null,
-            applyFailure: null,
-            onApply: () => {},
           }}
         >
           <DiffView
@@ -299,6 +296,72 @@ describe("DiffView", () => {
       expect(
         document.querySelector("[data-finding-id='finding-1']"),
       ).not.toBeNull();
+      expect(scrollIntoView).toHaveBeenCalledWith({ block: "center" });
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
+  });
+
+  test("a published finding is replaced by its pending comment and the comment is the jump target", () => {
+    const scrollIntoView = mock(() => {});
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrollIntoView;
+    try {
+      const comments = makeCommentsController({
+        comments: [
+          makeInlineComment({
+            id: 77,
+            body: "Published body.",
+            findingID: "finding-1",
+            pending: true,
+            path: "src/b.ts",
+            line: 2,
+          }),
+        ],
+      });
+      render(
+        <ReviewFindingsContext
+          value={{
+            review: {
+              findings: [
+                {
+                  id: "finding-1",
+                  file: "src/b.ts",
+                  line: 2,
+                  severity: "warning",
+                  category: "risk",
+                  anchored: true,
+                  claim: "The claim.",
+                  title: "The finding",
+                },
+              ],
+              verdict: { safeToMerge: true, summary: "Safe" },
+            },
+            stale: false,
+          }}
+        >
+          <DiffView
+            pr={makePR({ headSHA })}
+            files={[fileB()]}
+            semanticAvailable={false}
+            comments={comments}
+            headSHA={headSHA}
+            canComment={false}
+            viewerLogin="viewer"
+            focusTarget={{
+              path: "src/b.ts",
+              line: 2,
+              commentID: 77,
+              token: 1,
+            }}
+          />
+        </ReviewFindingsContext>,
+      );
+
+      expect(screen.queryByText("The finding")).toBeNull();
+      expect(screen.getByText("Published body.")).toBeDefined();
+      expect(screen.getByText("Pending")).toBeDefined();
+      expect(document.querySelector("[data-comment-id='77']")).not.toBeNull();
       expect(scrollIntoView).toHaveBeenCalledWith({ block: "center" });
     } finally {
       Element.prototype.scrollIntoView = original;

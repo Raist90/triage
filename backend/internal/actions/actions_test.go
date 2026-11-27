@@ -355,9 +355,6 @@ EOF
 	if artifact.Review == nil || !artifact.Review.Verdict.SafeToMerge || artifact.Review.Verdict.Summary != "ok" {
 		t.Fatalf("review = %+v", artifact.Review)
 	}
-	if artifact.Worktree != prepared.WorkDir {
-		t.Fatalf("worktree = %q, want %q", artifact.Worktree, prepared.WorkDir)
-	}
 	if artifact.Markdown != "" {
 		t.Fatalf("review artifact must not carry markdown: %q", artifact.Markdown)
 	}
@@ -569,31 +566,30 @@ func TestArtifactStoreUpdate(t *testing.T) {
 		CreatedAt: when,
 		Review: &review.Review{
 			Verdict:  review.Verdict{SafeToMerge: true, Summary: "ok"},
-			Findings: []review.Finding{{ID: "F1", Severity: review.SeverityWarning, Category: review.CategoryRisk, Title: "t", File: "a.go", Line: 1, Patch: "diff"}},
+			Findings: []review.Finding{{ID: "F1", Severity: review.SeverityWarning, Category: review.CategoryRisk, Title: "t", File: "a.go", Line: 1}},
 		},
 	}
 	if err := store.Put("owner", "name", 5, artifact); err != nil {
 		t.Fatalf("Put: %v", err)
 	}
 
-	stamp := when.Add(time.Minute)
 	updated, err := store.Update("owner", "name", 5, "aaaaaaa", "review", func(candidate *Artifact) error {
-		candidate.Review.Findings[0].AppliedAt = &stamp
+		candidate.Model = "model-b"
 		return nil
 	})
 	if err != nil {
 		t.Fatalf("Update: %v", err)
 	}
-	if updated.Review.Findings[0].AppliedAt == nil {
+	if updated.Model != "model-b" {
 		t.Fatal("Update must return the mutated artifact")
 	}
 
 	stored, ok := store.Get("owner", "name", 5, "aaaaaaa", "review")
-	if !ok || stored.Review == nil || stored.Review.Findings[0].AppliedAt == nil {
+	if !ok || stored.Review == nil || stored.Model != "model-b" {
 		t.Fatalf("Get after Update = %+v, %v", stored, ok)
 	}
-	if !stored.Review.Findings[0].AppliedAt.Equal(stamp) {
-		t.Fatalf("appliedAt = %v, want %v", stored.Review.Findings[0].AppliedAt, stamp)
+	if stored.CreatedAt != when {
+		t.Fatalf("createdAt = %v, want %v", stored.CreatedAt, when)
 	}
 
 	if _, err := store.Update("owner", "name", 5, "bbbbbbb", "review", func(*Artifact) error { return nil }); !errors.Is(err, ErrNotFound) {
@@ -604,7 +600,7 @@ func TestArtifactStoreUpdate(t *testing.T) {
 	}); err == nil {
 		t.Fatal("a mutate error must abort the write")
 	}
-	if stored, _ := store.Get("owner", "name", 5, "aaaaaaa", "review"); stored == nil || stored.Review.Findings[0].AppliedAt == nil {
+	if stored, _ := store.Get("owner", "name", 5, "aaaaaaa", "review"); stored == nil || stored.Model != "model-b" {
 		t.Fatal("a failed mutate must not change the stored artifact")
 	}
 }

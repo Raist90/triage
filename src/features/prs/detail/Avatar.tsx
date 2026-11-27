@@ -7,8 +7,22 @@ function initials(name: string): string {
   return single.slice(0, 2).toUpperCase();
 }
 
-/** 22px author mark: initials in mono, lit from above like other chrome. */
-export function Avatar({ name }: { name: string }) {
+/**
+ * 22px author mark: the GitHub avatar when the payload carries one, otherwise
+ * initials in mono, lit from above like other chrome.
+ */
+export function Avatar({ name, src }: { name: string; src?: string }) {
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt=""
+        loading="lazy"
+        aria-hidden="true"
+        className="size-5.5 shrink-0 rounded-full border border-line lit object-cover"
+      />
+    );
+  }
   return (
     <span
       aria-hidden="true"

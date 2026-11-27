@@ -36,8 +36,8 @@ func TestToPRConversationEntries(t *testing.T) {
 	if pr.CreatedAt != node.CreatedAt {
 		t.Fatalf("createdAt = %q, want %q", pr.CreatedAt, node.CreatedAt)
 	}
-	if len(pr.Comments) != 4 {
-		t.Fatalf("comments = %d, want 4: %+v", len(pr.Comments), pr.Comments)
+	if len(pr.Comments) != 3 {
+		t.Fatalf("comments = %d, want 3: %+v", len(pr.Comments), pr.Comments)
 	}
 
 	verdicts := pr.Comments[1:]
@@ -50,9 +50,9 @@ func TestToPRConversationEntries(t *testing.T) {
 	if verdicts[1].Body != "" {
 		t.Errorf("verdict body = %q, want empty", verdicts[1].Body)
 	}
-
-	inline := pr.Comments[len(pr.Comments)-1]
-	if inline.Kind != "review" || inline.Path != "src/main.go" || inline.Line != 42 {
-		t.Errorf("inline comment = %+v, want review on src/main.go:42", inline)
+	for _, comment := range pr.Comments {
+		if comment.Kind == "review" {
+			t.Fatalf("inline review threads must arrive on the comment route: %+v", comment)
+		}
 	}
 }

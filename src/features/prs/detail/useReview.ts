@@ -36,6 +36,9 @@ export function useReview(repo: string, number: number): ReviewController {
       setComment("");
       setOpen(false);
       void queryClient.invalidateQueries({ queryKey: ["pr", repo, number] });
+      void queryClient.invalidateQueries({
+        queryKey: ["pr-comments", repo, number],
+      });
       void queryClient.invalidateQueries({ queryKey: ["prs"] });
     },
   });

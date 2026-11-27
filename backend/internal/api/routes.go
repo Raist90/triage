@@ -40,7 +40,6 @@ type (
 		Status int
 		Body   actionResponse
 	}
-	patchOutput struct{ Body patchApplyResponse }
 )
 
 // registerRoutes declares every operation. Inputs, query and body tags are the
@@ -218,18 +217,4 @@ func (s *Server) registerRoutes(api huma.API) {
 		Errors:      []int{http.StatusNotFound, http.StatusBadRequest, http.StatusServiceUnavailable},
 		Tags:        []string{"actions"},
 	}, s.cancelAction)
-
-	huma.Register(api, huma.Operation{
-		OperationID: "apply-finding-patch",
-		Method:      http.MethodPost,
-		Path:        "/pr/{owner}/{repo}/{number}/actions/{actionID}/patches/{findingID}",
-		Summary:     "Apply one review finding's patch to the worktree",
-		Errors: []int{
-			http.StatusNotFound,
-			http.StatusBadRequest,
-			http.StatusConflict,
-			http.StatusUnprocessableEntity,
-		},
-		Tags: []string{"actions"},
-	}, s.applyFindingPatch)
 }

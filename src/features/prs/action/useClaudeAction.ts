@@ -27,8 +27,6 @@ export type ClaudeActionController = {
   artifact: ActionArtifact | undefined;
   /** Automatic review only: the structured document from the artifact. */
   review: ReviewDocument | undefined;
-  /** Automatic review only: the worktree the run used. */
-  worktree: string | undefined;
   stale: boolean;
   running: boolean;
   liveText: string;
@@ -203,7 +201,6 @@ export function useClaudeAction(
     phase,
     artifact,
     review: artifact?.review,
-    worktree: artifact?.worktree,
     stale: finished ? false : (query.data?.stale ?? false),
     running,
     liveText,

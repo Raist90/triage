@@ -5,8 +5,6 @@
 // provider.
 package review
 
-import "time"
-
 // Severity is how much a finding should hold up the merge.
 type Severity string
 
@@ -58,26 +56,22 @@ type Verdict struct {
 
 // Finding is one review point anchored to a file and line. Evidence is the
 // exact changed line the finding is about, copied by the model; the server
-// resolves the line from it instead of trusting a model-supplied number. Patch
-// is a suggested unified diff hunk, empty when the finding has no mechanical
-// fix.
+// resolves the line from it instead of trusting a model-supplied number.
 type Finding struct {
-	ID             string     `json:"id"`
-	Severity       Severity   `json:"severity" enum:"blocking,warning,nitpick,praise" doc:"How serious the finding is"`
-	Category       Category   `json:"category" enum:"risk,design,architecture,conventions,tests" doc:"What kind of problem it is"`
-	Title          string     `json:"title"`
-	Claim          string     `json:"claim"`
-	Suggestion     string     `json:"suggestion,omitempty"`
-	File           string     `json:"file"`
-	Line           int        `json:"line"`
-	EndLine        int        `json:"endLine,omitempty"`
-	Entity         string     `json:"entity,omitempty"`
-	Evidence       string     `json:"evidence,omitempty"`
-	Guideline      string     `json:"guideline,omitempty"`
-	GuidelineQuote string     `json:"guidelineQuote,omitempty"`
-	Patch          string     `json:"patch,omitempty"`
-	Anchored       bool       `json:"anchored"`
-	AppliedAt      *time.Time `json:"appliedAt,omitempty"`
+	ID             string   `json:"id"`
+	Severity       Severity `json:"severity" enum:"blocking,warning,nitpick,praise" doc:"How serious the finding is"`
+	Category       Category `json:"category" enum:"risk,design,architecture,conventions,tests" doc:"What kind of problem it is"`
+	Title          string   `json:"title"`
+	Claim          string   `json:"claim"`
+	Suggestion     string   `json:"suggestion,omitempty"`
+	File           string   `json:"file"`
+	Line           int      `json:"line"`
+	EndLine        int      `json:"endLine,omitempty"`
+	Entity         string   `json:"entity,omitempty"`
+	Evidence       string   `json:"evidence,omitempty"`
+	Guideline      string   `json:"guideline,omitempty"`
+	GuidelineQuote string   `json:"guidelineQuote,omitempty"`
+	Anchored       bool     `json:"anchored"`
 }
 
 // DroppedFinding records one finding the server refused to show and why. The

@@ -32,12 +32,22 @@ func CommentTarget(files []diff.File, finding Finding) (string, bool) {
 	return "", false
 }
 
-// CommentBody renders one finding as a GitHub review comment. The patch goes in
-// a diff fence rather than a suggestion block: a hunk is not a one-click
-// suggestion for an exact line range, and posting a suggestion that does not
-// match would be worse than a patch the author can read.
+const findingMarkerPrefix = "<!-- triage:finding:"
+const findingMarkerSuffix = " -->"
+
+// CommentBody renders one finding as a GitHub review comment: severity and
+// title, the claim, and the suggestion. The first line is a hidden marker that
+// ties the comment back to the finding, so the diff can render the comment
+// instead of the finding once it is published. It never posts a suggestion
+// block.
 func CommentBody(finding Finding) string {
 	var body strings.Builder
+	if finding.ID != "" {
+		body.WriteString(findingMarkerPrefix)
+		body.WriteString(finding.ID)
+		body.WriteString(findingMarkerSuffix)
+		body.WriteString("\n\n")
+	}
 	title := strings.TrimSpace(finding.Title)
 	switch {
 	case title != "" && finding.Severity != "":
@@ -53,10 +63,32 @@ func CommentBody(finding Finding) string {
 		body.WriteString(suggestion)
 		body.WriteString("\n\n")
 	}
-	if patch := strings.TrimSpace(finding.Patch); patch != "" {
-		body.WriteString("```diff\n")
-		body.WriteString(patch)
-		body.WriteString("\n```\n")
-	}
 	return strings.TrimSpace(body.String())
+}
+
+// ParseFindingMarker splits the hidden finding marker off a published comment.
+// The body is returned unchanged when the comment was not written by Triage or
+// the marker was edited away.
+func ParseFindingMarker(body string) (findingID, rest string) {
+	if !strings.HasPrefix(body, findingMarkerPrefix) {
+		return "", body
+	}
+	tail := body[len(findingMarkerPrefix):]
+	end := strings.Index(tail, findingMarkerSuffix)
+	if end <= 0 {
+		return "", body
+	}
+	id := tail[:end]
+	if id[0] != 'F' {
+		return "", body
+	}
+	for _, char := range id[1:] {
+		if char < '0' || char > '9' {
+			return "", body
+		}
+	}
+	rest = tail[end+len(findingMarkerSuffix):]
+	rest = strings.TrimPrefix(rest, "\n\n")
+	rest = strings.TrimPrefix(rest, "\n")
+	return id, rest
 }

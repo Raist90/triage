@@ -5,7 +5,7 @@ import { describeError, getConfig, getPR } from "../../lib/api";
 import { cx } from "../../lib/cx";
 import { useLiveRefresh } from "../../lib/liveRefresh";
 import { loadDiffForHead } from "../../lib/prRefresh";
-import type { ReviewFinding } from "../../lib/types";
+import type { InlineComment, ReviewFinding } from "../../lib/types";
 import { useUIStore } from "../../stores/ui";
 import { useClaudeAction } from "./action/useClaudeAction";
 import { ContextRow } from "./detail/ContextRow";
@@ -22,7 +22,6 @@ import { useReview } from "./detail/useReview";
 import type { DiffTarget } from "./diff/diffSelection";
 import { ReviewFindingsContext } from "./diff/ReviewFindingsContext";
 import { useDiffComments } from "./diff/useDiffComments";
-import { useApplyFinding } from "./review/useApplyFinding";
 
 type PRDetailProps = {
   repo: string;
@@ -42,22 +41,14 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
   const toggleFullscreen = useUIStore((state) => state.toggleDetailFullscreen);
   const barOpen = useUIStore((state) => state.reviewBarOpen);
   const toggleBar = useUIStore((state) => state.toggleReviewBar);
+  const setShowDiffComments = useUIStore((state) => state.setShowDiffComments);
   const prKey = `${repo}#${number}`;
 
   // The Context row is collapsed by default and is the first thing Escape
   // closes, ahead of fullscreen.
   const [contextOpen, setContextOpen] = useState(false);
-  // A finding index jump; the token re-triggers the same target.
+  // A diff jump owned by the bar; the token re-triggers the same target.
   const [diffTarget, setDiffTarget] = useState<DiffTarget | null>(null);
-
-  function focusFinding(finding: ReviewFinding) {
-    setDiffTarget({
-      path: finding.file,
-      line: finding.line,
-      findingID: finding.id,
-      token: Date.now(),
-    });
-  }
 
   // A row click lands on the document with Context collapsed. Apply it during
   // render (the React "adjust state when props change" pattern), then clear the
@@ -140,7 +131,6 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
   );
   const review = useReview(repo, number);
   const mutations = usePRMutations(repo, number);
-  const apply = useApplyFinding(repo, number, reviewController.action);
 
   // Two different facts: the repository can host a review (local clone), and
   // an action is actually configured to run it.
@@ -152,6 +142,37 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
 
   // The diff is the document; comments only load while the PR is open.
   const diffComments = useDiffComments(repo, number, Boolean(isOpen));
+
+  // A published finding is rendered by its GitHub comment, so the index jump
+  // targets that comment instead of a finding thread that no longer exists.
+  function focusFinding(finding: ReviewFinding) {
+    const published = diffComments.comments.find(
+      (comment) =>
+        comment.findingID === finding.id &&
+        !comment.outdated &&
+        comment.commitID === headSHA,
+    );
+    setDiffTarget({
+      path: finding.file,
+      line: finding.line,
+      findingID: published ? undefined : finding.id,
+      commentID: published?.id,
+      token: Date.now(),
+    });
+  }
+
+  // Conversation jumps land on the exact thread; comments can be hidden, so
+  // the target also turns them on.
+  function focusComment(comment: InlineComment) {
+    setShowDiffComments(true);
+    setDiffTarget({
+      path: comment.path,
+      line: comment.line,
+      commentID: comment.id,
+      token: Date.now(),
+    });
+  }
+
   const reviewOpen = review.open;
   const closeReview = review.closePanel;
 
@@ -254,18 +275,8 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
       review: currentReview,
       artifact,
       stale: reviewStale,
-      applying: apply.applying,
-      applyFailure: apply.failure,
-      onApply: apply.apply,
     }),
-    [
-      currentReview,
-      artifact,
-      reviewStale,
-      apply.applying,
-      apply.failure,
-      apply.apply,
-    ],
+    [currentReview, artifact, reviewStale],
   );
 
   // Pending and error are the only states without a loaded PR, so one element
@@ -343,6 +354,8 @@ function PRDetailBody({ repo, number }: PRDetailProps) {
                   unavailableReason={configuredRepo?.review.reason}
                   configPath={configQuery.data?.configPath}
                   onFocusFinding={focusFinding}
+                  inlineComments={diffComments.comments}
+                  onFocusComment={focusComment}
                   open={barOpen}
                 />
               </div>

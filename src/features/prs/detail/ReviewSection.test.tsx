@@ -47,7 +47,6 @@ function controller(
     phase: "done",
     artifact: undefined,
     review: undefined,
-    worktree: undefined,
     stale: false,
     running: false,
     liveText: "",

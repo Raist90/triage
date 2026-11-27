@@ -106,10 +106,8 @@ type Comment struct {
 	Author    string `json:"author"`
 	Body      string `json:"body"`
 	CreatedAt string `json:"createdAt"`
-	Kind      string `json:"kind" enum:"comment,review,verdict" doc:"What the timeline entry is"`
+	Kind      string `json:"kind" enum:"comment,verdict" doc:"What the timeline entry is"`
 	State     string `json:"state,omitempty" doc:"Verdict state, e.g. approved or changes_requested"`
-	Path      string `json:"path,omitempty"`
-	Line      int    `json:"line,omitempty"`
 }
 
 // ListResult is one tab scoped to either all tracked repos or a single repo.

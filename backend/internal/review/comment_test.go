@@ -9,33 +9,58 @@ import (
 
 func TestCommentBodyRendersFinding(t *testing.T) {
 	body := CommentBody(Finding{
+		ID:         "F3",
 		Title:      "Skipped commit",
 		Severity:   SeverityBlocking,
 		Claim:      "The early return skips the commit.",
 		Suggestion: "Commit before returning.",
-		Patch:      "@@ -1 +1 @@\n-old\n+new",
 	})
 
 	for _, want := range []string{
+		"<!-- triage:finding:F3 -->",
 		"**[blocking] Skipped commit**",
 		"The early return skips the commit.",
 		"Commit before returning.",
-		"```diff\n@@ -1 +1 @@\n-old\n+new\n```",
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("body missing %q:\n%s", want, body)
 		}
 	}
+	if strings.Contains(body, "```") {
+		t.Fatalf("body must not carry a patch fence: %q", body)
+	}
 	if strings.HasSuffix(body, "\n") {
 		t.Fatalf("body must not end with a newline: %q", body)
 	}
+
+	id, rest := ParseFindingMarker(body)
+	if id != "F3" {
+		t.Fatalf("finding id = %q, want F3", id)
+	}
+	if strings.Contains(rest, "triage:finding") {
+		t.Fatalf("marker survived parsing: %q", rest)
+	}
+	if !strings.HasPrefix(rest, "**[blocking]") {
+		t.Fatalf("rest = %q", rest)
+	}
 }
 
-func TestCommentBodyOmitsEmptyPatch(t *testing.T) {
-	body := CommentBody(Finding{Title: "Nit", Severity: SeverityNitpick, Claim: "Rename it."})
-	if strings.Contains(body, "```") {
-		t.Fatalf("body has a fence without a patch: %q", body)
+func TestParseFindingMarkerIgnoresForeignBodies(t *testing.T) {
+	for _, body := range []string{
+		"**[nit] Title**\n\nNo marker.",
+		"<!-- triage:finding: -->\n\nEmpty id.",
+		"<!-- triage:finding:F1x -->\n\nBad id.",
+		"<!-- triage:finding:F1\n\nNo close.",
+	} {
+		id, rest := ParseFindingMarker(body)
+		if id != "" || rest != body {
+			t.Fatalf("body %q parsed as %q/%q", body, id, rest)
+		}
 	}
+}
+
+func TestCommentBodyWithoutSuggestion(t *testing.T) {
+	body := CommentBody(Finding{Title: "Nit", Severity: SeverityNitpick, Claim: "Rename it."})
 	if !strings.HasPrefix(body, "**[nitpick] Nit**\n\nRename it.") {
 		t.Fatalf("body = %q", body)
 	}

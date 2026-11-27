@@ -52,6 +52,21 @@ export function FilePatch({
     () => groupCommentsByAnchor(comments.comments, file.path, headSHA),
     [comments.comments, file.path, headSHA],
   );
+  // A finding whose comment Triage published is now the comment's job to
+  // render: hide the finding thread on the line instead of stacking two copies.
+  const publishedFindingIDs = useMemo(() => {
+    const ids = new Set<string>();
+    for (const comment of comments.comments) {
+      if (
+        comment.findingID &&
+        !comment.outdated &&
+        comment.commitID === headSHA
+      ) {
+        ids.add(comment.findingID);
+      }
+    }
+    return ids;
+  }, [comments.comments, headSHA]);
   const changes = file.semantic ?? EMPTY_CHANGES;
   const { byHunk, unanchored } = useMemo(
     () =>
@@ -127,6 +142,7 @@ export function FilePatch({
               flash={flash === `${fileKey}:${index}`}
               path={file.path}
               byAnchor={byAnchor}
+              publishedFindingIDs={publishedFindingIDs}
               draft={draft}
               onDraftChange={onDraftChange}
             />

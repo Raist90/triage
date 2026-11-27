@@ -1,7 +1,7 @@
 import { Play, RefreshCw, X } from "lucide-react";
 import { Button } from "../../../components/ui";
 import { cx } from "../../../lib/cx";
-import type { PR, ReviewFinding } from "../../../lib/types";
+import type { InlineComment, PR, ReviewFinding } from "../../../lib/types";
 import type { ClaudeActionController } from "../action/useClaudeAction";
 import { ConversationSection } from "./ConversationSection";
 import { ExplainSection } from "./ExplainSection";
@@ -23,6 +23,8 @@ export function ReviewBar({
   unavailableReason,
   configPath,
   onFocusFinding,
+  inlineComments,
+  onFocusComment,
   open,
 }: {
   pr: PR;
@@ -36,6 +38,9 @@ export function ReviewBar({
   unavailableReason?: string;
   configPath?: string;
   onFocusFinding: (finding: ReviewFinding) => void;
+  /** Submitted and pending review comments, newest source of truth. */
+  inlineComments: InlineComment[];
+  onFocusComment: (comment: InlineComment) => void;
   /** Below the wide breakpoint: hidden unless the detail bar toggled it. */
   open: boolean;
 }) {
@@ -114,7 +119,11 @@ export function ReviewBar({
         />
         <div className="mt-3 border-t border-line" />
         <div className="mt-3">
-          <ConversationSection comments={comments} />
+          <ConversationSection
+            comments={comments}
+            inline={inlineComments}
+            onFocusComment={onFocusComment}
+          />
         </div>
         {explain.action ? (
           <>

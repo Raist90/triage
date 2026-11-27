@@ -1,6 +1,4 @@
-import { ChevronRight, Sparkles } from "lucide-react";
-import { useState } from "react";
-import { Button } from "../../../components/ui";
+import { Sparkles } from "lucide-react";
 import { cx } from "../../../lib/cx";
 import { formatAgo } from "../../../lib/time";
 import type { ReviewFinding, ReviewSeverity } from "../../../lib/types";
@@ -22,14 +20,11 @@ const SEVERITY_RAIL: Record<ReviewSeverity, string> = {
 };
 
 /**
- * One review finding rendered under the line it cites. Text, severity, the
- * apply action and its failure; never a Reply control (nothing is published).
+ * One review finding rendered under the line it cites. Text and severity only;
+ * never a Reply control (nothing is published).
  */
 export function FindingThread({ finding }: { finding: ReviewFinding }) {
-  const { artifact, applying, applyFailure, onApply } = useReviewFindings();
-  const [preview, setPreview] = useState(false);
-  const busy = applying === finding.id;
-  const failure = applyFailure?.id === finding.id ? applyFailure.message : null;
+  const { artifact } = useReviewFindings();
   const when = artifact ? formatAgo(artifact.createdAt) : "";
 
   return (
@@ -79,87 +74,7 @@ export function FindingThread({ finding }: { finding: ReviewFinding }) {
             {finding.suggestion}
           </p>
         ) : null}
-
-        {finding.patch || finding.appliedAt ? (
-          <div className="mt-2 flex flex-wrap items-center gap-4">
-            {finding.appliedAt ? (
-              <span className="text-meta text-accent">
-                Applied {formatAgo(finding.appliedAt)} · not pushed
-              </span>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setPreview((current) => !current)}
-                  aria-expanded={preview}
-                  className="inline-flex items-center gap-1 text-meta text-fg-muted transition-colors hover:text-fg"
-                >
-                  <ChevronRight
-                    className={cx(
-                      "size-3 transition-transform",
-                      preview && "rotate-90",
-                    )}
-                    aria-hidden
-                  />
-                  {preview ? "Hide patch" : "Patch"}
-                </button>
-                <Button
-                  variant="outline"
-                  onClick={() => onApply(finding)}
-                  disabled={busy}
-                >
-                  {busy ? "Applying…" : "Apply patch"}
-                </Button>
-              </>
-            )}
-          </div>
-        ) : null}
-
-        {preview && finding.patch && !finding.appliedAt ? (
-          <PatchPreview patch={finding.patch} />
-        ) : null}
-
-        {failure ? (
-          <p role="alert" className="mt-1 text-meta text-danger">
-            {failure}
-          </p>
-        ) : null}
       </div>
-    </div>
-  );
-}
-
-const PATCH_LINE_CLASS = {
-  header: "text-fg-faint",
-  add: "text-accent",
-  del: "text-danger",
-  hunk: "text-fg-faint",
-  context: "text-fg-body",
-} as const;
-
-function patchLineKind(line: string): keyof typeof PATCH_LINE_CLASS {
-  if (line.startsWith("+++") || line.startsWith("---")) return "header";
-  if (line.startsWith("@@")) return "hunk";
-  if (line.startsWith("+")) return "add";
-  if (line.startsWith("-")) return "del";
-  return "context";
-}
-
-/** The raw patch, read-only. Colour by prefix, no syntax highlighting. */
-function PatchPreview({ patch }: { patch: string }) {
-  return (
-    <div className="mt-2 max-h-60 overflow-auto rounded-sm border border-line bg-canvas px-3 py-2">
-      {patch.split("\n").map((line, index) => (
-        <div
-          key={index}
-          className={cx(
-            "font-mono text-code whitespace-pre",
-            PATCH_LINE_CLASS[patchLineKind(line)],
-          )}
-        >
-          {line === "" ? " " : line}
-        </div>
-      ))}
     </div>
   );
 }

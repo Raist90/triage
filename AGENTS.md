@@ -134,7 +134,7 @@ In:
   scrolling diff, and a fixed 300px review bar (review state and finding index,
   conversation, explanation). No places or briefing.
 - Inline review findings: each finding renders as a thread on the diff line it
-  cites, with Apply patch; the bar keeps the index. Findings publish only as one
+  cites; the bar keeps the index. Findings publish only as one
   pending review on GitHub that the user submits.
 - Post a review: approve, request changes, comment; a pending review submitted
   from Triage keeps the comments that were published into it
@@ -144,8 +144,7 @@ In:
 - Inline diff comments on any open PR, including your own; comments anchor to
   the current head commit, and you can delete your own
 - Automatic review: a structured, on-demand review of the PR head in a
-  disposable worktree, with anchored findings, jump to the diff, and patches
-  that apply to the worktree only
+  disposable worktree, with anchored findings and jump to the diff
 - Linear link + issue metadata panel (read-only)
 - Settings: tracked repos, cache invalidation, clear artifacts, clear worktrees
 - Aggressive caching

@@ -96,7 +96,6 @@ const reviewArtifact: ActionResponse = {
           claim: "The early return skips commit.",
           file: "src/app.ts",
           line: 2,
-          patch: "@@ -1 +1 @@\n-old\n+new",
           severity: "blocking",
           suggestion: "Commit before returning.",
           title: "Skipped commit",
@@ -219,7 +218,6 @@ describe("PRDetail document", () => {
       ).toBeGreaterThanOrEqual(2),
     );
     expect(screen.getByText("The early return skips commit.")).toBeDefined();
-    expect(screen.getByRole("button", { name: "Apply patch" })).toBeDefined();
   });
 
   test("a stale artifact says so and does not anchor findings", async () => {

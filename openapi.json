@@ -80,9 +80,6 @@
           },
           "usage": {
             "$ref": "#/components/schemas/Usage"
-          },
-          "worktree": {
-            "type": "string"
           }
         },
         "required": [
@@ -151,16 +148,8 @@
             "description": "What the timeline entry is",
             "enum": [
               "comment",
-              "review",
               "verdict"
             ],
-            "type": "string"
-          },
-          "line": {
-            "format": "int64",
-            "type": "integer"
-          },
-          "path": {
             "type": "string"
           },
           "state": {
@@ -504,10 +493,6 @@
           "anchored": {
             "type": "boolean"
           },
-          "appliedAt": {
-            "format": "date-time",
-            "type": "string"
-          },
           "category": {
             "description": "What kind of problem it is",
             "enum": [
@@ -547,9 +532,6 @@
           "line": {
             "format": "int64",
             "type": "integer"
-          },
-          "patch": {
-            "type": "string"
           },
           "severity": {
             "description": "How serious the finding is",
@@ -628,6 +610,9 @@
           "author": {
             "type": "string"
           },
+          "avatarURL": {
+            "type": "string"
+          },
           "body": {
             "type": "string"
           },
@@ -635,6 +620,10 @@
             "type": "string"
           },
           "createdAt": {
+            "type": "string"
+          },
+          "findingID": {
+            "description": "Review finding this comment was published from",
             "type": "string"
           },
           "id": {
@@ -658,6 +647,10 @@
           },
           "path": {
             "type": "string"
+          },
+          "pending": {
+            "description": "Comment belongs to an unsubmitted review",
+            "type": "boolean"
           },
           "side": {
             "description": "Diff side the line belongs to",
@@ -995,28 +988,6 @@
           "updatedAt",
           "isDraft",
           "squashMergeAllowed"
-        ],
-        "type": "object"
-      },
-      "PatchApplyResponse": {
-        "additionalProperties": false,
-        "properties": {
-          "appliedAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "ok": {
-            "type": "boolean"
-          },
-          "worktree": {
-            "description": "Worktree the patch was applied to",
-            "type": "string"
-          }
-        },
-        "required": [
-          "ok",
-          "appliedAt",
-          "worktree"
         ],
         "type": "object"
       },
@@ -2136,133 +2107,6 @@
           }
         },
         "summary": "Cancel the running job",
-        "tags": [
-          "actions"
-        ]
-      }
-    },
-    "/pr/{owner}/{repo}/{number}/actions/{actionID}/patches/{findingID}": {
-      "post": {
-        "operationId": "apply-finding-patch",
-        "parameters": [
-          {
-            "description": "Repository owner",
-            "in": "path",
-            "name": "owner",
-            "required": true,
-            "schema": {
-              "description": "Repository owner",
-              "pattern": "^[A-Za-z0-9_.-]+$",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Repository name",
-            "in": "path",
-            "name": "repo",
-            "required": true,
-            "schema": {
-              "description": "Repository name",
-              "pattern": "^[A-Za-z0-9_.-]+$",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Pull request number",
-            "in": "path",
-            "name": "number",
-            "required": true,
-            "schema": {
-              "description": "Pull request number",
-              "format": "int64",
-              "minimum": 1,
-              "type": "integer"
-            }
-          },
-          {
-            "description": "Action id from GET /config",
-            "in": "path",
-            "name": "actionID",
-            "required": true,
-            "schema": {
-              "description": "Action id from GET /config",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Finding id from the review artifact",
-            "in": "path",
-            "name": "findingID",
-            "required": true,
-            "schema": {
-              "description": "Finding id from the review artifact",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PatchApplyResponse"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          }
-        },
-        "summary": "Apply one review finding's patch to the worktree",
         "tags": [
           "actions"
         ]

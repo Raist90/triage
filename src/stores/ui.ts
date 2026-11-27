@@ -91,6 +91,7 @@ type UIState = {
   toggleLowPriority: () => void;
   toggleSemanticRail: () => void;
   toggleDiffComments: () => void;
+  setShowDiffComments: (show: boolean) => void;
   setReviewBarOpen: (open: boolean) => void;
   toggleReviewBar: () => void;
   setFilterQuery: (query: string) => void;
@@ -172,6 +173,7 @@ export const useUIStore = create<UIState>((set) => ({
     set((state) => ({ showSemanticRail: !state.showSemanticRail })),
   toggleDiffComments: () =>
     set((state) => ({ showDiffComments: !state.showDiffComments })),
+  setShowDiffComments: (show) => set({ showDiffComments: show }),
   setReviewBarOpen: (open) => set({ reviewBarOpen: open }),
   toggleReviewBar: () =>
     set((state) => ({ reviewBarOpen: !state.reviewBarOpen })),

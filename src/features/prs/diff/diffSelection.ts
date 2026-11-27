@@ -15,6 +15,8 @@ export type DiffTarget = {
   line?: number;
   /** Scroll straight to this finding's thread instead of its hunk header. */
   findingID?: string;
+  /** Scroll straight to this published comment's thread instead. */
+  commentID?: number;
   token: number;
 };
 

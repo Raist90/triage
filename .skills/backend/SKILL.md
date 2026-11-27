@@ -20,7 +20,7 @@ package; `internal/api` orchestrates and never talks to HTTP providers inline.
 | `internal/diff/`     | unified-diff splitting + `sem` annotations                                                  |
 | `internal/plugin/`   | plugin interface + registry                                                                 |
 | `internal/actions/`  | Claude runner, prompt builder, stream parser, artifact store — see `skill://claude-actions` |
-| `internal/review/`   | review types, schema, sem, guidelines, prompt, parse, patch — see `skill://claude-actions`  |
+| `internal/review/`   | review types, schema, sem, guidelines, prompt, parse — see `skill://claude-actions`         |
 | `internal/worktree/` | disposable git worktrees — see `skill://claude-actions`                                     |
 | `internal/cache/`    | on-disk cache, TTL, invalidation — see `skill://config-cache`                               |
 | `internal/config/`   | the single source of truth for app settings — see `skill://config-cache`                    |

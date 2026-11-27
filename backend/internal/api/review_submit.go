@@ -34,6 +34,7 @@ func (s *Server) submitReview(ctx context.Context, in *reviewInput) (*okOutput, 
 		return nil, s.reviewError(err)
 	}
 
+	s.invalidateComments(in.Owner, in.Repo, in.Number)
 	s.invalidatePR(in.Owner, in.Repo, in.Number)
 	return &okOutput{Body: okResponse{OK: true}}, nil
 }

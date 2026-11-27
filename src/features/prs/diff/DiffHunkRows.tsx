@@ -26,6 +26,8 @@ type HunkRowsProps = {
   flash: boolean;
   path: string;
   byAnchor: Map<string, InlineComment[]>;
+  /** Findings whose published comment now owns the line. */
+  publishedFindingIDs: ReadonlySet<string>;
   draft: string | null;
   onDraftChange: (key: string | null) => void;
 };
@@ -43,15 +45,18 @@ export const HunkRows = memo(function HunkRows({
   flash,
   path,
   byAnchor,
+  publishedFindingIDs,
   draft,
   onDraftChange,
 }: HunkRowsProps) {
   const [open, setOpen] = useState(false);
   const { review } = useReviewFindings();
-  const findingsByLine = useMemo(
-    () => anchorFindings(hunk, findingsForFile(review?.findings ?? [], path)),
-    [hunk, path, review],
-  );
+  const findingsByLine = useMemo(() => {
+    const findings = findingsForFile(review?.findings ?? [], path).filter(
+      (finding) => !publishedFindingIDs.has(finding.id),
+    );
+    return anchorFindings(hunk, findings);
+  }, [hunk, path, review, publishedFindingIDs]);
   const tally = changes.length > 0 ? tallyChanges(changes) : null;
   const dominant = tally?.dominant;
 

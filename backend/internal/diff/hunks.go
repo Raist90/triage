@@ -37,6 +37,52 @@ type Hunk struct {
 
 var hunkHeader = regexp.MustCompile(`^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)$`)
 
+// HunkTailLine resolves the last content line of a GitHub diff_hunk: the line a
+// review comment points at. Pending-review comments come back with line and
+// side null, but their diff_hunk still ends on the commented line. The returned
+// kind is "context", "add" or "del"; only the side that exists is numbered.
+func HunkTailLine(diffHunk string) (kind string, oldNumber, newNumber int, ok bool) {
+	lines := strings.Split(strings.ReplaceAll(diffHunk, "\r\n", "\n"), "\n")
+	header := -1
+	oldStart, newStart := 0, 0
+	for index, raw := range lines {
+		match := hunkHeader.FindStringSubmatch(raw)
+		if match == nil {
+			continue
+		}
+		header = index
+		oldStart, newStart = atoi(match[1]), atoi(match[3])
+	}
+	if header < 0 {
+		return "", 0, 0, false
+	}
+
+	oldLine, newLine := oldStart, newStart
+	for _, raw := range lines[header+1:] {
+		if raw == "" {
+			continue
+		}
+		switch raw[0] {
+		case ' ':
+			kind, oldNumber, newNumber = "context", oldLine, newLine
+			oldLine++
+			newLine++
+		case '-':
+			kind, oldNumber, newNumber = "del", oldLine, 0
+			oldLine++
+		case '+':
+			kind, oldNumber, newNumber = "add", 0, newLine
+			newLine++
+		case '\\':
+			continue
+		default:
+			continue
+		}
+		ok = true
+	}
+	return kind, oldNumber, newNumber, ok
+}
+
 // BuildHunksFor builds hunks with an emphasis strategy suited to the file.
 // It returns nil when the patch has no parseable hunk, so callers fall back to
 // the raw text. Markup reformats one removed line into several added ones, so

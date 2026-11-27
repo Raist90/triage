@@ -71,7 +71,11 @@ stay side by side; reviewing is the only flow that matters.
   followed by a proportional severity strip. The bar lists one index row per
   finding (`path:line`, 2px severity rail, title); clicking it jumps to the
   diff. Every finding renders as a thread under its diff line with the same
-  2px rail, and offers Apply patch. One control under the index publishes the
+  2px rail. Once published, that line shows the GitHub comment instead — the
+  author's avatar, the comment body, and a `Pending` tag while the review is
+  still a draft — and the finding thread is suppressed. Conversation review
+  entries jump to their thread; issue comments have no diff anchor. One control
+  under the index publishes the
   findings as a single draft review on GitHub (praise excluded, nothing public
   until the review is submitted); an existing draft is only replaced when the
   user asks, never silently.
