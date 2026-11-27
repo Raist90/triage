@@ -148,6 +148,13 @@ export function DiffView({
         onSelect: setActiveStepID,
       }
     : undefined;
+  const stepIndex = activeStep
+    ? (walkthrough?.steps.indexOf(activeStep) ?? -1)
+    : -1;
+  const selectStepAt = (index: number) => {
+    const step = walkthrough?.steps[index];
+    if (step) setActiveStepID(step.id);
+  };
 
   const {
     activeKey,
@@ -322,6 +329,17 @@ export function DiffView({
           hideCosmetic={hideCosmetic}
           openRequest={openFilesRequest}
           onToggleHideCosmetic={() => setShowCosmetic(hideCosmetic)}
+          stepPager={
+            pathMode && activeStep && stepIndex >= 0
+              ? {
+                  index: stepIndex,
+                  count: walkthrough?.steps.length ?? 0,
+                  title: activeStep.title,
+                  onPrevious: () => selectStepAt(stepIndex - 1),
+                  onNext: () => selectStepAt(stepIndex + 1),
+                }
+              : undefined
+          }
           renderFilesPopover={(close) => (
             <DiffFilesPopover
               files={files}

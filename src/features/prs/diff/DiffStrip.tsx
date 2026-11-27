@@ -1,4 +1,4 @@
-import { EyeOff, MessageSquare } from "lucide-react";
+import { ChevronLeft, ChevronRight, EyeOff, MessageSquare } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { StatusIcon } from "../../../components/StatusBadge";
 import { Button, IconButton } from "../../../components/ui";
@@ -15,6 +15,15 @@ type DiffStripProps = {
   /** Bumped by `/`; opens the popover without owning its state here. */
   openRequest: number;
   onToggleHideCosmetic: () => void;
+  /** Present in Steps mode: the current step and its neighbours. */
+  stepPager?: {
+    /** Zero-based index of the active step. */
+    index: number;
+    count: number;
+    title: string;
+    onPrevious: () => void;
+    onNext: () => void;
+  };
   /** Rendered next to the Files trigger; receives the close callback. */
   renderFilesPopover: (close: () => void) => ReactNode;
 };
@@ -40,6 +49,7 @@ export function DiffStrip({
   hideCosmetic,
   openRequest,
   onToggleHideCosmetic,
+  stepPager,
   renderFilesPopover,
 }: DiffStripProps) {
   const [open, setOpen] = useState(false);
@@ -100,6 +110,40 @@ export function DiffStrip({
       </p>
 
       <div className="ml-auto flex shrink-0 items-center gap-1">
+        {stepPager && stepPager.count > 1 ? (
+          <div
+            role="group"
+            aria-label="Walkthrough steps"
+            className="flex items-center gap-0.5"
+          >
+            <IconButton
+              label="Previous step (k)"
+              disabled={stepPager.index === 0}
+              onClick={stepPager.onPrevious}
+            >
+              <ChevronLeft className="size-4" aria-hidden />
+            </IconButton>
+            <Button
+              variant="ghost"
+              aria-haspopup="dialog"
+              aria-expanded={open}
+              title={stepPager.title}
+              onClick={() => setOpen(true)}
+            >
+              <span className="font-mono text-micro text-fg-faint tabular-nums">
+                {stepPager.index + 1}/{stepPager.count}
+              </span>
+              <span className="max-w-56 truncate">{stepPager.title}</span>
+            </Button>
+            <IconButton
+              label="Next step (j)"
+              disabled={stepPager.index === stepPager.count - 1}
+              onClick={stepPager.onNext}
+            >
+              <ChevronRight className="size-4" aria-hidden />
+            </IconButton>
+          </div>
+        ) : null}
         {selection.cosmeticFiles > 0 ? (
           <IconButton
             label="Hide cosmetic-only files"
@@ -124,9 +168,9 @@ export function DiffStrip({
             onClick={() => setOpen((current) => !current)}
             className={cx(open && "bg-surface text-fg")}
           >
-            Files
+            {stepPager ? "Steps" : "Files"}
             <span className="font-mono text-micro text-fg-faint tabular-nums">
-              {selection.visible.length}
+              {stepPager ? stepPager.count : selection.visible.length}
             </span>
           </Button>
           {open ? renderFilesPopover(() => setOpen(false)) : null}
