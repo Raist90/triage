@@ -126,6 +126,10 @@ export function DiffView({
   );
 
   const [activeStepID, setActiveStepID] = useState<string | null>(null);
+  // Last finding click whose step switch was applied. The token re-arms it.
+  const [appliedFocusToken, setAppliedFocusToken] = useState<number | null>(
+    null,
+  );
   const activeStep =
     walkthrough?.steps.find((step) => step.id === activeStepID) ??
     walkthrough?.steps[0];
@@ -179,6 +183,29 @@ export function DiffView({
     stepNavigation,
     focusTarget,
   });
+
+  // A finding in the review bar can cite a file another step owns. The jump
+  // resolves against the active step's file list, so follow the finding's step
+  // once per click. Adjusting during render (not in an effect) commits the step
+  // switch and the jump together and is the pattern PRDetail uses for intents.
+  const focusToken = focusTarget?.token;
+  const focusPath = focusTarget?.path;
+  if (
+    focusToken !== undefined &&
+    focusPath !== undefined &&
+    focusToken !== appliedFocusToken
+  ) {
+    setAppliedFocusToken(focusToken);
+    const activeOwns =
+      activeStep?.files.some((reference) => reference.path === focusPath) ??
+      false;
+    if (pathMode && activeStep !== undefined && !activeOwns) {
+      const owner = walkthrough?.steps.find((step) =>
+        step.files.some((reference) => reference.path === focusPath),
+      );
+      if (owner) setActiveStepID(owner.id);
+    }
+  }
 
   // A step is a commit, so opening it always shows its files together. Focus
   // mode is a file-list policy and does not apply here; the user can still

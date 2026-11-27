@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import {
   fireEvent,
   render,
@@ -17,6 +17,7 @@ import {
   makePR,
 } from "../../../test/fixtures";
 import type { DiffCommentsController } from "./useDiffComments";
+import { ReviewFindingsContext } from "./ReviewFindingsContext";
 import { DiffView } from "./DiffView";
 
 const initialUIState = useUIStore.getState();
@@ -217,6 +218,91 @@ describe("DiffView", () => {
 
     expect(screen.getByText("beta added")).toBeDefined();
     expect(screen.queryByText("alpha added")).toBeNull();
+  });
+
+  test("a review finding in another step switches to that step", () => {
+    const walkthrough: Walkthrough = {
+      steps: [
+        {
+          id: "step-1",
+          title: "Change a",
+          additions: 1,
+          deletions: 0,
+          files: [{ path: "src/a.ts", hunks: [0] }],
+        },
+        {
+          id: "step-2",
+          title: "Change b",
+          additions: 1,
+          deletions: 0,
+          files: [{ path: "src/b.ts", hunks: [0] }],
+        },
+      ],
+    };
+    renderDiff({
+      walkthrough,
+      mode: "path",
+      focusTarget: { path: "src/b.ts", line: 2, token: 1 },
+    });
+
+    expect(screen.getByText("beta added")).toBeDefined();
+    expect(screen.queryByText("alpha added")).toBeNull();
+  });
+
+  test("a finding jump centres its thread in one-at-a-time mode", () => {
+    const scrollIntoView = mock(() => {});
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrollIntoView;
+    try {
+      render(
+        <ReviewFindingsContext
+          value={{
+            review: {
+              findings: [
+                {
+                  id: "finding-1",
+                  file: "src/b.ts",
+                  line: 2,
+                  severity: "warning",
+                  category: "risk",
+                  anchored: true,
+                  claim: "The claim.",
+                  title: "The finding",
+                },
+              ],
+              verdict: { safeToMerge: true, summary: "Safe" },
+            },
+            stale: false,
+            applying: null,
+            applyFailure: null,
+            onApply: () => {},
+          }}
+        >
+          <DiffView
+            pr={makePR({ headSHA })}
+            files={[fileA(), fileB()]}
+            semanticAvailable={false}
+            comments={makeCommentsController()}
+            headSHA={headSHA}
+            canComment={false}
+            viewerLogin="viewer"
+            focusTarget={{
+              path: "src/b.ts",
+              line: 2,
+              findingID: "finding-1",
+              token: 1,
+            }}
+          />
+        </ReviewFindingsContext>,
+      );
+
+      expect(
+        document.querySelector("[data-finding-id='finding-1']"),
+      ).not.toBeNull();
+      expect(scrollIntoView).toHaveBeenCalledWith({ block: "center" });
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
   });
 
   test("the comment composer anchors to the clicked line and head commit", async () => {
